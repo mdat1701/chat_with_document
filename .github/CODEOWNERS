@@ -1,0 +1,14 @@
+# Thay @tl, @be-team, ... bằng username/team thật khi PM cung cấp (T-001 §3).
+*                                   @tl
+/backend/app/core/                  @tl
+/backend/app/modules/qa/            @tl @ai
+/backend/app/modules/retrieval/     @ai @tl
+/backend/app/modules/ingestion/     @be-team @ai
+/backend/app/adapters/              @tl
+/backend/migrations/                @tl @be-team
+/frontend/                          @fe-team
+/frontend/src/shared/               @fe-lead
+/contracts/                         @tl @fe-lead
+/eval/                              @ai @qa
+/infra/                             @ops
+/.github/                           @tl

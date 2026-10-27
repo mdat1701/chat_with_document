@@ -1,0 +1,119 @@
+# T-401 — Tổng hợp câu trả lời từ nhiều tài liệu
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Sprint | 4 |
+| Story | US-012 |
+| Epic | EP-03 — Hỏi đáp trên tài liệu |
+| Module (SADD §2.2.1) | `retrieval`, `qa` |
+| API liên quan | API-09 `POST /conversations/{cid}/questions` |
+| Vai trò chính | AI (chính) + BE |
+| Ước lượng | 2 ngày công |
+| Phụ thuộc | T-302 (truy xuất vector + cổng bằng chứng), T-303 (prompt v1 + kiểm tra trích dẫn) |
+| Trạng thái | To do |
+
+## 1. Mục tiêu
+
+Nâng bước truy xuất từ **chỉ vector** (T-302) lên **truy xuất lai** để câu trả lời tổng hợp được thông tin nằm rải rác ở nhiều tài liệu, và khi hai tài liệu mâu thuẫn thì nêu cả hai kèm nguồn riêng thay vì chọn bừa một bên.
+
+Ba thay đổi kỹ thuật:
+1. Bổ sung **tìm kiếm từ khóa** (PostgreSQL FTS) song song với tìm kiếm vector.
+2. **Hợp nhất** hai danh sách kết quả bằng Reciprocal Rank Fusion, rồi **rerank** bằng cross-encoder.
+3. **Đảm bảo đa dạng tài liệu** trong 8 đoạn gửi LLM, và cập nhật prompt để xử lý mâu thuẫn.
+
+## 2. Tiêu chí nghiệm thu liên quan
+
+| Mã AC | Nội dung |
+|---|---|
+| AC-012.1 | Đáp án nằm ở 2 tài liệu khác nhau (ví dụ: giá trị hợp đồng ở tài liệu X, điều khoản thanh toán ở tài liệu Y) → câu trả lời chứa thông tin từ **cả hai** và trích dẫn cả X lẫn Y |
+| AC-012.2 | Hai tài liệu có thông tin **mâu thuẫn** về cùng một nội dung → câu trả lời nêu **cả hai** thông tin và nguồn của từng thông tin, thay vì chỉ chọn một |
+| AC-014.2 | Câu trả lời tổng hợp từ N tài liệu → có thẻ nguồn cho cả N tài liệu |
+
+## 3. Hợp đồng API / giao diện
+
+API-09 **không đổi** về mặt hợp đồng; chỉ thay đổi chất lượng tập đoạn đưa vào LLM. Thứ tự sự kiện SSE giữ nguyên:
+
+```
+meta      {answer_id, ready_doc_count}
+delta     {text}            × n
+citations {items: [{index, document_id, document_name, page_start, page_end}, ...]}
+done      {type, latency_ms, uncited?}
+```
+
+Pipeline truy xuất sau task này (SADD §2.2.3):
+
+```
+câu hỏi
+  ├─ embedding  → vector search  (owner_id, doc_status='ready')  top-40
+  └─ FTS        → ts_rank_cd                                     top-40
+            ↓
+     RRF hợp nhất (k = 60)
+            ↓
+     rerank cross-encoder trên top-20 → giữ top-8
+            ↓
+     lọc đa dạng: tối đa 4 chunk / tài liệu
+            ↓
+     cổng bằng chứng (τ) → prompt S1..S8
+```
+
+## 4. Thay đổi dữ liệu
+
+| Đối tượng | Thay đổi |
+|---|---|
+| `chunk.tsv` | Cột generated `to_tsvector('simple', unaccent(content))` — đã khai báo từ T-005/T-203; task này **xác nhận** cột tồn tại và đúng cấu hình `simple` (PostgreSQL không có từ điển tiếng Việt) |
+| Chỉ mục GIN `chunk(tsv)` | Bổ sung migration nếu chưa có — bắt buộc để FTS top-40 chạy nhanh |
+| Extension `unaccent` | Bảo đảm đã `CREATE EXTENSION unaccent` trong migration baseline |
+| `answer.cited_doc_count` | Bắt đầu ghi giá trị thật (số tài liệu riêng biệt được trích dẫn) để theo dõi AC-012.1 |
+
+Không thêm bảng mới.
+
+## 5. Các bước triển khai
+
+1. **FTS query** trong `retrieval`: truy vấn `chunk` theo `owner_id` + tài liệu `ready`, xếp hạng bằng `ts_rank_cd(tsv, websearch_to_tsquery('simple', unaccent(:q)))`, lấy **top-40**. Mục đích: bắt số hợp đồng, mã, tên riêng mà vector hay bỏ sót.
+2. **RRF hợp nhất**: với mỗi chunk xuất hiện trong danh sách vector và/hoặc FTS, tính `score = Σ 1/(60 + rank_i)` (k = 60). Sắp xếp giảm dần, giữ **top-20** đưa sang rerank.
+3. **Rerank**: gọi TEI với `BAAI/bge-reranker-v2-m3` (cross-encoder) trên cặp (câu hỏi, nội dung chunk) cho 20 ứng viên; giữ **top-8** theo điểm rerank.
+4. **Lọc đa dạng**: duyệt danh sách top-8 theo thứ tự điểm giảm dần, **tối đa 4 chunk cho mỗi `document_id`**; nếu sau khi lọc chưa đủ 8 đoạn thì lấy bù từ các ứng viên còn lại. **Ngoại lệ:** nếu chỉ có đúng 1 tài liệu liên quan trong tập ứng viên thì bỏ giới hạn 4 (tránh cắt mất bằng chứng khi người dùng chỉ có 1 tài liệu).
+5. **Cổng bằng chứng**: ngưỡng τ nay áp lên **điểm rerank cao nhất** (không phải điểm vector thô) — giữ nguyên hành vi `not_found` khi dưới ngưỡng (T-302). Ghi lại τ dùng thực tế vào metric `retrieval_top_score`.
+6. **Cập nhật prompt (phối hợp T-303)**: bổ sung hai ràng buộc —
+   - "Khi thông tin cần thiết nằm ở nhiều đoạn thuộc các tài liệu khác nhau, hãy tổng hợp đầy đủ và gắn nguồn `[S#]` cho từng khẳng định."
+   - "Khi các đoạn **mâu thuẫn** nhau về cùng một nội dung, hãy nêu **cả hai** giá trị kèm nguồn tương ứng; **không** tự chọn một bên." (AC-012.2)
+7. Tăng `prompt_version` và ghi vào `answer.prompt_version` để đối chiếu khi đánh giá chất lượng ở T-501.
+8. Thêm span OTel `retrieval.fts` và `retrieval.rerank` (SADD §4.3) để đo ngân sách độ trễ.
+
+## 6. Mã lỗi & trường hợp biên
+
+| Tình huống | Hành vi |
+|---|---|
+| TEI reranker không phản hồi / timeout | Ghi cảnh báo, **bỏ qua bước rerank**, dùng thẳng top-8 từ RRF; không được làm hỏng cả câu trả lời |
+| Chỉ có 1 tài liệu `ready` | Bỏ giới hạn 4 chunk/tài liệu; kết quả giống hành vi Sprint 3 |
+| FTS trả về 0 kết quả (câu hỏi toàn từ phổ thông) | RRF vẫn chạy với riêng danh sách vector — không coi là lỗi |
+| Mâu thuẫn nhưng LLM vẫn chọn một bên | Không chặn tự động được ở code; bắt bằng ca kiểm thử chuyên biệt trong bộ câu hỏi chuẩn (T-501) và hiệu chỉnh prompt ở T-502 |
+| Tài liệu bị xóa giữa lúc truy xuất | Bước kiểm tra trích dẫn (T-303) loại trích dẫn trỏ tới tài liệu không còn tồn tại (NE-08) |
+
+## 7. Kiểm thử bắt buộc
+
+- [ ] **AC-012.1:** dựng 2 PDF kiểm thử, mỗi tệp chứa một nửa đáp án; hỏi một câu cần cả hai → câu trả lời nêu đủ hai ý, `citations` có đủ 2 `document_id` khác nhau
+- [ ] **AC-012.2:** dựng 2 PDF có số liệu mâu thuẫn về cùng một điều khoản → câu trả lời nêu cả hai giá trị, mỗi giá trị có `[n]` riêng
+- [ ] **Đa dạng:** tài liệu A có 10 đoạn rất liên quan, tài liệu B có 2 đoạn liên quan → tập 8 đoạn gửi LLM chứa **tối đa 4** đoạn của A và có ít nhất 1 đoạn của B
+- [ ] **FTS:** hỏi bằng mã hợp đồng dạng `HD-2026/A-17` (vector thường bỏ sót) → đoạn chứa mã đó nằm trong top-8
+- [ ] **Không dấu:** hỏi "thoi han thanh toan" (không dấu) vẫn khớp đoạn có "thời hạn thanh toán" nhờ `unaccent`
+- [ ] **Rerank lỗi:** mock TEI reranker trả 5xx → vẫn có câu trả lời, log có cảnh báo, không có exception tới người dùng
+- [ ] Độ trễ p90 end-to-end vẫn ≤ 15 giây sau khi thêm 2 bước (đo ở staging)
+
+## 8. Định nghĩa Hoàn thành
+
+- [ ] AC-012.1 và AC-012.2 có ca kiểm thử tự động, chạy trong CI
+- [ ] `answer.cited_doc_count` ghi đúng số tài liệu riêng biệt được trích dẫn
+- [ ] Chỉ mục GIN trên `chunk(tsv)` tồn tại; `EXPLAIN` xác nhận FTS dùng chỉ mục
+- [ ] Span `retrieval.fts`, `retrieval.rerank` xuất hiện trong trace
+- [ ] `prompt_version` mới được ghi vào `answer`; prompt cũ không còn dùng
+- [ ] Log/metric của bước mới **không** chứa nội dung câu hỏi hay nội dung chunk (P-03)
+- [ ] Tham số `rrf_k`, `rerank_top_n`, `max_chunks_per_doc`, `τ` nằm trong cấu hình, không hard-code (P-06)
+
+## 9. Tham chiếu
+
+- [SADD §2.2.3 — Pipeline hỏi đáp](../../requirements/SADD.md) · ADR-05 (truy xuất), §4.3 (quan sát)
+- [User Stories — US-012, US-014](../../design/User_Stories.md)
+- [SDD UI/UX §3.4.2 — IR-01 – IR-03](../../design/SDD_UI_UX_Blueprint.md)
+- Ảnh thiết kế: [`SCR-02_15_answer-multi-source.png`](../../design/html_design/SCR-02_15_answer-multi-source.png)
+- [implement_plan.md §5 Sprint 4](../implement_plan.md)

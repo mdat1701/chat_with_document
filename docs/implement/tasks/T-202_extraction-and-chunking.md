@@ -1,0 +1,119 @@
+# T-202 — Trích xuất văn bản theo trang & chia đoạn
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Sprint | 2 |
+| Story | US-003 (Tải một tệp PDF lên) |
+| Epic | EP-02 |
+| Module (SADD §2.2.1) | `ingestion` (chạy ở worker) |
+| API liên quan | — |
+| Vai trò chính | BE (hỗ trợ: AI cho tham số chia đoạn) |
+| Ước lượng | 2d |
+| Phụ thuộc | T-201 (bước quét & kiểm tra PDF) |
+| Trạng thái | To do |
+
+## 1. Mục tiêu
+
+Trích xuất văn bản **theo từng trang** từ PDF đã qua kiểm tra, phát hiện tệp scan (không có lớp văn bản), và chia thành các đoạn ~500 token **giữ nguyên số trang** để mọi trích dẫn sau này đều chỉ được đúng trang (US-014, US-015).
+
+Đây là bước quyết định chất lượng truy xuất: chia đoạn sai → câu trả lời mất ngữ cảnh; mất số trang → không kiểm chứng được.
+
+## 2. Tiêu chí nghiệm thu liên quan
+
+| Mã AC | Nội dung |
+|---|---|
+| AC-005.1 | *Given* người dùng tải lên PDF không có lớp văn bản (bản scan), *When* xử lý thất bại, *Then* tệp hiển thị "Lỗi" kèm lý do "Tệp không có nội dung văn bản (có thể là bản scan)". |
+| AC-015.1 | *Given* câu trả lời có trích dẫn, *When* hiển thị thẻ nguồn, *Then* thẻ có định dạng `tên tệp · tr. X` — **phụ thuộc trực tiếp vào `page_start`/`page_end` ghi ở task này**. |
+| AC-014.3 | *Given* một thẻ nguồn bất kỳ, *When* người đánh giá mở tệp được trích dẫn, *Then* tệp đó thực sự chứa thông tin được nêu. |
+
+## 3. Hợp đồng API / giao diện
+
+Không có HTTP API. Hợp đồng nội bộ giữa T-202 và T-203:
+
+```python
+@dataclass(frozen=True)
+class ExtractedChunk:
+    ordinal: int          # thứ tự trong tài liệu, bắt đầu từ 0
+    page_start: int       # 1-based, theo cách người dùng đọc PDF
+    page_end: int         # >= page_start
+    heading_path: str | None   # ví dụ "Điều 5 > 5.2" nếu nhận diện được
+    content: str          # đã chuẩn hóa NFC, đã trim
+
+def extract_and_chunk(pdf_path: str, cfg: ChunkConfig) -> list[ExtractedChunk]: ...
+
+@dataclass(frozen=True)
+class ChunkConfig:
+    target_tokens: int = 500      # có thể đổi qua cấu hình (CL-03)
+    overlap_tokens: int = 50      # [Đề xuất] — hiệu chỉnh ở T-502
+    min_chars_per_page: int = 20  # ngưỡng phát hiện trang không có văn bản
+    empty_page_ratio: float = 0.8 # ≥80% trang rỗng → PDF_NO_TEXT
+```
+
+## 4. Thay đổi dữ liệu
+
+Task này **chưa ghi DB** — trả danh sách `ExtractedChunk` cho T-203 insert. Các trường ánh xạ 1-1 sang bảng `chunk` (SADD §3.1.1):
+
+| Trường `ExtractedChunk` | Cột `chunk` |
+|---|---|
+| `ordinal` | `ordinal` (int) |
+| `page_start` / `page_end` | `page_start` / `page_end` (int) |
+| `heading_path` | `heading_path` (text) |
+| `content` | `content` (text) → sinh `tsv` tự động ở T-203 |
+
+Cập nhật duy nhất ở task này: `document.error_code = 'PDF_NO_TEXT'` khi phát hiện bản scan.
+
+## 5. Các bước triển khai
+
+1. Mở lại PDF đã validate ở T-201 (tái dùng `fitz.Document`, không mở lần hai).
+2. **Trích xuất theo trang** bằng `page.get_text("blocks")` thay vì `"text"` thuần:
+   - `blocks` giữ thứ tự khối theo bố cục, giảm rủi ro đảo cột/bảng (rủi ro R-04 trong kế hoạch).
+   - Sắp xếp block theo `(y0, x0)` để đọc trên-xuống, trái-phải.
+3. **Phát hiện bản scan:** đếm số trang có `len(text.strip()) < min_chars_per_page`. Nếu tỉ lệ `≥ empty_page_ratio` (80%) → `status='failed'`, `error_code='PDF_NO_TEXT'`, dừng pipeline.
+4. **Chuẩn hóa Unicode NFC** cho toàn bộ văn bản (`unicodedata.normalize("NFC", text)`) — bắt buộc để dấu tiếng Việt không bị tách tổ hợp, ảnh hưởng cả embedding lẫn full-text search.
+5. **Nhận diện tiêu đề (tùy chọn, best-effort):** dựa vào cỡ chữ/độ đậm trong `blocks` để dựng `heading_path`; nếu không chắc chắn, để `None` — **không** đoán bừa.
+6. **Chia đoạn ~500 token:**
+   - Dùng tokenizer cùng họ với mô hình embedding (`BAAI/bge-m3`) để đếm token, không đếm theo ký tự.
+   - Ưu tiên cắt ở ranh giới đoạn văn/câu, không cắt giữa câu.
+   - Giữ overlap nhỏ giữa hai đoạn liền kề (đề xuất 50 token) để không mất ngữ cảnh ở mép đoạn.
+   - **Theo dõi trang trong suốt quá trình cắt:** `page_start` = trang của ký tự đầu đoạn, `page_end` = trang của ký tự cuối đoạn. Đoạn trải hai trang là hợp lệ (`page_start=12, page_end=13` → UI hiển thị `tr. 12–13`, xem CL-02).
+7. Gán `ordinal` tăng dần theo thứ tự đọc.
+8. Trả danh sách cho T-203; **không** set `document.status='ready'` ở đây.
+9. Metric: `ingestion_duration_seconds{step="extract"}`, số đoạn tạo ra theo tài liệu (chỉ số đếm, không nội dung).
+
+## 6. Mã lỗi & trường hợp biên
+
+| Mã lỗi | Khi nào | Hành vi |
+|---|---|---|
+| `PDF_NO_TEXT` | ≥80% số trang có <20 ký tự văn bản | `failed`; giữ tệp; không retry; UI: "Tệp không có nội dung văn bản (có thể là bản scan). Hiện chưa hỗ trợ loại tệp này." · hành động Xóa |
+| `INGESTION_FAILED` | PyMuPDF ném lỗi bất thường khi đọc trang, hoặc hết bộ nhớ | `failed`; UI: Thử lại · Xóa |
+
+Trường hợp biên:
+- **PDF hỗn hợp** (một nửa scan, một nửa văn bản) → dưới ngưỡng 80% nên **vẫn xử lý**; các trang scan đơn giản không tạo ra đoạn nào.
+- **Trang có bảng biểu phức tạp** → thứ tự `blocks` có thể vẫn sai; ghi nhận vào AR log, cân nhắc bổ sung `pdfplumber` nếu T-501 phát hiện lỗi số liệu (R-04).
+- **Tài liệu rất ngắn** (1 trang, vài dòng) → tạo đúng 1 đoạn, không lỗi.
+- **Tài liệu 300 trang** → số đoạn ~600; kiểm tra bộ nhớ worker không phình quá mức (xử lý theo luồng, không giữ toàn bộ văn bản trong RAM nếu tránh được).
+- **Văn bản có ký tự điều khiển / soft hyphen** → loại bỏ trước khi chia đoạn.
+
+## 7. Kiểm thử bắt buộc
+
+- [ ] PDF văn bản 20 trang → sinh số đoạn hợp lý (~2 đoạn/trang theo ước lượng SADD Phụ lục A.2), mọi đoạn có `page_start ≤ page_end`.
+- [ ] PDF scan thuần (ảnh) → `PDF_NO_TEXT`.
+- [ ] PDF hỗn hợp 30% trang scan → **không** lỗi, vẫn tạo đoạn từ phần văn bản.
+- [ ] Văn bản tiếng Việt có dấu: so sánh chuỗi sau trích xuất với bản gốc ở dạng NFC → khớp 100% (test chống lỗi tổ hợp dấu).
+- [ ] Đoạn trải hai trang: có ít nhất 1 test khẳng định `page_start != page_end` được ghi đúng.
+- [ ] Không đoạn nào vượt quá `target_tokens * 1.2` sau khi chia.
+- [ ] Số trang trong `ExtractedChunk` khớp số trang thật khi mở PDF thủ công (test thủ công 1 lần với tài liệu mẫu, ghi vào biên bản).
+
+## 8. Định nghĩa Hoàn thành
+
+- [ ] `extract_and_chunk` có unit test với ít nhất 5 PDF mẫu (văn bản, scan, hỗn hợp, nhiều cột, có bảng).
+- [ ] Tham số chia đoạn nằm trong cấu hình (P-06), **không** hard-code — để T-502 hiệu chỉnh mà không cần sửa code.
+- [ ] `page_start`/`page_end` chính xác 100% trên bộ mẫu — đây là điều kiện tiên quyết của US-015.
+- [ ] Không log nội dung văn bản ở bất kỳ mức log nào (P-03).
+
+## 9. Tham chiếu
+
+- SADD v0.3 §2.2.2 (bước 3–4 pipeline), §3.1.1 (bảng `chunk`), §2.2.3 (vì sao cần `page_start/page_end`)
+- User Stories v0.4 — US-003, US-005, US-015 (`CitationChip` dùng `page`)
+- SDD UI/UX v0.3 §3.4.1 (`CitationVM.page`), DQ-07 (định dạng nhiều trang)
+- Kế hoạch: CL-02 (định dạng `tr. 12–13`), CL-03 (tham số chia đoạn chưa hiệu chỉnh), R-04 (PDF bảng biểu)

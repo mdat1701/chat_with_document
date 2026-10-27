@@ -1,7 +1,7 @@
 # Tài liệu Yêu cầu Nghiệp vụ (BRD) — Chat với tài liệu (MVP)
 
 > **Tiêu chuẩn:** IEEE 29148-2018 · **Giai đoạn SDLC:** 5.2 Yêu cầu và khám phá
-> **Đầu vào:** Phần *Business foundation* đã điền trong [`docs/BRD_Prompt_IEEE_standard.md`](../BRD_Prompt_IEEE_standard.md) (`SRC-001`, `SRC-002`)
+> **Đầu vào:** Phần *Business foundation* đã điền trong [`docs/requirements/BRD_Prompt_IEEE_standard.md`](BRD_Prompt_IEEE_standard.md) (`SRC-001`, `SRC-002`)
 
 ## Tóm tắt kiểm định
 
@@ -37,7 +37,7 @@
 |---|---|
 | Tên tài liệu | Chat với tài liệu — Tài liệu Yêu cầu Nghiệp vụ |
 | Số tài liệu | BRD-CWD-001 |
-| Phiên bản | 0.2 |
+| Phiên bản | 0.3 |
 | Trạng thái | Bản nháp (Draft) |
 | Tác giả | Đội Phân tích Nghiệp vụ — [TBD: tên BA phụ trách] |
 | Người đóng góp | Đội Phát triển Kinh doanh; Đội Phân tích Nghiệp vụ |
@@ -51,6 +51,7 @@
 |---|---|---|---|
 | 0.1 | 2026-10-19 | Đội Phân tích Nghiệp vụ | Bản nháp ban đầu từ bản mô tả dự án |
 | 0.2 | 2026-10-19 | Đội Phân tích Nghiệp vụ | Viết lại theo Business foundation đã điền; tách các yêu cầu ghép; bổ sung yêu cầu truy vấn trên nhiều tài liệu, phân quyền và đo lường; bổ sung danh sách tính năng BA đề xuất; thêm `OQ-012`, `OQ-013` |
+| 0.3 | 2026-10-26 | Đội Phân tích Nghiệp vụ | Thu hẹp thành MVP-lite: giữ luồng upload → hỏi → kiểm chứng; hoãn hội thoại tiếp nối, feedback, báo cáo tuần và các tính năng vận hành mở rộng |
 
 ### Danh sách phân phối
 
@@ -161,14 +162,24 @@ Quản lý đã yêu cầu phát triển MVP công cụ "Chat với tài liệu"
 |---|---|---|---|---|---|---|
 | MET-001 | Thời gian trung vị để có câu trả lời được chấp nhận cho một câu hỏi trong **bộ câu hỏi chuẩn** | Trung vị (thời điểm có câu trả lời được chấp nhận − thời điểm bắt đầu tìm), so sánh giữa cách thủ công và cách dùng MVP | Bấm giờ trên bộ câu hỏi chuẩn (`SRC-003`) | [TBD: OQ-003] | Một lần trước MVP; một lần khi kết thúc thử nghiệm | [TBD: OQ-008] |
 | MET-002 | Tỷ lệ câu trả lời đúng và có căn cứ trong tài liệu | (Số câu trả lời được người đánh giá xác nhận đúng và có nguồn đúng) ÷ (tổng số câu trong bộ câu hỏi chuẩn) × 100% | Phiếu đánh giá của người đánh giá | Trưởng BA [TBD] | Mỗi đợt đánh giá | Không áp dụng |
-| MET-003 | Tỷ lệ người dùng thử nghiệm hoạt động hằng tuần | (Số người dùng thử nghiệm đặt ít nhất 1 câu hỏi trong tuần) ÷ (tổng số người dùng thử nghiệm) × 100% | Số liệu sử dụng (`BR-021`) | Chủ sở hữu sản phẩm [TBD] | Hằng tuần trong thời gian thử nghiệm | Ngày bắt đầu thử nghiệm |
-| MET-004 | Tỷ lệ câu trả lời được người dùng đánh giá là hữu ích | (Số câu trả lời được đánh dấu "hữu ích") ÷ (tổng số câu trả lời có phản hồi) × 100% | Phản hồi người dùng (`BR-020`) | Chủ sở hữu sản phẩm [TBD] | Hằng tuần trong thời gian thử nghiệm | Ngày bắt đầu thử nghiệm |
+| MET-003 | Mức độ hoàn thành luồng cốt lõi trong nhóm thử nghiệm | Số người hoàn thành tải PDF → hỏi → kiểm chứng ÷ tổng số người tham gia UAT | Kịch bản UAT và số liệu tối thiểu (`BR-021`) | Chủ sở hữu sản phẩm [TBD] | Một lần trong UAT | Trước UAT |
+| MET-004 | Mức độ hữu ích do người dùng đánh giá | Nhận xét trong phiếu UAT hoặc đánh giá thủ công; không bắt buộc nút feedback trong sản phẩm | Phiếu UAT (`BR-020`) | Chủ sở hữu sản phẩm [TBD] | Một lần trong UAT | Trước UAT |
 
 > Chưa có mục tiêu nào hợp lệ cho đến khi `OQ-008` được giải quyết, vì một mục tiêu cần có baseline và phương pháp đo.
 
 ---
 
 ## 5. Phạm vi
+
+### 5.0 Nguyên tắc thu hẹp MVP-lite
+
+MVP lần này chỉ nhằm kiểm chứng một giả thuyết: người dùng có thể tải PDF lên và tìm được câu trả lời có căn cứ nhanh hơn cách đọc thủ công. Vì vậy:
+
+- Chỉ triển khai một luồng chính: **đăng nhập → tải PDF → chờ xử lý → hỏi → nhận câu trả lời có nguồn**.
+- Chỉ hỗ trợ tập tài liệu riêng của từng người dùng; không có cộng tác nhóm.
+- Cấp quyền người dùng có thể thực hiện bằng cấu hình hoặc CLI trong giai đoạn thử nghiệm; chưa cần màn hình quản trị riêng.
+- Đánh giá chất lượng thực hiện bằng bộ câu hỏi chuẩn ngoài sản phẩm; chưa xây báo cáo tuần hoặc màn hình chấm điểm.
+- Mọi yêu cầu không cần cho luồng trên được chuyển sang backlog sau MVP, kể cả khi đã xuất hiện trong BRD phiên bản trước.
 
 ### 5.1 Trong phạm vi (MVP)
 
@@ -177,8 +188,8 @@ Quản lý đã yêu cầu phát triển MVP công cụ "Chat với tài liệu"
 - Xem danh sách tài liệu đã tải lên và xóa tài liệu khỏi tập truy vấn.
 - Đặt câu hỏi bằng ngôn ngữ tự nhiên và nhận câu trả lời dựa trên nội dung **toàn bộ** tài liệu đã tải lên.
 - Chỉ ra tài liệu nguồn hỗ trợ câu trả lời; thông báo rõ khi tài liệu không chứa câu trả lời.
-- Hỏi tiếp nối trong cùng một cuộc hội thoại.
-- Thu thập phản hồi và số liệu sử dụng để đánh giá MVP.
+- Ghi nhận số lượng câu hỏi và trạng thái xử lý ở mức tối thiểu, không lưu nội dung câu hỏi, câu trả lời hoặc tài liệu trong analytics.
+- Đo chất lượng bằng bộ câu hỏi chuẩn và đánh giá thủ công/offline.
 
 ### 5.2 Ngoài phạm vi
 
@@ -206,10 +217,21 @@ Các tính năng sau là **đề xuất**, chưa thuộc baseline. Chúng chỉ 
 | P-07 | Không gian tài liệu dùng chung theo nhóm | Cả đội cùng truy vấn một kho | `SN-001`, `OQ-004` | Should |
 | P-08 | Hỗ trợ PDF dạng scan (nhận dạng ký tự) | Mở rộng loại tài liệu truy vấn được | `OQ-007` | Could |
 
-### 5.4 Ranh giới
+### 5.4 Hoãn sau MVP-lite
+
+Các yêu cầu sau vẫn có giá trị nhưng không cần để kiểm chứng luồng cốt lõi:
+
+| Hạng mục | Yêu cầu liên quan | Cách thay thế trong MVP-lite |
+|---|---|---|
+| Hỏi tiếp nối trong hội thoại | BR-014 | Người dùng gửi câu hỏi đầy đủ |
+| Đánh dấu hữu ích / không hữu ích | BR-020 | Đánh giá trong UAT và phiếu chấm offline |
+| Báo cáo sử dụng hằng tuần | BR-021 | Truy vấn/export số liệu tối thiểu khi cần |
+| Cộng tác nhóm, lịch sử hội thoại, scan/OCR | P-04, P-07, P-08 | Không triển khai |
+
+### 5.5 Ranh giới
 
 - **Bắt đầu:** người dùng được cấp quyền tải tài liệu PDF lên.
-- **Kết thúc:** người dùng nhận câu trả lời có nguồn, hoặc nhận thông báo không tìm thấy câu trả lời, rồi đánh giá câu trả lời.
+- **Kết thúc:** người dùng nhận câu trả lời có nguồn hoặc nhận thông báo không tìm thấy câu trả lời.
 - **Nằm ngoài sáng kiến:** việc tạo và sở hữu tài liệu gốc, việc lấy tài liệu từ các hệ thống khác, và các hành động nghiệp vụ sau khi có câu trả lời. Những việc này thuộc các quy trình hiện có.
 
 ---
@@ -268,7 +290,7 @@ Thang ưu tiên: **Must** (thiếu thì sáng kiến thất bại) · **Should**
 | BR-011 | Khi tập truy vấn không chứa thông tin để trả lời, giải pháp **phải** thông báo rõ cho người dùng rằng không tìm thấy câu trả lời trong tài liệu. | Không trình bày thông tin không có căn cứ như sự thật | BO-002 / SN-003 | Must | AC-011 | Kiểm thử | Draft |
 | BR-012 | Giải pháp **phải** chỉ ra tên tài liệu nguồn hỗ trợ cho mỗi câu trả lời. | Cho phép người dùng kiểm chứng | BO-002 / SN-003 | Must | AC-012 | Kiểm tra, Kiểm thử | Draft |
 | BR-013 | Giải pháp **nên** chỉ ra số trang trong tài liệu nguồn hỗ trợ cho mỗi câu trả lời. | Rút ngắn thời gian kiểm chứng | BO-001 / SN-003 | Should | AC-013 | Kiểm tra, Kiểm thử | Draft |
-| BR-014 | Trong cùng một cuộc hội thoại, giải pháp **nên** hiểu câu hỏi tiếp nối có tham chiếu đến câu hỏi hoặc câu trả lời trước đó. | Hỏi đáp tự nhiên, giảm việc nhập lại ngữ cảnh | SN-002 | Should | AC-014 | Trình diễn, Kiểm thử | Draft |
+| BR-014 | Trong cùng một cuộc hội thoại, giải pháp **có thể** hiểu câu hỏi tiếp nối có tham chiếu đến câu hỏi hoặc câu trả lời trước đó. | Hỏi đáp tự nhiên, giảm việc nhập lại ngữ cảnh | SN-002 | Could | AC-014 | Trình diễn, Kiểm thử | Hoãn sau MVP-lite |
 | BR-015 | Giải pháp **phải** chấp nhận câu hỏi và trả lời bằng các ngôn ngữ được phê duyệt. | Người dùng và tài liệu có thể dùng tiếng Việt và/hoặc tiếng Anh | SN-002 | Must | AC-015 | Kiểm thử | Bị chặn bởi OQ-012 |
 | BR-016 | Giải pháp **nên** trả lời mỗi câu hỏi trong bộ câu hỏi chuẩn trong thời gian tối đa được phê duyệt. | Thời gian chờ ảnh hưởng trực tiếp tới BO-001 | BO-001 / SN-001 | Should | AC-016 | Kiểm thử | Bị chặn bởi OQ-008 |
 
@@ -284,8 +306,8 @@ Thang ưu tiên: **Must** (thiếu thì sáng kiến thất bại) · **Should**
 
 | ID | Yêu cầu | Lý do | Nguồn | Ưu tiên | Tiêu chí nghiệm thu | Phương pháp xác minh | Trạng thái |
 |---|---|---|---|---|---|---|---|
-| BR-020 | Giải pháp **nên** cho phép người dùng đánh dấu mỗi câu trả lời là "hữu ích" hoặc "không hữu ích". | Dữ liệu cho MET-004 | BO-003 / SN-004 | Should | AC-020 | Trình diễn | Draft |
-| BR-021 | Giải pháp **phải** ghi nhận số câu hỏi được đặt theo từng người dùng mỗi tuần, nhưng không ghi lại nội dung tài liệu vào số liệu đo lường. | Dữ liệu cho MET-003 | BO-003 / SN-004, SN-006 | Must | AC-021 | Kiểm tra, Kiểm thử | Draft |
+| BR-020 | Giải pháp **có thể** cho phép người dùng đánh dấu mỗi câu trả lời là "hữu ích" hoặc "không hữu ích". | Dữ liệu cho MET-004 | BO-003 / SN-004 | Could | AC-020 | Trình diễn | Hoãn sau MVP-lite |
+| BR-021 | Giải pháp **nên** ghi nhận số lượng câu hỏi và trạng thái xử lý ở mức tối thiểu, nhưng không ghi lại nội dung tài liệu, câu hỏi hoặc câu trả lời vào số liệu đo lường. | Theo dõi thử nghiệm mà không mở rộng thành hệ thống báo cáo | BO-003 / SN-004, SN-006 | Should | AC-021 | Kiểm tra, Kiểm thử | MVP-lite, không có báo cáo tuần |
 
 > **Ghi chú cho PRD/SRS:** Cách thực hiện cụ thể (cách tách nội dung PDF, mô hình AI, cơ chế tìm kiếm, giao diện chat) thuộc PRD/SRS/SAD và không được quyết định trong BRD này (`CON-003`).
 
@@ -401,9 +423,9 @@ Thang ưu tiên: **Must** (thiếu thì sáng kiến thất bại) · **Should**
 | OQ-008 | Baseline thời gian tra cứu, mục tiêu cải thiện, ngưỡng độ chính xác, ngưỡng thời gian phản hồi, mục tiêu sử dụng, bộ câu hỏi chuẩn và phương pháp đo? | Chặn mục tiêu BO, BR-016 và nghiệm thu MVP | Chủ sở hữu nghiệp vụ / Trưởng BA | Phát triển | Mở | — |
 | OQ-009 | Ai tham gia rà soát BRD? | Đảm bảo đủ bên liên quan xác nhận | Chủ sở hữu nghiệp vụ | Rà soát BRD | Mở | — |
 | OQ-010 | Phân loại bảo mật của tài liệu là gì? Có được phép gửi tài liệu tới dịch vụ AI bên ngoài không? | Chặn BR-019 và CON-004 | Tuân thủ / An toàn thông tin | Thử nghiệm với dữ liệu thật | Mở | — |
-| OQ-011 | Những tính năng đề xuất nào (P-01 đến P-08) được đưa vào MVP? | Kiểm soát phạm vi (RSK-005) | Chủ sở hữu sản phẩm / Nhà tài trợ | PRD | Mở | — |
+| OQ-011 | Những tính năng đề xuất nào (P-01 đến P-08) được đưa vào MVP? | Kiểm soát phạm vi (RSK-005) | Chủ sở hữu sản phẩm / Nhà tài trợ | PRD | Đã quyết định | Không đưa tính năng đề xuất vào MVP-lite |
 | OQ-012 | Tài liệu và câu hỏi dùng ngôn ngữ nào (tiếng Việt, tiếng Anh, cả hai)? | Chặn BR-015 | Trưởng đội PTKD | PRD | Mở | — |
-| OQ-013 | Có cần lưu và xem lại lịch sử hội thoại không? Nếu có, lưu trong bao lâu? | Ảnh hưởng P-04 và chính sách lưu trữ | Chủ sở hữu sản phẩm + An toàn thông tin | PRD | Mở | — |
+| OQ-013 | Có cần lưu và xem lại lịch sử hội thoại không? Nếu có, lưu trong bao lâu? | Ảnh hưởng P-04 và chính sách lưu trữ | Chủ sở hữu sản phẩm + An toàn thông tin | PRD | Đã quyết định | Không lưu lịch sử hội thoại dài hạn trong MVP-lite |
 
 > Ngày cụ thể cho cột "Cần trước" phụ thuộc vào lịch dự án (`OQ-005`).
 
@@ -469,10 +491,9 @@ flowchart LR
     D --> E{Tài liệu có chứa thông tin?}
     E -- Có --> F[Câu trả lời tổng hợp kèm tài liệu nguồn - BR-010, BR-012, BR-013]
     E -- Không --> G[Thông báo không tìm thấy - BR-011]
-    F --> H[Người dùng kiểm chứng và đánh giá - BRU-002, BR-020]
+    F --> H[Người dùng kiểm chứng - BRU-002]
     G --> H
-    H --> I[Hỏi tiếp nối - BR-014]
-    I --> D
+    H --> D
 ```
 
 ### B. So sánh trước và sau

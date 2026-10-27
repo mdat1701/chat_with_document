@@ -1,6 +1,6 @@
 # Tài liệu Yêu cầu Sản phẩm (PRD) — Chat với tài liệu (MVP)
 
-> **Tiêu chuẩn:** Định hướng IEEE 29148-2018 · **Đầu vào:** [BRD v0.2](BRD.md) (BRD-CWD-001) · **Prompt:** [`docs/PRD_Prompt_IEEE_standard.md`](../PRD_Prompt_IEEE_standard.md)
+> **Tiêu chuẩn:** Định hướng IEEE 29148-2018 · **Đầu vào:** [BRD v0.3](BRD.md) (BRD-CWD-001) · **Prompt:** [`docs/requirements/PRD_Prompt_IEEE_standard.md`](PRD_Prompt_IEEE_standard.md)
 > **Ghi chú đầu vào:** Prompt yêu cầu SRS làm nền tảng, nhưng dự án chưa có SRS. PRD này được xây dựng trực tiếp từ BRD; SRS sẽ được viết sau và truy xuất ngược về PRD.
 
 ## Kiểm định trụ cột sản phẩm
@@ -38,19 +38,19 @@ BRD đang ở trạng thái **Chưa sẵn sàng** do còn câu hỏi mở. PRD �
 | Trường | Giá trị |
 |---|---|
 | Số tài liệu | PRD-CWD-001 |
-| Phiên bản | 0.1 — Bản nháp |
-| Ngày | 2026-10-19 |
+| Phiên bản | 0.2 — Bản nháp |
+| Ngày | 2026-10-26 |
 | Tác giả | Product Manager — [TBD] |
 | Người rà soát | Trưởng nhóm Kỹ thuật, Thiết kế, QA, BA, An toàn thông tin |
 | Người phê duyệt | Nhà tài trợ / Chủ sở hữu sản phẩm [TBD: BRD OQ-002] |
-| Tài liệu liên quan | BRD-CWD-001 v0.2; SRS (chưa có) |
+| Tài liệu liên quan | BRD-CWD-001 v0.3; SRS (chưa có) |
 
 ### 0.2 Quy ước ưu tiên
 
 | PRD | BRD | Ý nghĩa |
 |---|---|---|
-| **P0** | Must | Bắt buộc để ra mắt; mọi story P0 có tiêu chí Given-When-Then |
-| **P1** | Should | Nên có trong MVP; được phép trễ một bản phát hành nếu có phương án thay thế |
+| **P0** | Must | Bắt buộc để qua Pilot Gate; mọi story P0 có tiêu chí Given-When-Then |
+| **P1** | Should | Nên có sau khi luồng cốt lõi ổn định; được phép hoãn khỏi MVP-lite |
 | **P2** | Could | Mong muốn; nằm trong backlog |
 
 ### 0.3 Giá trị mặc định đề xuất (chờ phê duyệt)
@@ -68,6 +68,19 @@ BRD đang ở trạng thái **Chưa sẵn sàng** do còn câu hỏi mở. PRD �
 | DF-09 | Lịch sử hội thoại | Chỉ giữ trong phiên làm việc; lưu lâu dài là tính năng đề xuất P-04 | Giảm phạm vi lưu trữ dữ liệu | BRD OQ-013 |
 | DF-10 | Thời gian chờ tối đa cho một câu trả lời | 60 giây; quá thời gian thì báo lỗi và cho phép thử lại | Tránh màn hình chờ vô thời hạn | PM |
 
+### 0.4 Baseline MVP-lite
+
+MVP-lite ưu tiên một vertical slice nhỏ nhưng đáng tin cậy:
+
+1. Người dùng được cấp quyền đăng nhập.
+2. Người dùng tải một hoặc nhiều PDF văn bản lên.
+3. Hệ thống xử lý tài liệu và hiển thị trạng thái.
+4. Người dùng hỏi trên tài liệu của mình.
+5. Hệ thống trả lời có tên tài liệu và số trang, hoặc nói rõ không tìm thấy.
+6. Người dùng có thể xóa tài liệu; tài liệu hết hạn được dọn dẹp.
+
+Không xây trong MVP-lite: hỏi tiếp nối, feedback trong sản phẩm, báo cáo tuần, màn hình đánh giá, cộng tác nhóm, OCR, lịch sử hội thoại dài hạn, dashboard và hạ tầng HA. Cấp quyền có thể dùng cấu hình/CLI thay cho màn hình admin. Bộ câu hỏi chuẩn và đánh giá chất lượng chạy ngoài sản phẩm.
+
 ---
 
 ## 1. Tóm tắt điều hành và chiến lược
@@ -78,9 +91,9 @@ BRD đang ở trạng thái **Chưa sẵn sàng** do còn câu hỏi mở. PRD �
 
 Trong MVP, tầm nhìn này được thu hẹp lại: chứng minh rằng nhân viên PTKD tìm được câu trả lời **nhanh hơn rõ rệt** so với tra cứu thủ công, với **độ chính xác đủ tin cậy** để dùng trong công việc hằng ngày. Kết quả MVP là cơ sở cho quyết định đầu tư mở rộng (BRD BO-003).
 
-**Phạm vi chiến lược của MVP:**
-- **Có:** tải PDF lên, hỏi đáp trên nhiều tài liệu, trích dẫn nguồn, đo lường.
-- **Chưa có:** cộng tác nhóm, tích hợp kho tài liệu sẵn có, định dạng khác PDF, tóm tắt hoặc so sánh tài liệu (BRD §5.2, §5.3).
+**Phạm vi chiến lược của MVP-lite:**
+- **Có:** tải PDF lên, xử lý trạng thái, hỏi đáp trên nhiều tài liệu, trích dẫn nguồn, cô lập dữ liệu, xóa và retention.
+- **Chưa có:** hỏi tiếp nối, feedback, báo cáo tuần, màn hình evaluation, cộng tác nhóm, tích hợp kho tài liệu, OCR, định dạng khác PDF, tóm tắt hoặc so sánh tài liệu (BRD §5.2–§5.4).
 
 ### 1.2 Mục tiêu và kết quả then chốt (OKR)
 
@@ -93,8 +106,8 @@ Trong MVP, tầm nhìn này được thu hẹp lại: chứng minh rằng nhân 
 | **O2. Câu trả lời đáng tin cậy và kiểm chứng được** (BO-002) | **KR2.1** ≥ 85% câu trả lời trong bộ câu hỏi chuẩn được người đánh giá xác nhận là đúng và có nguồn đúng | MET-002 | Phiếu đánh giá của người đánh giá |
 | | **KR2.2** 100% câu hỏi không có đáp án trong tài liệu (≥ 10 câu kiểm thử) nhận thông báo "không tìm thấy" | BR-011 | Bộ kiểm thử câu hỏi không có đáp án |
 | | **KR2.3** 100% câu trả lời có nội dung đều hiển thị ít nhất 1 trích dẫn nguồn | BR-012 | Sự kiện `answer_rendered.citation_count` |
-| **O3. Người dùng mục tiêu chấp nhận sản phẩm** (BO-003) | **KR3.1** ≥ 70% người dùng thử nghiệm hoạt động mỗi tuần trong 4 tuần thử nghiệm | MET-003 | Sự kiện `question_submitted` theo người dùng |
-| | **KR3.2** ≥ 75% câu trả lời có phản hồi được đánh dấu "hữu ích" | MET-004 | Sự kiện `answer_feedback_submitted` |
+| **O3. Người dùng mục tiêu có thể sử dụng luồng cốt lõi** (BO-003) | **KR3.1** Người dùng thử nghiệm hoàn thành luồng tải PDF → hỏi → kiểm chứng trong UAT | MET-003 | Kịch bản UAT và số liệu tối thiểu |
+| | **KR3.2** Người đánh giá xác nhận MVP hữu ích hoặc chỉ ra rõ điểm chưa đạt để quyết định bước tiếp theo | MET-004 | Phiếu UAT, không bắt buộc feedback trong sản phẩm |
 
 ---
 
@@ -159,7 +172,7 @@ journey
     section Hỏi đáp
       Đặt câu hỏi đầu tiên: 5: PER-01
       Nhận câu trả lời tổng hợp kèm nguồn: 5: PER-01
-      Hỏi tiếp nối để làm rõ: 4: PER-01
+      Gửi câu hỏi đầy đủ tiếp theo: 4: PER-01
     section Kiểm chứng và dùng kết quả
       Xem tên tệp và số trang được trích dẫn: 5: PER-01
       Đánh giá câu trả lời hữu ích hay không: 4: PER-01
@@ -174,9 +187,8 @@ journey
 | 4. Hỏi | Gõ câu hỏi bằng tiếng Việt hoặc tiếng Anh | Hiển thị đang trả lời; câu trả lời xuất hiện kèm thẻ nguồn | US-011, US-012, US-017 | `question_submitted`, `answer_rendered` |
 | 5. Không có đáp án | Hỏi điều không có trong tài liệu | Thông báo "Không tìm thấy thông tin này trong các tài liệu đã tải lên" | US-013 | `answer_rendered.answer_type=not_found` |
 | 6. Kiểm chứng | Đọc tên tệp và số trang trong thẻ nguồn | Thẻ nguồn hiển thị tên tệp và số trang | US-014, US-015 | `citation_viewed` |
-| 7. Hỏi tiếp nối | "Còn đối tác B thì sao?" | Trả lời đúng ngữ cảnh của câu hỏi trước | US-016 | `question_submitted.is_followup` |
-| 8. Phản hồi | Nhấn 👍 hoặc 👎 | Ghi nhận phản hồi; lần nhấn sau thay thế lần trước | US-018 | `answer_feedback_submitted` |
-| 9. Dọn dẹp | Xóa tài liệu cũ hoặc tải nhầm | Hộp xác nhận; tài liệu biến mất khỏi danh sách và khỏi phạm vi trả lời | US-008 | `document_deleted` |
+| 7. Câu hỏi tiếp theo | Gửi lại câu hỏi đầy đủ | Trả lời dựa trên nội dung tài liệu, không dựa vào lịch sử dài hạn | US-011 | `question_submitted` |
+| 8. Dọn dẹp | Xóa tài liệu cũ hoặc tải nhầm | Hộp xác nhận; tài liệu biến mất khỏi danh sách và khỏi phạm vi trả lời | US-008 | `document_deleted` |
 
 **Khoảnh khắc "aha" (activation):** câu trả lời **đầu tiên có nguồn** mà người dùng kiểm chứng thấy đúng. Phễu kích hoạt ở Mục 5.2 đo đúng khoảnh khắc này.
 
@@ -188,11 +200,11 @@ journey
 
 | Epic | Tên | Mục tiêu | BR truy xuất | Story | P0 / P1 / P2 |
 |---|---|---|---|---|---|
-| EP-01 | Truy cập và phân quyền | Chỉ người được phép mới sử dụng và chỉ thấy tài liệu của mình | BR-017, BR-018 | US-001, US-002, US-023 | 3 / 0 / 0 |
+| EP-01 | Truy cập và phân quyền | Chỉ người được phép mới sử dụng và chỉ thấy tài liệu của mình | BR-017, BR-018 | US-001, US-002, US-023 | 2 / 1 / 0 |
 | EP-02 | Quản lý tài liệu | Đưa PDF vào tập truy vấn một cách minh bạch và có kiểm soát | BR-001 – BR-008 | US-003 – US-010, US-021 | 7 / 2 / 0 |
-| EP-03 | Hỏi đáp trên tài liệu | Trả lời câu hỏi bằng ngôn ngữ tự nhiên trên toàn bộ tập tài liệu | BR-009 – BR-011, BR-014 – BR-016 | US-011 – US-013, US-016, US-017 | 4 / 1 / 0 |
+| EP-03 | Hỏi đáp trên tài liệu | Trả lời câu hỏi bằng ngôn ngữ tự nhiên trên toàn bộ tập tài liệu | BR-009 – BR-011, BR-014 – BR-016 | US-011 – US-013, US-016, US-017 | 3 / 0 / 1 |
 | EP-04 | Trích dẫn và kiểm chứng | Cho phép người dùng kiểm tra nguồn của mọi câu trả lời | BR-012, BR-013 | US-014, US-015 | 1 / 1 / 0 |
-| EP-05 | Phản hồi và đo lường MVP | Tạo bằng chứng cho quyết định đầu tư | BR-020, BR-021 | US-018 – US-020, US-022 | 2 / 2 / 0 |
+| EP-05 | Phản hồi và đo lường MVP | Tạo bằng chứng tối thiểu cho quyết định đầu tư | BR-020, BR-021 | US-018 – US-020, US-022 | 1 / 0 / 3 |
 | EP-06 | Backlog đề xuất | Tính năng do BA đề xuất, **chưa thuộc phạm vi** | BRD P-01 – P-08 | US-024 – US-030 | 0 / 0 / 7 |
 
 > **BR-019** (AI chỉ xử lý dữ liệu trong ranh giới được phê duyệt) không phải hành vi người dùng nhìn thấy, nên không viết thành story. Yêu cầu này được kiểm soát bằng Launch Gate G-07.
@@ -203,7 +215,7 @@ journey
 |---|---|---|---|---|
 | US-001 | Là **PER-01**, tôi muốn đăng nhập bằng tài khoản được cấp, để chỉ người được phép mới xem được tài liệu dự án. | **P0** | BR-017 | Phương thức đăng nhập (SSO nội bộ hay tài khoản riêng) do SRS/SAD quyết định |
 | US-002 | Là **PER-01**, tôi muốn chỉ thấy và chỉ hỏi được trên tài liệu do chính tôi tải lên, để tài liệu của tôi không bị người khác truy cập. | **P0** | BR-018 | Theo DF-08 |
-| US-023 | Là **PER-04**, tôi muốn cấp và thu hồi quyền truy cập cho từng người dùng thử nghiệm, để kiểm soát ai được dùng MVP. | **P0** | BR-017 | Giao diện quản trị tối giản, hoặc quản lý qua danh sách cấu hình |
+| US-023 | Là **PER-04**, tôi muốn cấp và thu hồi quyền truy cập cho từng người dùng thử nghiệm, để kiểm soát ai được dùng MVP. | P1 | BR-017 | MVP-lite có thể quản lý qua cấu hình/CLI; màn hình admin để sau |
 
 **Tiêu chí nghiệm thu (P0):**
 
@@ -279,7 +291,7 @@ journey
 | US-011 | Là **PER-01**, tôi muốn đặt câu hỏi bằng ngôn ngữ tự nhiên và nhận câu trả lời chỉ dựa trên tài liệu của tôi, để không phải đọc thủ công từng tệp. | **P0** | BR-009 |
 | US-012 | Là **PER-01**, tôi muốn nhận một câu trả lời tổng hợp khi thông tin nằm ở nhiều tài liệu, để không phải tự đối chiếu. | **P0** | BR-010 |
 | US-013 | Là **PER-01**, tôi muốn được báo rõ khi tài liệu không chứa câu trả lời, để không dùng nhầm thông tin không có căn cứ. | **P0** | BR-011 |
-| US-016 | Là **PER-01**, tôi muốn hỏi tiếp nối mà không phải nhắc lại ngữ cảnh, để hỏi đáp tự nhiên như trò chuyện. | P1 | BR-014 |
+| US-016 | Là **PER-01**, tôi muốn hỏi tiếp nối mà không phải nhắc lại ngữ cảnh, để hỏi đáp tự nhiên như trò chuyện. | P2 | BR-014 |
 | US-017 | Là **PER-01**, tôi muốn hỏi bằng tiếng Việt hoặc tiếng Anh và nhận câu trả lời bằng ngôn ngữ tôi đã hỏi, kể cả khi tài liệu viết bằng ngôn ngữ khác. | **P0** | BR-015 |
 
 **Tiêu chí nghiệm thu (P0):**
@@ -324,10 +336,10 @@ journey
 
 | ID | User story | Ưu tiên | BR |
 |---|---|---|---|
-| US-018 | Là **PER-01**, tôi muốn đánh dấu câu trả lời là hữu ích (👍) hoặc không hữu ích (👎), để đội sản phẩm cải thiện chất lượng. | P1 | BR-020 |
-| US-019 | Là **PER-02**, tôi muốn xem báo cáo hằng tuần về số câu hỏi theo người dùng và tỷ lệ người dùng hoạt động, để đánh giá mức chấp nhận của MVP. | **P0** | BR-021 |
+| US-018 | Là **PER-01**, tôi muốn đánh dấu câu trả lời là hữu ích (👍) hoặc không hữu ích (👎), để đội sản phẩm cải thiện chất lượng. | P2 | BR-020 |
+| US-019 | Là **PER-02**, tôi muốn xem báo cáo hằng tuần về số câu hỏi theo người dùng và tỷ lệ người dùng hoạt động, để đánh giá mức chấp nhận của MVP. | P2 | BR-021 |
 | US-020 | Là **chủ sở hữu tài liệu** (BRD STK-006), tôi muốn số liệu đo lường không chứa nội dung tài liệu hay nội dung câu hỏi, để thông tin nhạy cảm không bị lộ qua báo cáo. | **P0** | BR-021 |
-| US-022 | Là **PER-03**, tôi muốn chạy bộ câu hỏi chuẩn và ghi kết quả đúng/sai cho từng câu, để tính được tỷ lệ chính xác MET-002. | P1 | BRD BRU-004 |
+| US-022 | Là **PER-03**, tôi muốn chạy bộ câu hỏi chuẩn và ghi kết quả đúng/sai cho từng câu, để tính được tỷ lệ chính xác MET-002. | P2 | BRD BRU-004 |
 
 > Ghi chú: BR-021 trong BRD gộp hai nghĩa vụ (lỗi đã được ghi nhận trong checklist). PRD tách thành US-019 và US-020.
 
@@ -457,27 +469,21 @@ Các story dưới đây **không** được phát triển cho đến khi BRD OQ
 
 ## 5. Tiêu chí phát hành và chỉ số sau ra mắt
 
-### 5.1 Tiêu chí Launch Gate
+### 5.1 Tiêu chí Pilot Gate
 
-MVP chỉ được mở cho người dùng thử nghiệm khi **tất cả** cổng dưới đây đạt.
+MVP-lite chỉ mở cho nhóm thử nghiệm nhỏ khi các cổng trực tiếp bảo vệ luồng cốt lõi đạt. Các yêu cầu về dashboard, load test quy mô lớn và vận hành production được chuyển sang Production Gate sau pilot.
 
 | Mã | Nhóm | Tiêu chí | Bằng chứng | Người ký |
 |---|---|---|---|---|
-| G-01 | Chức năng | 100% tiêu chí nghiệm thu của các story P0 đạt | Báo cáo kiểm thử | QA Lead |
-| G-02 | Chất lượng câu trả lời | KR2.1 ≥ 85% đúng trên bộ câu hỏi chuẩn ≥ 30 câu; KR2.2 = 100% trên ≥ 10 câu không có đáp án; KR2.3 = 100% câu trả lời có nguồn | Phiếu đánh giá của PER-03 | BA Lead + PM |
-| G-03 | Hiệu năng | p90 thời gian trả lời ≤ 15 giây (KR1.2); PDF văn bản 20 trang sẵn sàng trong ≤ 60 giây; đo với 10 người dùng đồng thời và 50 tài liệu mỗi người | Báo cáo kiểm thử hiệu năng | Tech Lead |
-| G-04 | Bảo mật — truy cập | AC-001.x, AC-002.x, AC-023.x đạt 100% | Báo cáo kiểm thử phân quyền | QA Lead + ATTT |
-| G-05 | Bảo mật — lỗ hổng | Không còn lỗ hổng mức Critical/High trong kết quả quét bảo mật ứng dụng; dữ liệu được mã hóa khi truyền | Báo cáo quét | ATTT |
-| G-06 | Quyền riêng tư đo lường | AC-020.1, AC-020.2 đạt | Biên bản rà soát | ATTT |
-| G-07 | Quản trị dữ liệu AI | Bộ phận ATTT/Pháp chế phê duyệt bằng văn bản luồng xử lý dữ liệu với dịch vụ AI và nơi lưu trữ (BR-019); BRD OQ-007, OQ-010 đã đóng | Biên bản phê duyệt | ATTT / Pháp chế |
-| G-08 | Lưu trữ | AC-021.1 được xác minh trên môi trường kiểm thử với thời hạn rút ngắn | Báo cáo kiểm thử | QA Lead |
-| G-09 | Độ bao phủ QA | 100% story P0 có ca kiểm thử truy xuất được; kiểm thử hồi quy tự động cho luồng tải lên → hỏi → trích dẫn; không còn lỗi mở mức Blocker/Critical; lỗi Major ≤ 3 và có phương án xử lý tạm | Ma trận truy xuất kiểm thử | QA Lead |
-| G-10 | Trình duyệt | Hoạt động trên Chrome, Edge và Firefox (2 phiên bản mới nhất) ở chiều rộng 1280px và 1024px | Báo cáo kiểm thử tương thích | QA Lead |
-| G-11 | UAT | ≥ 5 nhân viên PTKD hoàn thành kịch bản UAT; không còn vấn đề chặn | Biên bản UAT | Chủ sở hữu nghiệp vụ |
-| G-12 | Baseline | Đã đo baseline MET-001 (tra cứu thủ công) **trước** khi mở thử nghiệm | Báo cáo baseline | BA Lead |
-| G-13 | Giá trị mặc định | DF-01 – DF-10 đã được phê duyệt hoặc điều chỉnh | Biên bản quyết định | Nhà tài trợ |
+| G-01 | Luồng cốt lõi | Upload PDF → xử lý → hỏi → câu trả lời có nguồn hoặc `not_found` hoạt động end-to-end | E2E và demo | QA Lead |
+| G-02 | Chất lượng | Bộ câu hỏi chuẩn nhỏ có thể chạy offline; mọi câu trả lời phải có căn cứ hoặc `not_found`; ngưỡng chính thức được chốt sau baseline | Phiếu đánh giá | BA Lead + PM |
+| G-03 | Cô lập dữ liệu | Người dùng không thể xem hoặc truy vấn tài liệu của người khác | Integration test hai người dùng | QA Lead + ATTT |
+| G-04 | Quyền riêng tư và AI | Luồng xử lý AI, nơi lưu trữ và dữ liệu thử nghiệm được ATTT phê duyệt; log/analytics không chứa nội dung | Biên bản rà soát + canary test | ATTT |
+| G-05 | Xóa và retention | Xóa thủ công và dọn dẹp hết hạn không còn cho phép truy xuất tài liệu | Integration test | QA Lead |
+| G-06 | Hiệu năng tối thiểu | Tài liệu mẫu và câu hỏi mẫu hoàn thành trong giới hạn DF-03/DF-10 ở quy mô pilot | Báo cáo smoke/performance test | Tech Lead |
+| G-07 | UAT | Nhóm người dùng thử nghiệm hoàn thành luồng chính, không còn lỗi chặn | Biên bản UAT | Chủ sở hữu nghiệp vụ |
 
-**Các vấn đề được phép tồn tại khi ra mắt:** lỗi Minor về giao diện, và các story P1 chưa hoàn thành, với điều kiện có kế hoạch phát hành tiếp theo.
+**Các vấn đề được phép tồn tại khi ra mắt:** lỗi Minor về giao diện và các story P1/P2 chưa hoàn thành, miễn là không ảnh hưởng tới cô lập dữ liệu, nguồn trích dẫn, xóa dữ liệu hoặc luồng upload → hỏi.
 
 ### 5.2 Phân tích và theo dõi
 
@@ -498,12 +504,10 @@ MVP chỉ được mở cho người dùng thử nghiệm khi **tất cả** c�
 | `document_processing_succeeded` | Tài liệu chuyển sang ✅ | `document_id_hash`, `page_count`, `processing_ms` | G-03 |
 | `document_processing_failed` | Tài liệu chuyển sang ❌ | `document_id_hash`, `reason_code` (ER-03 – ER-06, NE-01) | Chất lượng dữ liệu, ASM-001 |
 | `document_deleted` | Xóa thủ công hoặc do hết hạn | `trigger` (user / retention), `age_days` | BR-005, BR-008 |
-| `question_submitted` | Gửi câu hỏi | `question_length`, `language` (vi/en/other), `ready_doc_count`, `is_followup`, `turn_index` | MET-003, KR3.1 |
+| `question_submitted` | Gửi câu hỏi | `question_length`, `language` (vi/en/other), `ready_doc_count` | MET-003, KR3.1 |
 | `answer_rendered` | Câu trả lời hiển thị đầy đủ | `latency_ms`, `answer_type` (answered / not_found / partial), `citation_count`, `cited_doc_count` | KR1.2, KR2.3, MET-002 |
 | `answer_failed` | NE-02, NE-04, NE-05, NE-06 | `error_code`, `latency_ms` | Độ ổn định |
 | `citation_viewed` | Người dùng di chuột hoặc nhấn vào thẻ nguồn | `citation_index` | Hành vi kiểm chứng (SN-003) |
-| `answer_feedback_submitted` | Nhấn 👍 / 👎 | `rating` (up / down / cleared), `answer_type` | MET-004, KR3.2 |
-| `conversation_reset` | Nhấn "Cuộc trò chuyện mới" | `turns_in_conversation` | UX |
 | `retry_clicked` | Nhấn Thử lại / Gửi lại | `context` (upload / answer) | Độ ổn định |
 
 #### Phễu kích hoạt (activation)
@@ -520,7 +524,9 @@ Theo dõi tỷ lệ rơi rụng giữa từng bước. Ngưỡng cảnh báo `[�
 - **A → B < 80%:** vấn đề ở bước tải lên hoặc giới hạn tệp.
 - **C → D < 70%:** chất lượng truy xuất hoặc tỷ lệ "không tìm thấy" quá cao.
 
-#### Bảng điều khiển hằng tuần (US-019)
+#### Báo cáo hằng tuần (US-019, sau MVP-lite)
+
+MVP-lite không có màn hình báo cáo hằng tuần. Các chỉ số dưới đây chỉ được tạo bằng truy vấn/export khi cần cho UAT hoặc quyết định tiếp theo:
 
 | Chỉ số | Công thức | Mục tiêu |
 |---|---|---|
@@ -546,22 +552,22 @@ Theo dõi tỷ lệ rơi rụng giữa từng bước. Ngưỡng cảnh báo `[�
 | BR-003 | US-004 | G-01 |
 | BR-004 | US-009, US-010 (tách) | — (P1) |
 | BR-005 | US-008 | G-01 |
-| BR-006 | US-006 | G-01, G-13 |
-| BR-007 | US-007 | G-01, G-13 |
-| BR-008 | US-021 | G-08 |
+| BR-006 | US-006 | G-01 |
+| BR-007 | US-007 | G-01 |
+| BR-008 | US-021 | G-05 |
 | BR-009 | US-011 | G-01, G-02 |
 | BR-010 | US-012 | G-02 |
 | BR-011 | US-013 | G-02 |
 | BR-012 | US-014 | G-02 |
-| BR-013 | US-015 | — (P1) |
-| BR-014 | US-016 | — (P1) |
-| BR-015 | US-017 | G-02, G-13 |
-| BR-016 | KR1.2 | G-03 |
-| BR-017 | US-001, US-023 | G-04 |
-| BR-018 | US-002 | G-04 |
-| BR-019 | — | G-07 |
-| BR-020 | US-018 | — (P1) |
-| BR-021 | US-019, US-020 (tách) | G-06 |
+| BR-013 | US-015 | G-01 |
+| BR-014 | US-016 | — (P2) |
+| BR-015 | US-017 | G-01 |
+| BR-016 | KR1.2 | G-06 |
+| BR-017 | US-001, US-023 | G-03 |
+| BR-018 | US-002 | G-03 |
+| BR-019 | — | G-04 |
+| BR-020 | US-018 | — (P2) |
+| BR-021 | US-019, US-020 (tách) | G-04; export tối thiểu |
 
 **Độ bao phủ:** 21/21 yêu cầu của BRD đã được truy xuất tới story hoặc Launch Gate. US-022 (công cụ đánh giá) truy xuất về BRD BRU-004. US-023 (quản trị viên) là story bổ sung để thực hiện BR-017.
 
@@ -571,8 +577,8 @@ Theo dõi tỷ lệ rơi rụng giữa từng bước. Ngưỡng cảnh báo `[�
 |---|---|---|
 | ASM-P01 | Người dùng chủ yếu làm việc trên máy tính | Hỏi trong buổi phỏng vấn người dùng |
 | ASM-P02 | Persona PER-01 phản ánh đúng hành vi thực tế (tần suất, loại câu hỏi) | Phỏng vấn 3–5 nhân viên PTKD trước khi chốt thiết kế |
-| ASM-P03 | Đã có người đảm nhận vai trò quản trị viên (PER-04) | Xác nhận cùng BRD OQ-004 |
-| ASM-P04 | Có thể chuẩn bị bộ câu hỏi chuẩn ≥ 30 câu có đáp án và ≥ 10 câu không có đáp án | BRD ASM-003, DEP-003 |
+| ASM-P03 | Có thể cấp quyền bằng cấu hình/CLI trong giai đoạn pilot mà chưa cần màn hình quản trị | Xác nhận cùng BRD OQ-004 |
+| ASM-P04 | Có thể chuẩn bị bộ câu hỏi chuẩn nhỏ để đánh giá offline | BRD ASM-003, DEP-003 |
 
 ### 6.3 Câu hỏi mở bổ sung cho PRD
 
@@ -588,3 +594,4 @@ Theo dõi tỷ lệ rơi rụng giữa từng bước. Ngưỡng cảnh báo `[�
 | Phiên bản | Ngày | Tác giả | Thay đổi |
 |---|---|---|---|
 | 0.1 | 2026-10-19 | Product Manager | Bản nháp đầu tiên từ BRD v0.2 |
+| 0.2 | 2026-10-26 | Product Manager | Thu hẹp thành MVP-lite; chuyển các tính năng không thuộc luồng cốt lõi sang P2 và thay Launch Gate production bằng Pilot Gate |

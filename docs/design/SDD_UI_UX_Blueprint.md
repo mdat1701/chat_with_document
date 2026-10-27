@@ -1,8 +1,8 @@
-# Bản thiết kế UI/UX (Software Design Description) — Chat với tài liệu (MVP)
+# Bản thiết kế UI/UX (Software Design Description) — Chat với tài liệu (MVP-lite)
 
 > **Tiêu chuẩn:** IEEE 1016-2009 — Software Design Descriptions
 > **Phạm vi:** Tầng giao diện người dùng (Web front-end) và hợp đồng giao tiếp giữa UI với back-end
-> **Đầu vào:** [PRD v0.1](../requirements/PRD.md) (PRD-CWD-001) · [BRD v0.2](../requirements/BRD.md) (BRD-CWD-001) · Prompt: [`docs/bluePrint_design_prompt.md`](../bluePrint_design_prompt.md)
+> **Đầu vào:** [PRD v0.2](../requirements/PRD.md) (PRD-CWD-001) · [BRD v0.3](../requirements/BRD.md) (BRD-CWD-001) · Prompt: [`docs/design/bluePrint_design_prompt.md`](bluePrint_design_prompt.md)
 
 ---
 
@@ -14,7 +14,7 @@
 |---|---|
 | **Tên hệ thống** | Chat với tài liệu (Chat with Documents) — MVP |
 | **Mã tài liệu** | SDD-CWD-UI-001 |
-| **Phiên bản SDD** | v0.1 — Bản nháp |
+| **Phiên bản SDD** | v0.3 — MVP-lite |
 | **Ngày tài liệu** | 2026-10-19 |
 | **Chủ sở hữu tài liệu** | Front-end Lead + UI/UX Designer [TBD] |
 | **Người rà soát** | Product Manager, Tech Lead, QA Lead, An toàn thông tin |
@@ -23,7 +23,8 @@
 
 | Phiên bản | Ngày | Tác giả | Thay đổi |
 |---|---|---|---|
-| v0.1 | 2026-10-19 | Nhóm UI/UX | Bản nháp đầu tiên, xây dựng từ PRD v0.1 |
+| v0.2 | 2026-10-26 | Nhóm UI/UX | Thu hẹp thành MVP-lite, bỏ các màn hình post-MVP |
+| v0.3 | 2026-10-27 | Nhóm UI/UX | Dọn các tham chiếu còn sót tới SCR-04 – SCR-06 và `FeedbackButtons` (§2.2, §3.1, §3.2.2, §3.3, §3.4.2, §3.5.3, §3.6.2, §3.8.3, §4.1) cho khớp với phạm vi MVP-lite đã thu hẹp ở v0.2 |
 
 **Mô tả hệ thống.** "Chat với tài liệu" là ứng dụng web giúp nhân viên Phát triển Kinh doanh (PTKD) tra cứu thông tin trong nhiều tài liệu PDF:
 - Người dùng tải PDF lên, đặt câu hỏi bằng tiếng Việt hoặc tiếng Anh, và nhận câu trả lời tổng hợp từ **toàn bộ** tài liệu đã tải lên.
@@ -36,8 +37,8 @@ Tài liệu này mô tả thiết kế **tầng UI**: cấu trúc màn hình, c�
 | Loại ranh giới | Mô tả |
 |---|---|
 | **Mục đích hệ thống** | Giảm thời gian tìm và tổng hợp thông tin từ nhiều PDF (PRD O1), với câu trả lời kiểm chứng được (O2). Tầng UI chịu trách nhiệm làm cho việc tải lên, hỏi và kiểm chứng nguồn trở nên nhanh, minh bạch và đáng tin. |
-| **Hệ thống bên ngoài (so với UI)** | (1) **Back-end API** của ứng dụng: tài liệu, hỏi đáp, phản hồi, báo cáo, quản trị · (2) **Nhà cung cấp danh tính** cho đăng nhập (SSO nội bộ hoặc tài khoản riêng — PRD OQ-P01) · (3) **Dịch vụ phân tích (analytics)** nhận sự kiện ẩn danh · (4) Dịch vụ AI/LLM **không được UI gọi trực tiếp**; mọi truy cập đi qua back-end (BR-019) |
-| **Loại người dùng** | PER-01 Chuyên viên PTKD · PER-02 Quản lý / nhà tài trợ · PER-03 Người đánh giá MVP · PER-04 Quản trị viên |
+| **Hệ thống bên ngoài (so với UI)** | (1) **Back-end API** của ứng dụng: tài liệu và hỏi đáp · (2) **Nhà cung cấp danh tính** cho đăng nhập · (3) Dịch vụ AI/LLM **không được UI gọi trực tiếp**; mọi truy cập đi qua back-end (BR-019) |
+| **Loại người dùng** | PER-01 Chuyên viên PTKD; người vận hành pilot cấp quyền bằng cấu hình/CLI |
 | **Giao diện bên ngoài** | REST/JSON qua HTTPS cho thao tác CRUD · `multipart/form-data` để tải tệp lên · **Server-Sent Events (SSE)** để truyền câu trả lời dần dần (streaming) và cập nhật trạng thái tài liệu · OIDC redirect cho đăng nhập (nếu dùng SSO) |
 | **Ranh giới tin cậy** | **TB-1** Trình duyệt người dùng (không tin cậy) ↔ **TB-2** Back-end API (tin cậy, qua HTTPS) ↔ **TB-3** Dịch vụ AI bên thứ ba (ngoài tổ chức, chờ phê duyệt OQ-010). UI không lưu nội dung tài liệu trong `localStorage`, không gửi nội dung tới analytics, và không giữ token trong bộ nhớ có thể đọc bằng JavaScript (dùng cookie `HttpOnly`). |
 | **Môi trường triển khai** | Ứng dụng trang đơn (SPA) dạng tệp tĩnh, phân phối qua CDN hoặc web server nội bộ `[Đề xuất — chờ SAD]`. Trình duyệt hỗ trợ: Chrome, Edge, Firefox (2 phiên bản mới nhất) (PRD G-10). |
@@ -66,7 +67,7 @@ flowchart LR
 | Loại | Mô tả |
 |---|---|
 | **Ràng buộc kỹ thuật** | Ứng dụng web chạy trên trình duyệt (BRD CON-001). Không cài đặt phía máy người dùng. UI không gọi dịch vụ AI trực tiếp. Công nghệ front-end đề xuất: **React 18 + TypeScript + Vite**; TanStack Query cho dữ liệu từ máy chủ; Zustand cho trạng thái giao diện; CSS Variables cho design token `[Đề xuất — chờ SAD xác nhận]`. |
-| **Ràng buộc nghiệp vụ** | Phạm vi MVP: chỉ có story P0 và P1 của PRD; story P2 (EP-06) không được thiết kế chi tiết (BRD BRU-005). Ngân sách và thời hạn TBD (BRD OQ-005, OQ-006). |
+| **Ràng buộc nghiệp vụ** | MVP-lite chỉ có đăng nhập, tài liệu, hỏi đáp, citation, not_found, xóa và retention. Feedback, report, evaluation UI, follow-up và admin UI là post-MVP. |
 | **Giả định môi trường** | Người dùng làm việc trên máy tính trong mạng nội bộ/văn phòng, độ trễ mạng < 100 ms tới back-end, màn hình ≥ 1280px (PRD ASM-P01). |
 | **Giả định dữ liệu** | Tối đa 50 tài liệu/người dùng, 20 MB/tệp, 300 trang/tệp, lưu 90 ngày (PRD DF-01 – DF-05, đề xuất). Lịch sử hội thoại chỉ giữ trong phiên (DF-09). Giao diện tiếng Việt; câu hỏi và câu trả lời tiếng Việt hoặc tiếng Anh (DF-06). |
 
@@ -103,9 +104,8 @@ flowchart LR
 | CN-09 | SH-05 | Dễ bảo trì | Trung bình | Thành phần UI thuần (presentational) không gọi API trực tiếp; thay đổi một tính năng ảnh hưởng ≤ 2 module khác |
 | CN-10 | SH-07 | Dễ kiểm thử | Trung bình | Mọi phần tử tương tác có `data-testid`; mỗi trạng thái của state machine có ít nhất 1 ca kiểm thử |
 | CN-11 | SH-09 | Đo lường được | Trung bình | 14 sự kiện ở PRD §5.2 được phát đúng thời điểm; phễu kích hoạt tính được |
-| CN-12 | SH-02 | Báo cáo dễ đọc | Trung bình | Báo cáo tuần hiển thị đủ chỉ số của AC-019.1 trên một màn hình |
-| CN-13 | SH-03 | Chấm điểm hiệu quả | Thấp (P1) | Chấm một câu trả lời ≤ 3 thao tác |
-| CN-14 | SH-04 | Quản trị quyền an toàn | Trung bình | Thu hồi quyền cần xác nhận; danh sách hiển thị trạng thái quyền rõ ràng |
+
+> Mối quan tâm của SH-02 (báo cáo tuần), SH-03 (chấm điểm) và SH-04 (quản trị quyền) không có thành phần UI trong MVP-lite (BRD §5.4, PRD §0.4: cấp quyền qua cấu hình/CLI, đánh giá chất lượng ngoài sản phẩm). Các mã CN-12 – CN-14 đã được gỡ khỏi phiên bản v0.2 cùng với SCR-04 – SCR-06; sẽ được khôi phục nếu các màn hình này quay lại phạm vi.
 
 ### 2.3 Kịch bản thuộc tính chất lượng (định dạng 6 phần)
 
@@ -162,7 +162,7 @@ flowchart LR
 | 3.2 | Logic (Logical) | CN-01, CN-02, CN-04, CN-09 |
 | 3.3 | Phụ thuộc (Dependency) | CN-06, CN-09 |
 | 3.4 | Thông tin (Information) | CN-01, CN-05, CN-06 |
-| 3.5 | Giao diện (Interface) | CN-03, CN-04, CN-07, CN-12, CN-14 |
+| 3.5 | Giao diện (Interface) | CN-03, CN-04, CN-07 |
 | 3.6 | Tương tác (Interaction) | CN-02, CN-03, CN-05 |
 | 3.7 | Động thái trạng thái (State Dynamics) | CN-02, CN-05, CN-10 |
 | 3.8 | Sử dụng mẫu thiết kế (Patterns Use) | CN-08, CN-11, nhất quán thị giác |
@@ -180,15 +180,11 @@ flowchart LR
 |---|---|---|---|---|
 | `app` | Gói gốc | Hệ thống | Khởi tạo, router, provider (Query, Auth, i18n), error boundary toàn cục | Tất cả `features`, `shared` |
 | `features/auth` | Module tính năng | `app` | Đăng nhập, phiên, chặn route khi chưa đăng nhập, trang không có quyền (US-001) | `shared/api`, `shared/ui` |
-| `features/documents` | Module tính năng | `app` | Thư viện tài liệu: tải lên, danh sách, trạng thái, xóa, hết hạn (EP-02) | `shared/api`, `shared/ui`, `shared/analytics`, `shared/validation` |
-| `features/chat` | Module tính năng | `app` | Hội thoại: composer, danh sách tin nhắn, câu trả lời streaming, trích dẫn, phản hồi (EP-03, EP-04, US-018) | `shared/api`, `shared/ui`, `shared/analytics`, `features/documents` (chỉ đọc số tài liệu sẵn sàng) |
-| `features/reports` | Module tính năng | `app` | Báo cáo tuần cho PER-02 (US-019) | `shared/api`, `shared/ui` |
-| `features/evaluation` | Module tính năng | `app` | Chấm điểm bộ câu hỏi chuẩn cho PER-03 (US-022, P1) | `features/chat` (dùng lại AnswerMessage), `shared/api` |
-| `features/admin` | Module tính năng | `app` | Cấp và thu hồi quyền người dùng (US-023) | `shared/api`, `shared/ui` |
+| `features/documents` | Module tính năng | `app` | Thư viện tài liệu: tải lên, danh sách, trạng thái, xóa, hết hạn (EP-02) | `shared/api`, `shared/ui`, `shared/validation` |
+| `features/chat` | Module tính năng | `app` | Hội thoại: composer, tin nhắn, câu trả lời streaming, trích dẫn (EP-03, EP-04) | `shared/api`, `shared/ui`, `features/documents` |
 | `shared/ui` | Thư viện thành phần | `shared` | Design system: Button, Badge, Dialog, Toast, Tooltip, Skeleton, Banner, EmptyState | `shared/tokens` |
 | `shared/tokens` | Gói cấu hình | `shared` | Design token: màu, chữ, khoảng cách, bo góc, bóng (§3.8) | — |
 | `shared/api` | Hạ tầng | `shared` | HTTP client, SSE client, ánh xạ lỗi sang `ErrorCode`, chuyển hướng khi nhận 401 | `shared/i18n` |
-| `shared/analytics` | Hạ tầng | `shared` | `track(event, props)` kèm **bộ lọc cho phép (allow-list)** thuộc tính (CN-06) | — |
 | `shared/i18n` | Hạ tầng | `shared` | Danh mục chuỗi `messages.vi.ts`, định dạng ngày và số | — |
 | `shared/validation` | Tiện ích | `shared` | Kiểm tra tệp phía client: loại tệp (magic bytes `%PDF-`), dung lượng, hạn mức | `shared/config` |
 | `shared/config` | Cấu hình | `shared` | Giá trị DF-01 – DF-10 nhận từ API `/config` (không cố định trong code) | — |
@@ -198,10 +194,6 @@ flowchart TD
     Root[app] --> Auth[features/auth]
     Root --> Docs[features/documents]
     Root --> Chat[features/chat]
-    Root --> Rep[features/reports]
-    Root --> Eval[features/evaluation]
-    Root --> Adm[features/admin]
-
     Docs --> D1[UploadDropzone]
     Docs --> D2[DocumentList / DocumentItem]
     Docs --> D3[DeleteConfirmDialog]
@@ -211,7 +203,6 @@ flowchart TD
     Chat --> C2[AnswerMessage]
     Chat --> C3[CitationList / CitationChip]
     Chat --> C4[Composer]
-    Chat --> C5[FeedbackButtons]
 
     Root --> Shared[shared]
     Shared --> S1[ui]
@@ -237,21 +228,12 @@ flowchart TD
 | SCR-01 | `/login` | Đăng nhập | Tất cả | US-001 | Công khai |
 | SCR-02 | `/` | **Màn hình chính** (thư viện tài liệu + hội thoại) | PER-01 (và mọi người dùng) | US-002 – US-021 | Người dùng được cấp quyền |
 | SCR-03 | `/no-access` | Chưa được cấp quyền | Người không có quyền | AC-001.2 | Đã xác thực nhưng chưa được cấp quyền |
-| SCR-04 | `/reports/weekly` | Báo cáo tuần | PER-02 | US-019 | Vai trò `manager` |
-| SCR-05 | `/evaluation` | Chấm điểm bộ câu hỏi chuẩn | PER-03 | US-022 (P1) | Vai trò `evaluator` |
-| SCR-06 | `/admin/users` | Quản lý quyền truy cập | PER-04 | US-023 | Vai trò `admin` |
 | SCR-07 | `*` | Không tìm thấy trang | Tất cả | — | — |
 
 ```mermaid
 flowchart LR
     L[SCR-01 Đăng nhập] -->|có quyền| M[SCR-02 Màn hình chính]
     L -->|không có quyền| NA[SCR-03 Chưa được cấp quyền]
-    M -->|Menu người dùng · manager| R[SCR-04 Báo cáo tuần]
-    M -->|Menu người dùng · evaluator| E[SCR-05 Chấm điểm]
-    M -->|Menu người dùng · admin| A[SCR-06 Quản lý quyền]
-    R --> M
-    E --> M
-    A --> M
 ```
 
 #### 3.2.2 Bố cục màn hình chính SCR-02
@@ -266,9 +248,8 @@ flowchart LR
 │ │ "Tài liệu" · 12/50      │ │ │  UserMessage                                │ │
 │ ├─────────────────────────┤ │ │  AnswerMessage                              │ │
 │ │ UploadDropzone          │ │ │   ├ AnswerBody (markdown, trích dẫn [n])   │ │
-│ │ ⬆ Tải PDF lên / kéo thả │ │ │   ├ CitationList → CitationChip × n        │ │
-│ │ PDF · ≤20 MB · ≤300 tr. │ │ │   └ FeedbackButtons 👍 👎                   │ │
-│ ├─────────────────────────┤ │ │  NotFoundMessage (ℹ nền xám)                │ │
+│ │ ⬆ Tải PDF lên / kéo thả │ │ │   └ CitationList → CitationChip × n        │ │
+│ │ PDF · ≤20 MB · ≤300 tr. │ │ │  NotFoundMessage (ℹ nền xám)                │ │
 │ │ DocumentList            │ │ │  ErrorMessage (⚠ + Thử lại)                 │ │
 │ │  DocumentItem           │ │ │  TypingIndicator "Đang tìm trong 9 tài liệu…"│ │
 │ │   [icon] tên · trạng thái│ │ └─────────────────────────────────────────────┘ │
@@ -305,7 +286,6 @@ flowchart LR
 | `NotFoundMessage` | Hiển thị | `partial?` | US-013, UX-06 |
 | `ErrorMessage` | Hiển thị | `errorCode`, `onRetry` | NE-02, NE-04 – NE-06 |
 | `CitationList` / `CitationChip` | Hiển thị | `citations[]`: `index`, `documentName`, `page?` | US-014, US-015, UX-04 |
-| `FeedbackButtons` | Tương tác | `rating`, `onRate` | US-018, IX-05 |
 | `TypingIndicator` | Hiển thị | `readyDocCount` | IX-03 |
 | `Composer` | Tương tác | `disabledReason?`, `onSubmit`, giữ bản nháp | IX-02, ER-09, ER-10 |
 | `AIDisclaimer` | Hiển thị | — | UX-05 |
@@ -336,15 +316,10 @@ flowchart LR
         auth
         documents
         chat
-        reports
-        evaluation
-        admin
     end
     chat -. đọc số tài liệu sẵn sàng .-> documents
-    evaluation -. dùng lại AnswerMessage .-> chat
     features --> ui[shared/ui]
     features --> api[shared/api]
-    features --> an[shared/analytics]
     features --> i18n[shared/i18n]
     documents --> val[shared/validation]
     val --> cfg[shared/config]
@@ -359,7 +334,7 @@ flowchart LR
 |---|---|---|
 | React 18 + TypeScript | Khung UI | Phổ biến, có kiểu dữ liệu chặt chẽ |
 | Vite | Build | Build nhanh, chia nhỏ gói theo route |
-| React Router | Định tuyến | Lazy-load SCR-04 – SCR-06 |
+| React Router | Định tuyến | Điều hướng SCR-01, SCR-02, SCR-03, SCR-07 |
 | TanStack Query | Dữ liệu từ máy chủ | Cache, retry, polling trạng thái tài liệu |
 | Zustand | Trạng thái giao diện | Nhẹ; quản lý composer và hội thoại |
 | Radix UI (primitives) | Dialog, Tooltip, Menu có sẵn khả năng truy cập | Đáp ứng CN-08 mà không phải tự viết ARIA |
@@ -409,7 +384,6 @@ interface AnswerVM {
   citations: CitationVM[];   // nhận ở sự kiện 'citations' — chỉ hiển thị khi phase = 'complete'
   latencyMs?: number;
   errorCode?: ChatErrorCode;
-  feedback?: 'up' | 'down' | null;
 }
 
 interface MessageVM {
@@ -444,7 +418,6 @@ interface AppConfig {        // GET /config — các giá trị DF
 | IR-02 | Nếu `type = 'answered'` nhưng `citations` rỗng, UI hiển thị câu trả lời với nhãn cảnh báo "Không xác định được nguồn — vui lòng kiểm chứng" và phát `answer_rendered` với `citation_count = 0` để theo dõi vi phạm KR2.3. | CN-01, CN-11 |
 | IR-03 | `[n]` trong nội dung không khớp với `CitationVM.index` nào thì được hiển thị dạng chữ thường, không tạo liên kết. | CN-01 |
 | IR-04 | Nội dung câu trả lời luôn qua `rehype-sanitize`; không cho phép HTML thô, script hay iframe. | CN-06 |
-| IR-05 | `FeedbackButtons` chỉ hiển thị khi `phase = 'complete'`. | CN-11 |
 
 #### 3.4.3 Danh mục mã lỗi và thông báo (`messages.vi.ts`)
 
@@ -481,7 +454,7 @@ interface AppConfig {        // GET /config — các giá trị DF
 ### 3.5 Góc nhìn giao diện (Interface View)
 
 **Mục đích:** Đặc tả giao diện người dùng (màn hình, phím tắt) và hợp đồng API mà UI tiêu thụ.
-**Mối quan tâm:** CN-03, CN-04, CN-07, CN-12, CN-14.
+**Mối quan tâm:** CN-03, CN-04, CN-07.
 
 #### 3.5.1 Hợp đồng API mà UI cần `[Đề xuất — chốt trong SRS/SAD]`
 
@@ -496,10 +469,6 @@ interface AppConfig {        // GET /config — các giá trị DF
 | API-07 | `DELETE /documents/{id}` | Xóa tài liệu | `204` · `404` | US-008 |
 | API-08 | `POST /conversations` | Tạo hội thoại mới | `{ conversationId }` | IX-06 |
 | API-09 | `POST /conversations/{cid}/questions` → luồng SSE | Gửi câu hỏi và nhận câu trả lời | Chuỗi sự kiện: `meta` `{answerId, readyDocCount}` → `delta` `{text}` × n → `citations` `{items: CitationVM[]}` → `done` `{type, latencyMs}` · hoặc `error` `{code}` | US-011 – US-017 |
-| API-10 | `PUT /answers/{id}/feedback` | Gửi phản hồi 👍 / 👎 | `{ rating: 'up' \| 'down' \| null }` → `204` | US-018 |
-| API-11 | `GET /reports/weekly?week=YYYY-Www` | Báo cáo tuần | Các chỉ số của AC-019.1 | US-019 |
-| API-12 | `GET/POST/DELETE /admin/users` | Quản lý quyền truy cập | Danh sách người dùng và trạng thái quyền | US-023 |
-| API-13 | `GET /evaluation/sets/{id}` · `PUT /evaluation/items/{id}` | Chấm điểm | Danh sách câu hỏi kèm đáp án mong đợi; kết quả đúng/sai | US-022 |
 
 **Quy ước lỗi chung:** `{ "code": "<ErrorCode>", "params": { … } }`. UI ánh xạ `code` sang thông báo ở §3.4.3 và **không hiển thị nguyên văn thông báo của máy chủ**.
 
@@ -521,9 +490,8 @@ interface AppConfig {        // GET /config — các giá trị DF
 |---|---|---|
 | SCR-01 Đăng nhập | Nút "Đăng nhập bằng tài khoản công ty" (SSO) hoặc biểu mẫu tài khoản | Phụ thuộc PRD OQ-P01 |
 | SCR-03 Chưa được cấp quyền | Biểu tượng, thông báo `NOT_AUTHORIZED`, nút Đăng xuất | Không tiết lộ thông tin hệ thống |
-| SCR-04 Báo cáo tuần | Bộ chọn tuần; 4 thẻ KPI (người dùng hoạt động, tỷ lệ hữu ích, p90 thời gian trả lời, tỷ lệ không tìm thấy); bảng số câu hỏi theo người dùng | Không hiển thị nội dung câu hỏi (US-020) |
-| SCR-05 Chấm điểm | Danh sách câu hỏi chuẩn; với mỗi câu: câu trả lời (dùng lại `AnswerMessage`), đáp án mong đợi, nút ✔ Đúng / ✘ Sai, ô ghi chú; thanh tiến độ chấm điểm | CN-13: chấm một câu ≤ 3 thao tác |
-| SCR-06 Quản lý quyền | Ô thêm email; bảng người dùng (email, vai trò, trạng thái); nút Thu hồi kèm xác nhận | CN-14 |
+
+> Báo cáo tuần (US-019), chấm điểm (US-022) và quản lý quyền truy cập (US-023) không có màn hình trong MVP-lite — xem §2.3 và BRD §5.4.
 
 ---
 
@@ -579,7 +547,7 @@ sequenceDiagram
     C->>S: submit(text)
     S->>S: Thêm UserMessage + AnswerVM{pending}
     S-->>A: Hiển thị TypingIndicator (≤ 300 ms)
-    S->>T: question_submitted{length, language, readyDocCount, isFollowup}
+    S->>T: question_submitted{length, language, readyDocCount}
     S->>API: POST /conversations/{cid}/questions
     API-->>S: meta{answerId}
     loop Truyền dần
@@ -588,7 +556,7 @@ sequenceDiagram
     end
     API-->>S: citations{items}
     API-->>S: done{type, latencyMs}
-    S-->>A: phase = complete · hiển thị CitationList + FeedbackButtons
+    S-->>A: phase = complete · hiển thị CitationList
     A-->>U: aria-live: "Đã có câu trả lời"
     S->>T: answer_rendered{latencyMs, answerType, citationCount}
     Note over S,API: Bộ đếm DF-10 = 60 giây → ANSWER_TIMEOUT<br/>SSE bị ngắt sau khi đã nhận delta → ANSWER_INTERRUPTED
@@ -750,7 +718,7 @@ stateDiagram-v2
 | Adapter cho lỗi | `shared/api` ánh xạ HTTP / SSE sang `ErrorCode` (§3.4.3) |
 | Allow-list cho analytics | `track()` chỉ nhận các khóa đã khai báo (DR-05) |
 | Error boundary | Mỗi panel một boundary; lỗi ở ChatPanel không làm sập DocumentPanel |
-| Feature flag | Bật/tắt story P1 (US-015, US-016, US-022) qua `/config` |
+| Feature flag | Bật/tắt story P1 (US-015 — số trang trong trích dẫn) qua `/config` |
 
 #### 3.8.4 Đo lường (instrumentation) theo thành phần
 
@@ -763,8 +731,6 @@ stateDiagram-v2
 | `document_deleted` | `DeleteConfirmDialog` sau khi nhận 204 (`trigger=user`); với `trigger=retention`, phía máy chủ phát |
 | `question_submitted`, `answer_rendered`, `answer_failed`, `retry_clicked` | `ConversationStore` |
 | `citation_viewed` | `CitationChip` (hover ≥ 500 ms hoặc nhấn) |
-| `answer_feedback_submitted` | `FeedbackButtons` |
-| `conversation_reset` | `AppHeader` |
 
 ---
 
@@ -785,9 +751,6 @@ stateDiagram-v2
 | CN-09 Bảo trì | 3.1, 3.3 | Cấu trúc feature-sliced, DR-01 – DR-06 | — | Lint ranh giới module |
 | CN-10 Kiểm thử | 3.7 | Máy trạng thái tường minh, `data-testid` | — | Độ bao phủ ≥ 80% |
 | CN-11 Đo lường | 3.8.4 | `shared/analytics`, bảng phát sự kiện | PRD §5.2 | Kiểm thử sự kiện |
-| CN-12 Báo cáo | 3.5.3 | SCR-04 | US-019 | UAT với PER-02 |
-| CN-13 Chấm điểm | 3.5.3 | SCR-05 | US-022 | UAT với PER-03 |
-| CN-14 Quản trị quyền | 3.5.3 | SCR-06 | US-023 | Kiểm thử chức năng |
 
 ### 4.2 Story của PRD → Thành phần UI
 
@@ -803,14 +766,15 @@ stateDiagram-v2
 | US-011, US-012, US-017 | `Composer`, `AnswerMessage` | API-09 |
 | US-013 | `NotFoundMessage` | API-09 (`done.type`) |
 | US-014, US-015 | `CitationList`, `CitationChip` | API-09 (`citations`) |
-| US-016 | `ConversationStore` (`conversationId`) | API-08, API-09 |
-| US-018 | `FeedbackButtons` | API-10 |
-| US-019, US-020 | SCR-04, `shared/analytics` | API-11 |
+| US-016 | Post-MVP; không có UI trong MVP-lite | — |
+| US-018 | Post-MVP; không có UI trong MVP-lite | — |
+| US-019 | Post-MVP; không có UI trong MVP-lite | — |
+| US-020 | Bộ lọc log/metric, không có UI | — |
 | US-021 | `ExpiryBadge` | API-03 (`expiresAt`) |
-| US-022 | SCR-05 | API-13 |
-| US-023 | SCR-06 | API-12 |
+| US-022 | Script đánh giá offline, không có UI | — |
+| US-023 | Cấp quyền bằng CLI/config, không có UI bắt buộc | — |
 
-**Độ bao phủ:** 23/23 story P0 và P1 của PRD đã có thành phần UI. 7 story P2 (US-024 – US-030) cố ý chưa được thiết kế. Riêng US-026 (mở PDF đúng trang) đã được tính sẵn trong thiết kế: `CitationChip` có `documentId` + `page`, nên có thể bổ sung sau mà không phải đổi mô hình dữ liệu.
+**Độ bao phủ MVP-lite:** Các story cốt lõi có thành phần UI cần thiết. US-016, US-018, US-019, US-022 và UI quản trị của US-023 là post-MVP; US-026 vẫn có thể bổ sung sau vì `CitationChip` giữ `documentId` và `page`.
 
 ---
 
