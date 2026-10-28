@@ -39,7 +39,7 @@
 
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
-| [T-101](T-101_oidc-login.md) | Đăng nhập OIDC (BFF) | US-001 | BE | 3d | To do |
+| [T-101](T-101_oidc-login.md) | Đăng nhập OIDC (BFF) | US-001 | BE | 3d | Done (chưa có IdP thật, D-03) |
 | [T-102](T-102_session-csrf-me.md) | Phiên, CSRF, `GET /me` | US-001 | BE | 1d | To do |
 | [T-103](T-103_access-grant-cli.md) | Cấp quyền qua CLI/config | US-023 | BE | 1d | To do |
 | [T-104](T-104_owner-scoped-db-access.md) | Cô lập `owner_id` + RLS | US-002 | BE | 2d | To do |

@@ -22,6 +22,7 @@ dependencies = [
   "opentelemetry-instrumentation-celery>=0.48b0",
   "opentelemetry-exporter-otlp-proto-http>=1.27",
   "prometheus-client>=0.21",
+  "authlib>=1.3",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +33,7 @@ dev = [
   "pytest>=8.3",
   "pytest-asyncio>=0.24",
   "testcontainers[postgres,redis]>=4.8",
+  "fakeredis>=2.26",
 ]
 
 [build-system]
@@ -48,8 +50,15 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.flake8-bugbear]
+# Mẫu chuẩn của FastAPI: `Depends(...)` trong default argument KHÔNG bị
+# gọi lại mỗi request (FastAPI tự cache/giải quyết dependency) — B008 báo
+# sai với mẫu này nếu không khai báo ngoại lệ (xuất hiện ở mọi router).
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Cookie", "fastapi.Header"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 markers = [
   "isolation: kiểm thử cô lập dữ liệu 2 người dùng (Pilot Gate G-03, T-504)",

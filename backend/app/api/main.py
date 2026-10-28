@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from app.api.deps import assert_stub_auth_allowed
 from app.api.health import router as health_router
 from app.api.router import api_router
+from app.api.routers.auth import router as auth_router
 from app.core.config import get_settings
 from app.core.errors import ERROR_HTTP_STATUS, FALLBACK_ERROR_CODE, DomainError
 from app.core.logging import configure_logging, hash_user_id
@@ -52,6 +53,9 @@ instrument_fastapi(app)
 
 # Health endpoints KHÔNG đặt dưới /api/v1 để hạ tầng (probe K8s) gọi trực tiếp.
 app.include_router(health_router)
+# /auth/* là luồng redirect trình duyệt (T-101), không phải API JSON — cũng
+# không đặt dưới /api/v1.
+app.include_router(auth_router)
 app.include_router(api_router, prefix="/api/v1")
 
 

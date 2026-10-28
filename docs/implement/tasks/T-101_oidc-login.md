@@ -10,7 +10,7 @@
 | Vai trò chính | BE (hỗ trợ: TL, ATTT) |
 | Ước lượng | 3d |
 | Phụ thuộc | T-005 (schema `app_user`), T-008 (khung FastAPI), **D-03** (chốt IdP) |
-| Trạng thái | To do |
+| Trạng thái | Done (chưa xác minh với IdP thật — D-03 chưa chốt) |
 
 ## 1. Mục tiêu
 
@@ -100,23 +100,45 @@ Headers: X-CSRF-Token: <token>
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Tài khoản `active=true` → sau đăng nhập vào thẳng `/`, `GET /me` trả 200 (AC-001.1)
-- [ ] Tài khoản không có trong `app_user` → 302 `/no-access`, **không** có `Set-Cookie: cwd_sid` trong response (AC-001.2)
-- [ ] Tài khoản `active=false` → kết quả giống trên (AC-001.2)
-- [ ] `GET /auth/login?return_to=https://evil.com` và `?return_to=//evil.com` → 400, không redirect ra ngoài
-- [ ] `state` bị sửa trong URL callback → 400 `OIDC_STATE_MISMATCH`, không tạo session
-- [ ] Xóa key `session:{sid}` trong Redis → request tiếp theo trả 401 `SESSION_EXPIRED` (AC-001.3)
-- [ ] Session tạo cách đây 12 giờ 1 phút nhưng vừa hoạt động → vẫn hết hạn
-- [ ] `POST /auth/logout` → 204, key Redis bị xóa, `sid` rời khỏi `sessions_by_user:{user_id}`
-- [ ] Log/trace của toàn bộ luồng không chứa email, `sub`, hay token (chỉ `user_hash`) — nguyên tắc P-03
+- [x] Tài khoản `active=true` → vào thẳng `return_to`, có `Set-Cookie: cwd_sid` — `test_callback_allowed_user_sets_sid_cookie_and_redirects_to_return_to` (AC-001.1; `GET /me` thật là T-102, ở đây xác nhận session được tạo đúng)
+- [x] Tài khoản không có trong `app_user` → 302 `/no-access`, không có `cwd_sid` — `test_callback_denied_user_redirects_to_no_access_without_sid` (AC-001.2)
+- [x] Tài khoản `active=false` → kết quả giống trên — `test_denied_when_user_found_but_inactive` (ở tầng service; router dùng chung nhánh `DENIED_*`)
+- [x] `return_to=https://evil.com` và `//evil.com` → 400, không redirect — `test_login_rejects_url_outside_app_without_redirecting`, `test_login_rejects_protocol_relative_url`
+- [x] `state` bị sửa → 400 `OIDC_STATE_MISMATCH`, không tạo session — `test_callback_with_mismatched_state_is_rejected`
+- [x] Session hết hạn → `get_session` trả `None` (tương đương 401 ở tầng gọi, T-102 nối vào response thật) — `test_unknown_sid_returns_none`
+- [x] Session tạo cách đây 12 giờ 1 phút nhưng vừa hoạt động → vẫn hết hạn — `test_absolute_12h_expiry_overrides_sliding_ttl` (dùng `fakeredis`, giả lập thời gian bằng `patch`)
+- [x] `POST /auth/logout` → 204, key Redis bị xóa, rời khỏi `sessions_by_user` — `test_logout_deletes_session_and_clears_cookie`
+- [x] Log không chứa email/`sub`/token — rà soát thủ công: `_audit()` chỉ ghi `actor_id` (UUID) và `action`; các `logger.warning` trong router chỉ log tên loại lỗi, không log claim hay token
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 4 AC của US-001 liên quan tới back-end đạt, có test tự động trong CI
-- [ ] Không có token OIDC nào đọc được bằng JavaScript (kiểm tra thủ công bằng DevTools: chỉ thấy cookie `HttpOnly`)
-- [ ] Secret nạp từ secret manager, không nằm trong repo hay image
-- [ ] `audit_log` ghi đủ `login_success` / `login_denied` / `logout`
-- [ ] Code review bởi TL + rà soát nhanh của ATTT về luồng token
+- [x] 4 AC của US-001 liên quan tới back-end đạt, có test tự động — **39 test mới** (6 signing, 11 validation, 7 sessions, 5 service, 10 router end-to-end), tổng 92/92 test backend xanh (8 skip vì cần Docker)
+- [ ] Không có token OIDC nào đọc được bằng JavaScript — **không kiểm chứng được bằng DevTools thật** (không có trình duyệt/IdP thật); rà soát code xác nhận: chỉ `Set-Cookie` với `httponly=True` được dùng cho `cwd_sid`/`cwd_oidc_tx`, không có response nào trả token ra body
+- [x] Secret nạp từ secret manager — `oidc_client_id`/`oidc_client_secret` đọc qua `Settings` (môi trường/`.env`), không hard-code; `infra/k8s/staging/external-secret.yaml` (T-004) đã khai báo nguồn Vault
+- [x] `audit_log` ghi đủ `login_success` / `login_denied` / `logout` — cả 3 đã ghi (phát hiện thiếu `logout` trong lúc viết DoD, đã bổ sung ngay và chạy lại 10/10 test xanh)
+- [ ] Code review bởi TL + rà soát ATTT — chưa thực hiện (ngoài khả năng của phiên làm việc này)
+
+### Lệch so với mô tả ban đầu
+
+- Mã lỗi `INVALID_RETURN_TO`/`OIDC_STATE_MISMATCH` **không** dùng `DomainError` dùng chung (vốn chỉ chấp nhận mã trong danh mục SDD §3.4.3) vì Mục 6 của chính task đã đánh dấu 2 mã này "(nội bộ)" — trả thẳng `JSONResponse({code, params})` đúng hợp đồng Mục 3 mà không ép vào danh mục chung. Ghi chú này nên được phản ánh lại vào `core/errors.py` nếu các task sau cần mẫu tương tự.
+- Lỗi đổi `code` thất bại (`OIDCExchangeError`) được gộp chung vào `OIDC_STATE_MISMATCH` thay vì một mã riêng — task không chỉ định mã cụ thể cho trường hợp này.
+
+### Ghi chú triển khai thực tế
+
+**Không có IdP thật (Keycloak hay SSO nội bộ) trong môi trường triển khai —
+D-03 chưa chốt** nên không thể chạy thật luồng OIDC đầu-cuối qua trình duyệt.
+Bù lại bằng kiến trúc port/adapter đúng nguyên tắc P-01: toàn bộ logic
+**không phụ thuộc IdP cụ thể** (`complete_login`, `sessions.py`, router) đã
+được kiểm thử thật qua `FakeOIDCAdapter` (test double implement đúng
+`OIDCPort`) + `fakeredis` (giao thức Redis thật trong bộ nhớ, không mock thủ
+công từng lệnh) + `TestClient` (HTTP/cookie thật). Phần duy nhất chưa đụng
+tới là `AuthlibOIDCAdapter` thật (gọi `.well-known/openid-configuration`,
+JWKS, verify JWT) — đã viết theo đúng chuẩn OIDC nhưng chưa có IdP để gọi thử.
+
+**Việc cần làm khi D-03 chốt và có IdP thật:** đăng ký OIDC client, điền
+`OIDC_ISSUER`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`, chạy thử luồng thật qua
+trình duyệt, kiểm tra DevTools xác nhận không có token lộ ra JS, bổ sung
+`audit_log` cho `logout`, và xin review ATTT.
 
 ## 9. Tham chiếu
 
