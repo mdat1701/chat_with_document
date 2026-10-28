@@ -54,7 +54,7 @@
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
 | [T-201](T-201_ingestion-scan-and-validate.md) | Quét mã độc & kiểm tra PDF | US-003, US-005 | BE | 3d | Done (chưa có ClamAV thật) |
-| [T-202](T-202_extraction-and-chunking.md) | Trích xuất & chia đoạn | US-003 | BE | 2d | In progress (tham số đã nối cấu hình; thiếu test mẫu hỗn hợp/NFC) |
+| [T-202](T-202_extraction-and-chunking.md) | Trích xuất & chia đoạn | US-003 | BE | 2d | In progress (6 test: hỗn hợp/NFC/giới hạn đoạn đã thêm; `target_tokens` thực ra đếm từ, không phải token thật) |
 | [T-203](T-203_embedding-and-indexing.md) | Embedding & đánh chỉ mục | US-003 | AI | 2d | Done (chưa đo trên staging) |
 | [T-204](T-204_document-events-sse.md) | Trạng thái tài liệu realtime (SSE) | US-010 | BE | 2d | Done (BE; FE `sseClient` chưa có) |
 | [T-205](T-205_document-library-ui.md) | Thư viện tài liệu (UI) | US-009, 010, 021 | FE | 3d | In progress (realtime SSE, icon/màu theo trạng thái, bộ đếm, skeleton đã có — xem ghi chú) |

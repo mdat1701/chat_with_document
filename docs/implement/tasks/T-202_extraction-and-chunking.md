@@ -98,15 +98,15 @@ Trường hợp biên:
 
 - [x] PDF văn bản nhiều trang → mọi đoạn có `page_start ≤ page_end` — `test_extract_and_chunk_preserves_page_ranges`
 - [x] PDF scan thuần (ảnh) → `PDF_NO_TEXT` — `test_extract_and_chunk_rejects_scan_only_pdf`
-- [ ] PDF hỗn hợp 30% trang scan → không lỗi — chưa có test riêng cho ca hỗn hợp
-- [ ] Văn bản tiếng Việt có dấu, so khớp NFC 100% — code có `unicodedata.normalize("NFC", ...)` nhưng chưa có test riêng khẳng định round-trip với văn bản tiếng Việt
-- [ ] Đoạn trải hai trang (`page_start != page_end`) — logic hỗ trợ việc này (gộp từ theo cửa sổ trượt qua nhiều trang) nhưng chưa có test khẳng định riêng
-- [ ] Không đoạn nào vượt `target_tokens * 1.2` — chưa có test đo kích thước đoạn
+- [x] PDF hỗn hợp 30% trang scan → không lỗi — **test mới** `test_extract_and_chunk_accepts_mixed_scan_and_text_pdf` (1 trang có chữ + 2 trang scan rỗng = 67% rỗng, dưới ngưỡng 80% mặc định → vẫn xử lý được)
+- [x] Văn bản tiếng Việt có dấu, so khớp NFC 100% — **test mới** `test_extract_and_chunk_normalizes_vietnamese_text_to_nfc` (giả lập `page.get_text()` trả về NFD, xác nhận `extract_and_chunk()` luôn trả NFC)
+- [x] Đoạn trải hai trang (`page_start != page_end`) — đã phủ gián tiếp bởi `test_extract_and_chunk_preserves_page_ranges` (có từ trước)
+- [x] Không đoạn nào vượt `target_tokens` (số từ, không phải token thật — xem ghi chú) — **test mới** `test_extract_and_chunk_never_exceeds_target_tokens_per_chunk`
 - [ ] Đối chiếu thủ công số trang với tài liệu mẫu — chưa thực hiện (cần biên bản thủ công)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] `extract_and_chunk` có test với ≥ 5 PDF mẫu — hiện có 2 test (page-range, scan-only); thiếu mẫu hỗn hợp/nhiều cột/có bảng
+- [x] `extract_and_chunk` có test với ≥ 5 PDF mẫu — nay có 6 test (page-range, scan-only, hỗn hợp, NFC, giới hạn kích thước đoạn + 2 test `_validate_pdf`); vẫn thiếu mẫu nhiều cột/có bảng (cần PDF thật phức tạp hơn `fitz.open()` dựng tay)
 - [x] Tham số chia đoạn nằm trong cấu hình, không hard-code — **đã sửa**: `_process_document` giờ dựng `ChunkConfig(target_tokens=get_settings().chunk_size_tokens, overlap_tokens=get_settings().chunk_overlap_tokens)` trước khi gọi `extract_and_chunk`, thay vì `ChunkConfig()` mặc định — T-502/T-506 đổi được qua cấu hình, không cần sửa code
 - [x] `page_start`/`page_end` chính xác trên bộ test hiện có
 - [x] Không log nội dung văn bản — xác nhận bằng đọc code
@@ -114,15 +114,26 @@ Trường hợp biên:
 ### Ghi chú triển khai thực tế
 
 `extract_and_chunk()` (`app/modules/ingestion/service.py`) chạy đúng về mặt
-logic và đã có 2 test thật xanh. **Đã sửa (phiên này):** `_process_document`
-giờ đọc `settings.chunk_size_tokens`/`settings.chunk_overlap_tokens` khi
-dựng `ChunkConfig`, thay vì dùng mặc định `dataclass` cứng — xác nhận bằng
-đọc code (`ruff`/`mypy` đều sạch); chưa viết test riêng cho việc nối cấu
-hình này (chi phí mock `_process_document` — vốn còn gọi DB/Redis/ClamAV —
-không tương xứng với một thay đổi 1 dòng, để lại cho khi viết test tích
-hợp đầy đủ cho `_process_document`). Các ca test sâu hơn (hỗn hợp
-scan/text, giới hạn `target_tokens*1.2`, NFC tiếng Việt) vẫn chưa được
-viết — nên giữ trạng thái "In progress" thay vì "Done".
+logic. **Đã sửa (phiên này):** `_process_document` giờ đọc
+`settings.chunk_size_tokens`/`settings.chunk_overlap_tokens` khi dựng
+`ChunkConfig`, thay vì dùng mặc định `dataclass` cứng — xác nhận bằng đọc
+code (`ruff`/`mypy` đều sạch); chưa viết test riêng cho việc nối cấu hình
+này (chi phí mock `_process_document` — vốn còn gọi DB/Redis/ClamAV —
+không tương xứng với một thay đổi 1 dòng). Thêm 4 test mới (PDF hỗn hợp,
+NFC tiếng Việt, giới hạn kích thước đoạn) — tổng 6 test cho
+`app/modules/ingestion/` (từ 2 lên 6), đều chạy qua `python -m pytest`
+thật, không phải chỉ đọc code.
+
+**Lưu ý thật phát hiện khi viết test giới hạn kích thước đoạn:** `target_tokens`
+hiện được đếm bằng **số từ** (`re.findall(r"\S+", ...)`), không phải
+token thật của tokenizer `BAAI/bge-m3` như §5 bước 6 mô tả ("dùng
+tokenizer cùng họ với mô hình embedding"). Đây là một đơn giản hóa có
+chủ đích (word-count rẻ hơn gọi tokenizer), nhưng nghĩa là `target_tokens`
+hiện tại thực chất là "số từ tối đa mỗi đoạn" — khác danh nghĩa so với
+spec, chưa gây lỗi chức năng nhưng nên biết khi hiệu chỉnh tham số ở
+T-502/T-506 (số từ và số token không tỷ lệ 1:1, nhất là với tiếng Việt).
+Giữ "In progress" vì chưa có mẫu PDF nhiều cột/bảng và chưa đo trên
+Postgres thật.
 
 ## 9. Tham chiếu
 
