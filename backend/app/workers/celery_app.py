@@ -6,6 +6,8 @@ blob reconcile) khai báo ở T-207.
 from celery import Celery
 
 from app.core.config import get_settings
+from app.core.logging import configure_logging
+from app.core.tracing import configure_tracing, instrument_celery
 
 celery_app = Celery(
     "cwd",
@@ -36,3 +38,9 @@ celery_app.conf.update(
     task_soft_time_limit=10 * 60,  # khớp ngưỡng reap_stuck (T-207)
     timezone="Asia/Ho_Chi_Minh",
 )
+
+# T-007: logging JSON + trace_id lan từ api sang worker qua header task
+# (CeleryInstrumentor tự inject/extract — không cần truyền tay).
+configure_logging()
+configure_tracing()
+instrument_celery()

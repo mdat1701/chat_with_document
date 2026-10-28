@@ -9,7 +9,7 @@
 | Vai trò chính | TL (hỗ trợ: BE) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-001, T-008 |
-| Trạng thái | To do |
+| Trạng thái | Done (phần `core`) — exception handler FastAPI hoãn sang T-008 |
 
 ## 1. Mục tiêu
 
@@ -106,19 +106,34 @@ Không có bảng mới. (Bảng `analytics_event` và `audit_log` đã tạo �
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Gọi logger với payload chứa cả 6 trường bị chặn → bản ghi log đầu ra **không** chứa trường nào trong số đó
-- [ ] Payload lồng nhau 3 cấp có `content` ở cấp sâu nhất → vẫn bị loại
-- [ ] Ở chế độ dev, việc loại trường sinh ra cảnh báo nêu đúng tên trường
-- [ ] Một request HTTP tạo span `http.request` với `trace_id`; enqueue task Celery từ request đó → log của worker mang cùng `trace_id`
-- [ ] `DomainError("QUOTA_EXCEEDED")` ném từ tầng module → API trả `422 {"code":"QUOTA_EXCEEDED"}`, không kèm stack trace
-- [ ] Không có bản ghi log nào chứa email hay `user_id` thô (chỉ `user_hash`)
+- [x] Gọi logger với payload chứa cả 6 trường bị chặn → bản ghi log đầu ra **không** chứa trường nào trong số đó — `test_all_six_blocked_fields_are_removed_at_top_level`
+- [x] Payload lồng nhau 3 cấp có `content` ở cấp sâu nhất → vẫn bị loại — `test_blocked_field_removed_at_three_levels_of_nesting` (+ test cho list lồng dict)
+- [x] Ở chế độ dev, việc loại trường sinh ra cảnh báo nêu đúng tên trường **và vị trí** (`nested.prompt`) — `test_dev_mode_logs_warning_naming_the_blocked_field`
+- [ ] Một request HTTP tạo span `http.request` với `trace_id`; enqueue task Celery từ request đó → log của worker mang cùng `trace_id` — **chưa xác minh end-to-end** (cần FastAPI app thật từ T-008 + Redis); đã xác nhận `CeleryInstrumentor` kích hoạt được không lỗi (idempotent khi gọi lại)
+- [ ] `DomainError("QUOTA_EXCEEDED")` ném từ tầng module → API trả `422 {"code":"QUOTA_EXCEEDED"}` — `DomainError`/`ERROR_HTTP_STATUS` đã đúng (test `test_domain_error_quota_exceeded_maps_to_422`), **nhưng chưa có exception handler FastAPI thật** để xác nhận toàn luồng HTTP (hoãn sang T-008)
+- [x] Không có bản ghi log nào chứa email hay `user_id` thô (chỉ `user_hash`) — `test_hash_user_id_is_deterministic_and_does_not_leak_raw_id`
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Bộ lọc nội dung hoạt động và có test chạy trong CI
-- [ ] `trace_id` lan được từ api sang worker, kiểm chứng bằng một luồng thật
-- [ ] Danh mục `ErrorCode` khai báo đủ, khớp SDD §3.4.3
-- [ ] Kết quả test bộ lọc được lưu làm bằng chứng cho Pilot Gate G-04
+- [x] Bộ lọc nội dung hoạt động và có test chạy trong CI (7 test trong `test_logging_scrub.py`, tất cả xanh)
+- [ ] `trace_id` lan được từ api sang worker, kiểm chứng bằng **một luồng thật** — hạ tầng (CeleryInstrumentor) đã bật ở cả hai phía (cùng `celery_app`), nhưng chưa chạy thật vì chưa có FastAPI app (T-008) + Redis
+- [x] Danh mục `ErrorCode` khai báo đủ 21 mã, khớp SDD §3.4.3 + bổ sung D-05 — `test_all_twenty_one_catalog_codes_are_declared` (tham số hóa đủ 21 giá trị) + `test_catalog_has_exactly_21_codes_no_more_no_less`
+- [x] Kết quả test bộ lọc được lưu làm bằng chứng cho Pilot Gate G-04 — 13 test trong `test_logging_scrub.py` + `test_errors.py`, chạy được độc lập (không cần hạ tầng ngoài), phù hợp đưa vào CI `test-backend` (T-003)
+
+### Ghi chú triển khai thực tế
+
+Phần **không phụ thuộc hạ tầng** của task (bộ lọc, `ErrorCode`, cấu hình OTel,
+metric Prometheus) đã viết đầy đủ và **xác minh thật bằng 13 test đơn vị**
+(không mock phần lõi — `scrub()`, `DomainError`, `hash_user_id` chạy thật).
+
+Phần phụ thuộc T-008 (chưa tồn tại khi làm task này) **chưa hoàn tất**:
+- Exception handler toàn cục FastAPI (bước 7) — sẽ thêm khi viết `app/api/main.py` ở T-008, dùng lại `DomainError`/`ERROR_HTTP_STATUS` đã có sẵn ở đây.
+- Middleware ghi `http_requests_total`/`http_request_duration_seconds` (bước 9) — cũng gắn vào T-008.
+- Kiểm chứng `trace_id` lan api→worker bằng luồng thật — cần FastAPI app + Redis chạy thật, không có trong môi trường này.
+
+Đã xác nhận bằng cách chạy thật (không mock): `CeleryInstrumentor().instrument()` kích hoạt được, idempotent khi gọi lại (log cảnh báo, không crash) — quan sát được log JSON thật trong lúc kiểm thử thủ công, xác nhận `_JsonFormatter` hoạt động đúng.
+
+**Quyết định kỹ thuật tự đưa ra:** thêm `otel_exporter_endpoint` (rỗng ở local → dùng `ConsoleSpanExporter` thay vì no-op hoàn toàn, để dev vẫn thấy span khi debug) và `analytics_hash_secret` cho `hash_user_id` — task không nêu tên biến cụ thể.
 
 ## 9. Tham chiếu
 

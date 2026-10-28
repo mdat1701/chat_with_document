@@ -47,6 +47,15 @@ class Settings(BaseSettings):
 
     llm_provider: str = "fake"
 
+    app_env: str = "dev"
+    service_name: str = "cwd-backend"
+    # Để trống ở local -> exporter no-op (T-007 §6 "OTel Collector không
+    # chạy ở local"); đặt URL OTLP/HTTP thật ở staging/prod.
+    otel_exporter_endpoint: str = ""
+    # Khóa HMAC cho user_hash (T-007 §5 bước 4) — PHẢI đổi ở staging/prod,
+    # giá trị dưới đây chỉ dùng cho local/test.
+    analytics_hash_secret: str = "local-dev-only-change-me"
+
     def worker_database_url_or_default(self) -> str:
         """`worker_database_url` nếu khai báo, ngược lại đổi user/password
         `cwd` -> `cwd_worker` trong `database_url` (T-006 §5 bước 5)."""

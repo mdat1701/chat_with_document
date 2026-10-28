@@ -32,7 +32,7 @@
 | [T-004](T-004_staging-skeleton.md) | Khung staging (D-02) | — | OPS | 2d | To do |
 | [T-005](T-005_database-baseline.md) | DB baseline & migration | — | BE | 2d | Done (chưa chạy trên Postgres thật) |
 | [T-006](T-006_celery-skeleton.md) | Khung Celery worker + beat | — | BE | 1d | Done |
-| [T-007](T-007_logging-and-tracing.md) | Logging có bộ lọc nội dung, OTel, ErrorCode | — | TL | 2d | To do |
+| [T-007](T-007_logging-and-tracing.md) | Logging có bộ lọc nội dung, OTel, ErrorCode | — | TL | 2d | Done (phần core; FastAPI wiring ở T-008) |
 | [T-008](T-008_backend-skeleton.md) | Khung FastAPI, healthz/readyz | — | BE | 1d | To do |
 
 ## Sprint 1 — Truy cập & bắt đầu tải tài liệu (19 ngày công)
