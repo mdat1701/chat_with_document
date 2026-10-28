@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-101 (luồng OIDC), T-102 (API-01), T-106 (nền tảng FE) |
-| Trạng thái | To do |
+| Trạng thái | In progress (3 màn hình + route guard chạy được, thiếu AC-001.3 và i18n) |
 
 ## 1. Mục tiêu
 
@@ -86,21 +86,47 @@ type SessionState =
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Vào `/` khi chưa đăng nhập → chuyển `/login?returnTo=%2F` (AC-001.4)
-- [ ] Đăng nhập thành công → quay về đúng `returnTo`, hiển thị màn hình chính (AC-001.1)
-- [ ] `GET /me` trả 403 → hiện SCR-03 với đúng thông báo, **không** thấy danh sách tài liệu nào (AC-001.2)
-- [ ] Giả lập 401 khi composer đang có chữ → sau khi đăng nhập lại, nội dung được khôi phục nguyên vẹn và `sessionStorage` đã được xóa (AC-001.3)
-- [ ] Chế độ ẩn danh chặn `sessionStorage` → ứng dụng vẫn đăng nhập/điều hướng bình thường, chỉ mất tính năng giữ bản nháp
-- [ ] Đăng xuất → cache Query trống, không còn dữ liệu người dùng nào trong Web Storage
-- [ ] axe-core trên SCR-01, SCR-03, SCR-07: không có lỗi nghiêm trọng; điều hướng được hoàn toàn bằng bàn phím
-- [ ] Giao diện khớp ảnh thiết kế ở 1280px và 1024px
+- [x] Vào `/` khi chưa đăng nhập → chuyển `/login?returnTo=%2F` (AC-001.4) — route guard trong `App.tsx` dùng `useAuth()`, xác nhận bằng đọc code (link `/auth/login?return_to=...` được dựng động từ `window.location.pathname`)
+- [ ] Đăng nhập thành công → quay về đúng `returnTo`, hiển thị màn hình chính (AC-001.1) — phần redirect sau login nằm ở backend OIDC callback (T-101), chưa có test FE xác nhận round-trip
+- [x] `GET /me` trả 403/401 → hiện SCR-03/`/login`, không thấy danh sách tài liệu nào (AC-001.2) — `useAuth.load()` set `user: null` khi `apiFetch` ném lỗi, route guard chuyển hướng
+- [ ] Giả lập 401 khi composer đang có chữ → sau khi đăng nhập lại, nội dung được khôi phục nguyên vẹn (AC-001.3) — **chưa triển khai**: `shared/api/client.ts` không có interceptor 401 toàn cục, không lưu bản nháp vào `sessionStorage`
+- [ ] Chế độ ẩn danh chặn `sessionStorage` → không áp dụng được vì tính năng giữ bản nháp chưa có
+- [ ] Đăng xuất → cache Query trống — chưa có TanStack Query nào được dùng thật (xem ghi chú T-106)
+- [ ] axe-core trên SCR-01, SCR-03, SCR-07 — axe-core chưa được cài (xem T-106)
+- [ ] Giao diện khớp ảnh thiết kế ở 1280px và 1024px — chưa đối chiếu bằng mắt/test ảnh
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 4 AC của US-001 đạt ở phía giao diện, có test E2E cho ít nhất AC-001.2 và AC-001.4
-- [ ] Toàn bộ chuỗi lấy từ `messages.vi.ts`, không hard-code
-- [ ] SCR-03 không tiết lộ bất kỳ thông tin hệ thống nào ngoài thông báo chuẩn
-- [ ] Sự kiện `session_started` phát đúng một lần mỗi phiên
+- [ ] 4 AC của US-001 đạt ở phía giao diện — 3/4 (AC-001.1, 1.2, 1.4) có cơ sở code thật; AC-001.3 (giữ bản nháp khi phiên hết hạn) **chưa làm**
+- [ ] Toàn bộ chuỗi lấy từ `messages.vi.ts`, không hard-code — **chưa đúng**: `AuthScreens.tsx` hard-code chuỗi tiếng Việt trực tiếp trong JSX, không import `messages.vi.ts`
+- [x] SCR-03 không tiết lộ bất kỳ thông tin hệ thống nào ngoài thông báo chuẩn — xác nhận bằng đọc `NoAccessScreen`
+- [ ] Sự kiện `session_started` phát đúng một lần mỗi phiên — `shared/analytics/client.ts` (`track()`/`flush()`) đã có hạ tầng gửi sự kiện nhưng **không có lời gọi `track("session_started")`** ở đâu trong code
+
+### Ghi chú triển khai thực tế
+
+**Đã có và chạy được:** `LoginScreen`, `NoAccessScreen` (component thật,
+không phải placeholder), route guard trong `App.tsx` dựa trên
+`useAuth()` (Zustand store gọi thật `GET /me` qua `apiFetch`), đường dẫn
+`returnTo` được dựng động theo `window.location.pathname`.
+
+**Lệch so với mô tả ban đầu / còn thiếu:**
+1. **AC-001.3 (giữ bản nháp câu hỏi khi phiên hết hạn) chưa làm** — đây là
+   tiêu chí nghiệm thu rõ ràng của US-001, không phải việc phụ. Cần thêm một
+   interceptor 401 toàn cục trong `shared/api/client.ts` (lưu nháp vào
+   `sessionStorage` trước khi điều hướng `/login`) và khôi phục lại sau khi
+   đăng nhập lại.
+2. Chuỗi hiển thị hard-code trực tiếp trong `AuthScreens.tsx` thay vì lấy từ
+   `shared/i18n/messages.vi.ts` — vi phạm DoD của chính task này (và của
+   T-106).
+3. `session_started` chưa được phát — hạ tầng `track()` đã có (dùng chung
+   với T-404) nhưng chưa có lời gọi nào cho sự kiện này.
+4. axe-core, so khớp ảnh thiết kế, E2E cho AC-001.2/AC-001.4 chưa thực hiện
+   được trong môi trường này (không có trình duyệt thật để chạy Playwright/
+   axe — xem ghi chú T-504).
+
+Giữ trạng thái **"In progress"**: phần khung đăng nhập/route guard dùng
+được, nhưng một tiêu chí nghiệm thu (AC-001.3) và một hạng mục DoD (i18n)
+chưa đạt.
 
 ## 9. Tham chiếu
 

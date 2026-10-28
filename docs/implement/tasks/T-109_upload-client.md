@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (nền tảng FE), T-105 (`GET /config`), T-108 (API tải lên) |
-| Trạng thái | To do |
+| Trạng thái | In progress (chỉ có dropzone cơ bản, thiếu hàng đợi/tiến trình/dialog trùng tên) |
 
 ## 1. Mục tiêu
 
@@ -110,24 +110,41 @@ Không có thay đổi CSDL. Trạng thái hàng đợi nằm trong Zustand (RAM
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Chọn 10 tệp hợp lệ → 10 dòng xuất hiện, tối đa 3 request chạy đồng thời tại mọi thời điểm (kiểm tra bằng network mock) (AC-004.1)
-- [ ] Một tệp trong lô gặp lỗi mạng → dòng đó "Lỗi — Mất kết nối" + Thử lại, 9 dòng còn lại hoàn tất bình thường (AC-004.2)
-- [ ] Tệp 25 MB → báo lỗi ngay, **không** có request mạng nào được gửi và **không** có dòng nào xuất hiện rồi biến mất (AC-006.2)
-- [ ] Tệp `.pdf` giả (nội dung PNG) → bị chặn ở client hoặc nhận 415 và hiển thị đúng thông báo
-- [ ] Đạt 50/50 tài liệu → vùng tải lên bị khóa, tooltip giải thích, bộ đếm chuyển màu cảnh báo (AC-007.1)
-- [ ] Trùng tên → hộp thoại hiện đúng tên tệp; "Giữ cả hai" tạo tài liệu `… (2).pdf`; "Thay thế" thay bản cũ; `Esc` đóng hộp thoại
-- [ ] Nhấn Hủy khi đang tải → request bị abort, dòng biến mất
-- [ ] Bàn phím: Tab tới vùng tải lên, `Enter` mở hộp chọn tệp; trình đọc màn hình đọc được tiến trình
-- [ ] Giao diện khớp ảnh thiết kế ở 1280px và 1024px; ở 900px dùng được nút chọn tệp
-- [ ] Sự kiện `document_upload_started` và `document_upload_rejected_client{reason_code}` phát đúng, **không** chứa tên tệp
+- [x] Chọn nhiều tệp qua kéo-thả hoặc input `multiple` → mỗi tệp một `uploadFile()` riêng (đúng "mỗi tệp một request" của SADD §2.2.3) — nhưng **không giới hạn 3 đồng thời**, tất cả chạy song song cùng lúc qua `Promise.all`
+- [ ] Một tệp lỗi mạng → dòng "Lỗi — Mất kết nối" + Thử lại, các tệp khác tiếp tục (AC-004.2) — **chưa có UI trạng thái từng dòng/`UploadItem`**, lỗi hiện chỉ ném `ApiError`, chưa bắt hiển thị
+- [ ] Tệp 25 MB → báo lỗi ngay, không gửi request nào (AC-006.2) — **chưa đạt**: `UploadDropzone` gọi `uploadFile()` trực tiếp, không gọi `validateFiles()` trước; file quá khổ vẫn được gửi lên server (server sẽ từ chối đúng, nhưng client không chặn trước như spec yêu cầu)
+- [ ] Tệp `.pdf` giả nội dung PNG — không có kiểm tra phía client, dựa hoàn toàn vào 415 từ server
+- [ ] Đạt 50/50 tài liệu → khóa vùng tải lên — chưa có `DocumentCounter`/khóa theo hạn mức ở FE
+- [ ] Trùng tên → `DuplicateFileDialog` — **chưa có component này**
+- [ ] Nút Hủy khi đang tải — chưa có (không dùng `XMLHttpRequest`/`AbortController`, không có thanh tiến trình)
+- [x] Bàn phím: vùng dropzone có `role="button"`, `tabIndex`, xử lý `Enter`/`Space`, `aria-label` — đúng yêu cầu accessibility cơ bản
+- [ ] Giao diện khớp ảnh thiết kế — chưa đối chiếu, màu viền hard-code (`#b8c5d9`) thay vì design token
+- [ ] Sự kiện `document_upload_started`/`document_upload_rejected_client` — hạ tầng `track()` có sẵn (T-404) nhưng **chưa có lời gọi nào** trong `UploadDropzone.tsx`
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 6 AC ở §2 đạt, có test E2E (Playwright) cho AC-004.1, AC-004.2 và AC-006.2
-- [ ] Mọi giới hạn hiển thị và kiểm tra đều lấy từ `GET /config`, không hard-code
-- [ ] Không có nội dung tệp nào được ghi vào Web Storage/IndexedDB
-- [ ] axe-core không lỗi nghiêm trọng trên các trạng thái tải lên
-- [ ] Toàn bộ chuỗi lấy từ `messages.vi.ts`
+- [ ] 6 AC ở §2 — chỉ AC-004.1 (chọn nhiều tệp, mỗi tệp một request) có cơ sở; AC-004.2, AC-006.2, AC-007.1 chưa đạt ở phía client
+- [ ] Giới hạn hiển thị/kiểm tra lấy từ `GET /config` — chưa (hard-code "tối đa 20 MB" trong text tĩnh, `App.tsx` hard-code `20*1024*1024`/`50` khi gọi `validateFiles`)
+- [x] Không ghi nội dung tệp vào Web Storage — xác nhận bằng đọc code (không có logic lưu trữ)
+- [ ] axe-core — chưa cài (xem T-106)
+- [ ] Toàn bộ chuỗi lấy từ `messages.vi.ts` — chưa, chuỗi hard-code trong JSX
+
+### Ghi chú triển khai thực tế
+
+`UploadDropzone.tsx` hiện là một **dropzone tối thiểu**: kéo-thả + chọn tệp
++ gọi `uploadFile()` (từ `shared/api/client.ts`) trực tiếp cho mỗi tệp, có
+hỗ trợ bàn phím cơ bản. Đây là một phần nhỏ của đặc tả gốc — phần lớn §5
+(hàng đợi FIFO giới hạn 3 đồng thời, thanh tiến trình `XMLHttpRequest`,
+`DuplicateFileDialog`, nút Hủy/abort, `DocumentCounter`, khóa khi hết hạn
+mức, chặn phía client trước khi gửi bằng `validateFiles`) **chưa được xây
+dựng**. `shared/validation/files.ts::validateFiles` đã tồn tại như một hàm
+thuần nhưng **chưa được gọi** trước khi upload trong `UploadDropzone.tsx` —
+nó chỉ được gọi rời rạc trong `App.tsx` cho mục đích khác, không chặn
+request thật.
+
+Giữ nguyên trạng thái **"In progress"** ở mức khung sườn ban đầu — cần một
+vòng làm việc riêng để hoàn thiện `UploadQueue`, dialog trùng tên, và gọi
+`validateFiles` trước khi upload để đạt AC-006.2.
 
 ## 9. Tham chiếu
 

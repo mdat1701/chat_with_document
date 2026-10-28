@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-301, T-302, T-303, T-105 (rate limit) |
-| Trạng thái | To do |
+| Trạng thái | In progress (SSE 4 sự kiện chạy đúng thứ tự; nhánh cổng bằng chứng đã sửa đúng spec trong phiên này) |
 
 ## 1. Mục tiêu
 
@@ -131,20 +131,43 @@ Ngoài ra: `INSERT analytics_event` tên `answer_rendered` với thuộc tính a
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Thứ tự sự kiện đúng: `meta` → `delta`×n → `citations` → `done`
-- [ ] Nhánh cổng bằng chứng: `meta` → `done{type:"not_found"}`, **không có** `delta`, **không gọi LLM** (assert bằng mock)
-- [ ] `409`, `400`, `429` trả đúng trước khi mở stream
-- [ ] Ngắt kết nối client → lời gọi LLM bị hủy (mock ghi nhận), không có hàng `answer` mới
-- [ ] Bảng `answer` sau một lượt hỏi **không** chứa chuỗi nào của câu hỏi/câu trả lời (test quét nội dung — hỗ trợ G-04)
-- [ ] E2E qua Ingress staging: nội dung thực sự hiện dần, không bị buffer
-- [ ] Đo p90 latency trên bộ câu hỏi mẫu ≤ 15s (KR1.2, đối chiếu lại ở T-505)
+- [x] Thứ tự `meta → delta×n → citations → done` — đúng theo code trong `app/api/routers/conversations.py::stream()`
+- [x] Nhánh cổng bằng chứng: `meta → done{not_found}`, không `delta`, không gọi LLM — **đã sửa**: `stream_answer` (`app/modules/qa/service.py`) giờ kiểm tra `if not contexts` (bằng chứng rỗng sau khi qua cổng T-302) và `yield "complete"` ngay với `answer_type="not_found"`, hoàn toàn không gọi `llm.stream()` — xác nhận bằng test `tests/unit/test_qa_service.py::test_stream_answer_skips_llm_when_evidence_gate_blocks` (assert `llm.called is False`)
+- [x] `400`/`429` trả trước khi mở stream — `QUESTION_INVALID` và `RATE_LIMITED` được raise trước khi tạo `StreamingResponse`; `409` (`RETRY_NOT_ALLOWED`) không áp dụng cho endpoint này
+- [ ] Ngắt kết nối client hủy lời gọi LLM — code có kiểm tra `await request.is_disconnected()` giữa các token và `return` sớm, nhưng việc này chỉ dừng vòng lặp đọc token phía server, **không chủ động đóng kết nối HTTP tới LLM** (phụ thuộc hành vi của `httpx` khi generator bị bỏ dở — chưa test). Mã lỗi `ANSWER_TIMEOUT`/`ANSWER_INTERRUPTED`/`SERVICE_BUSY` đã được phân loại đúng (xem T-301) — phần còn thiếu chỉ là đóng chủ động kết nối HTTP khi bị hủy giữa chừng
+- [x] Bảng `answer` không chứa nội dung câu hỏi/trả lời — schema `Answer` (xem `modules/qa/models.py`) chỉ có `answer_type/latency_ms/citation_count/cited_doc_count/prompt_version/model_id`, không có cột text
+- [ ] E2E qua Ingress staging — không có staging
+- [ ] p90 latency ≤ 15s — không đo được (không có LLM thật)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Luồng hỏi → trả lời có nguồn chạy end-to-end trên staging (mốc M-3)
-- [ ] `answer` chỉ chứa metadata; kiểm thử tự động xác nhận không có nội dung
-- [ ] `analytics_event answer_rendered` được phát đúng một lần mỗi câu trả lời
-- [ ] Trace đầy đủ 4 span, có `ttft_ms`
+- [ ] Luồng end-to-end trên staging — chưa có staging
+- [x] `answer` chỉ chứa metadata — xác nhận bằng đọc model
+- [x] `analytics_event answer_rendered` phát đúng 1 lần — `record_event(..., "answer_rendered", ...)` gọi đúng 1 lần sau `done`, trước `commit()`
+- [ ] Trace đủ 4 span + `ttft_ms` — chưa thấy span OTel thủ công riêng cho các bước hỏi-đáp (chỉ có instrumentation HTTP/Celery tự động chung)
+
+### Ghi chú triển khai thực tế
+
+API SSE chạy đúng khung 4 sự kiện và không rò rỉ nội dung vào bảng `answer`.
+
+**Đã sửa (phiên này, cùng lúc với T-302/T-303):** `stream_answer` giờ kiểm
+tra bằng chứng rỗng (`contexts`) ngay sau khi gọi `retrieve()`/
+`diversify_evidence()` và trả thẳng `not_found` **trước khi** tạo
+`LLMRequest` — không còn gọi LLM khi cổng bằng chứng (T-302) đã chặn. Xác
+nhận bằng `ruff check .`, `mypy app`, `lint-imports` (đều sạch) và 3 test
+mới trong `tests/unit/test_qa_service.py` chạy qua `python -m pytest`
+thật (không phải chỉ đọc code).
+
+**Cũng đã sửa cùng phiên (thuộc T-301 nhưng ảnh hưởng trực tiếp task
+này):** `conversations.py::stream()` giờ bắt riêng `LLMError` và phát
+đúng `event: error {code}` theo phân loại thật (`SERVICE_BUSY` /
+`ANSWER_TIMEOUT` / `ANSWER_INTERRUPTED`) thay vì gộp mọi lỗi thành
+`SERVICE_BUSY`; timeout phía máy chủ giờ dùng `settings.llm_timeout_s`
+(50s, TC-08) áp dụng ngay trong adapter LLM trước khi lỗi lan tới đây.
+
+Còn tồn đọng (chưa sửa trong phiên này): việc chủ động đóng kết nối HTTP
+tới LLM khi client ngắt kết nối (bước 10) — vẫn chỉ dừng đọc token phía
+server, chưa có test xác nhận `aclose()` được gọi khi coroutine bị hủy.
 
 ## 9. Tham chiếu
 

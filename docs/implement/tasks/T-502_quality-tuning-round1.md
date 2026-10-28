@@ -10,7 +10,7 @@
 | Vai trò chính | AI (chủ trì) · BE (đổi tham số, re-ingest) · BA (chấm lại mẫu) |
 | Ước lượng | 3d |
 | Phụ thuộc | T-501 (phải có báo cáo baseline), T-302, T-303, T-202 |
-| Trạng thái | To do |
+| Trạng thái | To do (chờ T-501 có số liệu baseline) |
 
 ## 1. Mục tiêu
 
@@ -100,6 +100,19 @@ python -m tools.evaluation.plot_curve reports/sweep_tau_*.json --out reports/tau
 - [ ] `reports/baseline.json` được cập nhật và BA + PM xác nhận
 - [ ] Không còn giá trị τ / kích thước đoạn / tham số rerank nào hard-code trong mã nguồn
 - [ ] Nếu chưa đạt ngưỡng G-02 → mở T-506 kèm danh sách lỗi còn lại đã phân loại
+
+### Ghi chú triển khai thực tế
+
+Không thể bắt đầu hiệu chỉnh vì T-501 chưa có số liệu baseline thật (cần
+LLM/TEI/staging). Lưu ý một **điểm mâu thuẫn cần xử lý trước khi tuning**:
+`tools/evaluation/tuning_log.md` viết "Configuration is externalized
+through `RETRIEVAL_*`, `RERANK_*`, and `CHUNK_*` environment variables",
+nhưng rà soát T-202 trong phiên này phát hiện `ChunkConfig()` ở
+`app/modules/ingestion/service.py::_index_document` dùng giá trị mặc định
+cứng (500/50), **không đọc** `settings.chunk_size_tokens`/
+`chunk_overlap_tokens` — nghĩa là tham số `CHUNK_*` trong giả định của
+T-502/T-506 hiện **không thực sự hiệu chỉnh được qua cấu hình** như log
+giả định. Cần sửa T-202 trước khi vòng tuning này có ý nghĩa.
 
 ## 9. Tham chiếu
 

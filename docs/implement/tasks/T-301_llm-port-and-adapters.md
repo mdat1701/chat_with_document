@@ -10,7 +10,7 @@
 | Vai trò chính | TL |
 | Ước lượng | 3d |
 | Phụ thuộc | **D-01** (ADR-03 — chốt phương án LLM), T-007 (logging/OTel) |
-| Trạng thái | To do |
+| Trạng thái | In progress (port/2 adapter chạy được; retry/circuit-breaker/phân loại lỗi/metric đã cài trong phiên này; chưa chạy trên LLM thật) |
 
 ## 1. Mục tiêu
 
@@ -113,21 +113,55 @@ Không đổi schema. Chỉ ghi `model_id` vào bảng `answer` ở T-304 (metad
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Unit: lỗi trước token đầu → retry đúng **1** lần rồi `SERVICE_BUSY`
-- [ ] Unit: lỗi sau khi đã yield ≥ 1 mẩu → **không** retry, trả `ANSWER_INTERRUPTED`
-- [ ] Unit: vượt `timeout_s` → `ANSWER_TIMEOUT` và kết nối tới nhà cung cấp được đóng
-- [ ] Unit: hủy coroutine → adapter đóng stream (kiểm tra bằng mock ghi nhận `aclose`)
-- [ ] Unit: breaker mở sau 5 lỗi, trả `SERVICE_BUSY` tức thì, tự đóng sau 30s
-- [ ] Đổi `llm.provider` giữa A và B **không cần sửa code** `modules/qa`
-- [ ] Kiểm thử tự động: không có log/metric/trace nào chứa nội dung prompt hoặc answer (P-03)
+- [x] Retry 1 lần trước token đầu rồi `SERVICE_BUSY` — **đã cài**: `OpenAICompatibleLLM.stream()` thử lại đúng 1 lần nếu lỗi xảy ra trước token đầu (`tokens_emitted == 0`), vẫn hỏng thì raise `LLMError("SERVICE_BUSY")` — test `test_retries_once_before_first_token_then_succeeds` + `test_fails_before_first_token_twice_raises_service_busy`
+- [x] Lỗi sau khi đã yield ≥ 1 mẩu → `ANSWER_INTERRUPTED`, không retry — **đã sửa**: `conversations.py` giờ bắt riêng `LLMError` và phát đúng `exc.code` (thay vì gộp chung `SERVICE_BUSY`) — test `test_failure_after_first_token_is_interrupted_without_retry`
+- [x] Vượt `timeout_s` → `ANSWER_TIMEOUT` — `httpx.TimeoutException` được bắt riêng và phân loại đúng mã trước khi token đầu — test `test_timeout_before_first_token_raises_answer_timeout`; dùng `settings.llm_timeout_s` (mới, mặc định 50s theo TC-08) thay vì tái dùng `answer_timeout_ms` (60s, ngân sách DF-10 phía client)
+- [ ] Hủy coroutine đóng stream — `async with client.stream(...)` tự đóng khi context thoát, nhưng chưa có test xác nhận `aclose` được gọi khi coroutine bị hủy giữa chừng
+- [x] Circuit breaker mở sau N lỗi — **đã cài**: breaker theo tiến trình (module-level, không cần Redis cho MVP-lite) trong `adapters/openai_llm.py`, mở sau `settings.llm_breaker_failure_threshold` lỗi liên tiếp, tự đóng sau `llm_breaker_open_seconds` — test `test_circuit_breaker_opens_after_threshold_and_skips_calls`
+- [x] Đổi `llm.provider` không cần sửa `modules/qa` — đúng: `modules/qa/service.py` chỉ biết `LLMPort`, việc chọn `FakeLLM`/`OpenAICompatibleLLM` nằm ở `api.deps.get_llm_port()` theo `settings.llm_provider`
+- [x] Không log/metric/trace chứa nội dung prompt/answer — xác nhận bằng đọc code (không có log nào in `request.user`/token nội dung)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] `import-linter` xanh: `modules/*` không import `adapters/*`
-- [ ] Cả hai adapter chạy được trên staging với tài liệu không nhạy cảm
-- [ ] Metric `llm_ttft_seconds`, `llm_tokens_total`, `circuit_breaker_state` hiển thị trên Grafana
-- [ ] Fake adapter dùng được trong CI, không gọi mạng ngoài
-- [ ] Ghi chú cho ATTT: danh sách chính xác dữ liệu rời khỏi TB-2 (câu hỏi + ≤ 8 đoạn trích) — đầu vào cho Pilot Gate G-04
+- [x] `import-linter` xanh — xác nhận (3 contract pass, bao gồm `modules/*` không import `adapters/*`)
+- [ ] Cả hai adapter chạy trên staging — chưa có staging/LLM endpoint thật
+- [x] Metric `llm_ttft_seconds`, `llm_tokens_total`, `circuit_breaker_state` — đã thêm vào `core/metrics.py`, nối `.observe()`/`.inc()`/`.set()` thật trong `OpenAICompatibleLLM.stream()`; thêm cả `llm_errors_total{code}` (không có trong DoD gốc nhưng cùng mục đích quan sát)
+- [x] Fake adapter dùng trong CI không gọi mạng — `FakeLLM.stream` chỉ `yield` một chuỗi cố định
+- [ ] Ghi chú ATTT về dữ liệu rời TB-2 — chưa viết
+
+### Ghi chú triển khai thực tế
+
+Kiến trúc port/adapter đúng (`LLMPort` trong `ports/`, 2 adapter trong
+`adapters/`, lựa chọn qua DI ở `api/deps.py`) và kiểm tra tĩnh sạch.
+
+**Đã sửa (phiên này) — cả 4 khoảng trống engineering đã nêu trước đó:**
+1. Retry đúng 1 lần khi lỗi xảy ra **trước** token đầu tiên.
+2. Circuit breaker tự viết (module-level, không dùng thư viện ngoài) —
+   mở sau `settings.llm_breaker_failure_threshold` lỗi liên tiếp, tự đóng
+   sau `llm_breaker_open_seconds`.
+3. Thêm `LLMError(code, tokens_emitted)` vào `app/ports/llm_port.py`;
+   `OpenAICompatibleLLM.stream()` phân loại đúng `SERVICE_BUSY` /
+   `ANSWER_TIMEOUT` / `ANSWER_INTERRUPTED` tùy thời điểm lỗi xảy ra;
+   `conversations.py::stream()` bắt riêng `LLMError` và phát đúng
+   `exc.code` thay vì gộp chung một mã.
+4. Metric `llm_ttft_seconds` (histogram), `llm_tokens_total{direction}`,
+   `llm_errors_total{code}`, `circuit_breaker_state` (gauge) — khai báo
+   trong `core/metrics.py` và nối thật trong adapter.
+
+Thêm `settings.llm_timeout_s` (mặc định 50s, TC-08) thay vì tái dùng
+`answer_timeout_ms` (60s — đó là DF-10, ngân sách TỔNG phía client, không
+phải timeout gọi LLM riêng lẻ) — sửa luôn một lệch nhỏ so với spec.
+
+Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports` (3 hợp đồng vẫn
+giữ) và 6 test mới trong `tests/unit/test_openai_llm.py` (monkeypatch
+`_stream_once` để cô lập logic retry/breaker khỏi `httpx` thật — không
+cần LLM endpoint thật để kiểm chứng hành vi resilience).
+
+**Chưa làm:** cả hai adapter chưa chạy trên LLM thật/staging; chưa có
+test xác nhận `aclose()` được gọi khi coroutine bị hủy giữa chừng (client
+đóng tab); circuit breaker là theo-tiến-trình nên không chia sẻ trạng
+thái giữa nhiều worker process (chấp nhận được cho MVP-lite một
+instance, cần Redis nếu scale ngang nhiều worker).
 
 ## 9. Tham chiếu
 

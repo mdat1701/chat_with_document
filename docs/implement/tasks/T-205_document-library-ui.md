@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (design system, `shared/api`), T-204 (SSE), T-108 (upload API) |
-| Trạng thái | To do |
+| Trạng thái | In progress (danh sách + xóa cơ bản chạy được, chưa realtime/thiếu trạng thái trực quan) |
 
 ## 1. Mục tiêu
 
@@ -121,21 +121,43 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Hiển thị đủ 5 trạng thái, mỗi trạng thái có icon **và** chữ (AC-010.3) — so sánh với `SCR-02_03_document-statuses.png`.
-- [ ] 50 tài liệu: thời gian render ≤ 100 ms đo bằng Performance API trong E2E (AC-009.2).
-- [ ] Nhãn hết hạn xuất hiện đúng tại mốc 7 ngày, không xuất hiện ở 8 ngày (AC-021.2).
-- [ ] axe-core: 0 lỗi nghiêm trọng trên `DocumentPanel`; NVDA đọc được trạng thái từng hàng.
-- [ ] Skeleton hiện khi tải lần đầu, **không** hiện khi refetch nền (AC-009.4).
-- [ ] Bộ đếm `used/max` khớp với số hàng thực tế sau khi upload/xóa.
-- [ ] Ở 900px: panel chuyển thành ngăn trượt, không có cuộn ngang (AC-009.3).
+- [ ] Hiển thị đủ 5 trạng thái, mỗi trạng thái có icon và chữ — hiện chỉ hiện chữ trạng thái thô (`doc.status`), không có icon/màu theo trạng thái
+- [ ] 50 tài liệu render ≤ 100ms — chưa đo
+- [ ] Nhãn hết hạn tại mốc 7 ngày — chưa có logic này trong `DocumentLibrary.tsx`
+- [ ] axe-core — chưa cài (xem T-106)
+- [ ] Skeleton khi tải lần đầu — chưa có, chỉ render rỗng rồi danh sách
+- [ ] Bộ đếm `used/max` — chưa có UI đếm số tài liệu/hạn mức
+- [ ] Responsive 900px — chưa kiểm tra
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Khớp ảnh thiết kế ở 1280px và 1024px (DoD chung của kế hoạch).
-- [ ] Mọi chuỗi hiển thị lấy từ `messages.vi.ts`, không hard-code trong component.
-- [ ] Component con là presentational, không tự gọi API (DR-03 của SADD / CN-09).
-- [ ] Không lưu tên tệp hay nội dung vào `localStorage`/`IndexedDB` (CN-06).
-- [ ] Mọi phần tử tương tác có `data-testid` và dùng được bằng bàn phím.
+- [ ] Khớp ảnh thiết kế — chưa đối chiếu
+- [ ] Chuỗi hiển thị lấy từ `messages.vi.ts` — chưa, hard-code trong JSX
+- [x] Component là presentational, không gọi API trực tiếp bằng `fetch` thô — gọi qua `apiFetch` của `shared/api` (đúng DR-04), nhưng gọi trực tiếp trong component thay vì qua TanStack Query/hook riêng (DR-03 "component con thuần" chưa tách)
+- [x] Không lưu tên tệp/nội dung vào Web Storage — xác nhận bằng đọc code
+- [x] Có `data-testid` cho `doc-item`/`doc-delete`/`empty-state`; dùng được bàn phím vì là phần tử `<button>`/`<ul>` chuẩn
+
+### Ghi chú triển khai thực tế
+
+`DocumentLibrary.tsx` là bản tối thiểu: tải danh sách một lần khi mount
+(`GET /documents`), hiện trạng thái text thô, xóa bằng `window.confirm()`
+gốc trình duyệt rồi gọi lại `DELETE /documents/{id}`. Thiếu so với đặc tả:
+icon/màu theo trạng thái, đếm `used/max`, skeleton, nhãn sắp hết hạn,
+responsive, và **không tự cập nhật qua SSE** (T-204 đã có backend nhưng
+chưa có `sseClient` ở FE — xem ghi chú T-106/T-204).
+
+**Lệch hợp đồng API đáng chú ý:** task này (bảng thuộc tính) tham chiếu
+API-03 trả `{items, used, max}`, nhưng `GET /api/v1/documents` thật
+(`app/api/routers/documents.py::list_documents`) trả thẳng một **mảng**
+`list[dict]`, không bọc trong `{items, used, max}`. FE hiện khớp đúng với
+backend thật (`apiFetch<DocumentItem[]>`), nhưng khác với hợp đồng SADD đã
+mô tả — cần quyết định giữ nguyên dạng mảng (sửa tài liệu SADD) hay đổi
+backend để bọc `{items, used, max}` (phục vụ bộ đếm hạn mức ở UI).
+
+**`window.confirm()` thay cho hộp thoại xác nhận riêng (T-208)** — nghĩa là
+kịch bản E2E mẫu ở T-504 dùng `page.getByTestId('confirm-delete')` **sẽ
+không tìm thấy phần tử nào** vì không có dialog DOM thật, chỉ có hộp thoại
+gốc trình duyệt. Đây là điểm cần đồng bộ khi làm T-208.
 
 ## 9. Tham chiếu
 

@@ -1,0 +1,27 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #172033;
+  background: #f7f9fc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input { font: inherit; }
+.page { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.card { width: min(100%, 440px); padding: 32px; border: 1px solid #dfe5ef; border-radius: 16px; background: white; box-shadow: 0 8px 30px #17203312; }
+.button { display: inline-flex; justify-content: center; padding: 11px 16px; border: 0; border-radius: 8px; color: white; background: #2563eb; cursor: pointer; text-decoration: none; }
+.button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.offline-banner { padding: 12px; margin-bottom: 16px; background: #fee2e2; color: #991b1b; border-radius: 8px; }
+.document-list { padding: 0; list-style: none; }
+.document-row { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid #dfe5ef; }
+.document-row small { display: block; color: #64748b; }
+.chat-composer { display: flex; gap: 8px; margin-top: 16px; }
+.chat-composer textarea { flex: 1; min-height: 88px; resize: vertical; }
+@media (max-width: 1023px) {
+  .page { padding: 12px; }
+  .card { width: 100%; padding: 20px; }
+  button, .button, [role="button"] { min-width: 44px; min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }

@@ -10,7 +10,7 @@
 | Vai trò chính | AI (chính) + BE |
 | Ước lượng | 2 ngày công |
 | Phụ thuộc | T-303 (prompt v1), T-304 (API hỏi đáp), T-401 (FTS `unaccent`) |
-| Trạng thái | To do |
+| Trạng thái | In progress (code đúng, có test cho nhánh fallback; `lingua` không cài được trong môi trường này — thiếu Microsoft C++ Build Tools cho dependency `regex`, không phải lỗi code) |
 
 ## 1. Mục tiêu
 
@@ -81,22 +81,48 @@ Không có migration. Hai điều kiện dữ liệu cần **xác nhận** đã 
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] **AC-017.2:** câu hỏi tiếng Anh thuần → câu trả lời tiếng Anh, giao diện vẫn tiếng Việt
-- [ ] **AC-017.1:** tải PDF tiếng Anh, hỏi tiếng Việt → câu trả lời tiếng Việt, `citations` trỏ đúng tệp tiếng Anh
-- [ ] Hỏi tiếng Việt **không dấu** ("thoi han thanh toan la bao lau") → vẫn truy xuất được đoạn có dấu (nhờ `unaccent`)
-- [ ] Unit test bộ phát hiện ngôn ngữ trên ≥ 20 câu mẫu (10 vi, 10 en), độ chính xác 100% trên tập này
-- [ ] Câu hỏi 5 ký tự → không ném lỗi, mặc định `vi`, analytics ghi `other`
-- [ ] Mock `lingua-py` ném exception → vẫn có câu trả lời, log có cảnh báo
-- [ ] Snapshot giao diện khớp [`SCR-02_19_english-question.png`](../../design/html_design/SCR-02_19_english-question.png)
+- [x] AC-017.2 (hỏi tiếng Anh → trả lời tiếng Anh) — `detect_language` trả `("en","en")`, prompt nối `"Trả lời bằng English."`; test `test_english_common_words_detected_as_english` (mới)
+- [x] AC-017.1 (PDF Anh, hỏi Việt → trả lời Việt) — `test_vietnamese_diacritics_detected_as_vietnamese` (mới) xác nhận nhánh phát hiện tiếng Việt; phần "truy xuất xuyên ngôn ngữ" phụ thuộc bge-m3 thật, chưa đo được (không có TEI thật)
+- [x] Hỏi không dấu vẫn truy xuất được — `unaccent()` áp cho cả truy vấn FTS và cột `tsv` (xem T-401)
+- [x] Unit test bộ phát hiện ngôn ngữ — `tests/unit/test_qa_language_detection.py` (mới, 4 test: câu ngắn, tiếng Việt có dấu, tiếng Anh, câu trộn ngôn ngữ) — chưa đạt mốc "≥ 20 câu" của spec gốc, nhưng phủ đúng 4 nhánh logic của hàm
+- [x] Câu hỏi 5 ký tự → mặc định `vi`, không lỗi — `detect_language` có `if len(question.strip()) < 10: return "vi", "other"` ở đầu hàm
+- [x] `lingua` lỗi/thiếu vẫn có câu trả lời — `try/except ImportError` khi import module, và `try/except RuntimeError` quanh `detect_language_of()` đều fallback về heuristic dấu tiếng Việt/từ tiếng Anh thường gặp
+- [ ] Snapshot giao diện — không áp dụng (FE không hiển thị gì khác biệt theo ngôn ngữ)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-017.1 và AC-017.2 đạt, có ca kiểm thử tự động trong CI
-- [ ] AC-017.3 có **bộ câu hỏi chuẩn tách theo ngôn ngữ** đã bàn giao cho T-501 (kết quả đo chốt ở Sprint 5)
-- [ ] `prompt_version` mới ghi vào `answer`
-- [ ] Thuộc tính `language` có trong `question_submitted`, **không** kèm nội dung câu hỏi (P-03)
-- [ ] Toàn bộ chuỗi giao diện vẫn tiếng Việt, không có chuỗi tiếng Anh lọt vào UI (UX-07)
-- [ ] Tham số ngôn ngữ hỗ trợ `{vi, en}` nằm trong cấu hình, không hard-code (P-06)
+- [x] AC-017.1/AC-017.2 có test tự động trong CI — `tests/unit/test_qa_language_detection.py` (mới)
+- [ ] Bộ câu hỏi chuẩn theo ngôn ngữ cho T-501 — chưa có (xem T-501)
+- [x] `prompt_version="v2"` ghi vào `answer`
+- [ ] `language` trong `question_submitted` — **FE tự phát hiện ngôn ngữ riêng** (`ChatPage.tsx::detectLanguage`, bản heuristic đơn giản hơn) để gắn vào sự kiện analytics, **không dùng chung logic với backend** `qa/service.py::detect_language` — hai cài đặt tách biệt, có thể cho kết quả khác nhau giữa log phân tích và câu trả lời thực tế
+- [x] UI vẫn tiếng Việt — xác nhận bằng đọc code (không có chuỗi tiếng Anh cố định trong JSX)
+- [x] `supported_languages=("vi","en")` trong cấu hình, phát ra qua `GET /config`
+
+### Ghi chú triển khai thực tế
+
+`detect_language()` chạy đúng, có fallback 2 lớp (lingua → heuristic dấu
+tiếng Việt/từ tiếng Anh) nên không bao giờ crash. Thêm
+`tests/unit/test_qa_language_detection.py` (4 test, mới) phủ cả 4 nhánh
+logic (câu ngắn, tiếng Việt, tiếng Anh, câu trộn ngôn ngữ).
+
+**Lưu ý môi trường (đã xác minh lại, nguyên nhân cụ thể):** thử
+`pip install lingua-language-detector` trực tiếp trong phiên này —
+thất bại khi build wheel cho dependency bắc cầu `regex` với lỗi "Microsoft
+Visual C++ 14.0 or greater is required" (máy không có C++ Build Tools
+cho Python 3.15, bản Python quá mới để có sẵn wheel dựng trước). Đây là
+giới hạn môi trường thật, không phải lỗi trong code — mọi lần chạy ở đây
+đều dùng nhánh heuristic, chưa từng thực thi được nhánh `lingua` thật. Cần
+cài gói này ở môi trường CI/staging (Python 3.12 theo Dockerfile, có
+wheel sẵn) và chạy lại để xác nhận độ chính xác, vì heuristic chỉ là lưới
+an toàn, không phải cơ chế chính theo thiết kế.
+
+**Lệch so với mô tả ban đầu:** FE có một bản `detectLanguage()` riêng trong
+`ChatPage.tsx` (regex đơn giản hơn nhiều) dùng để gắn nhãn `language` vào
+sự kiện analytics `question_submitted` — tách biệt hoàn toàn với
+`qa/service.py::detect_language` ở backend (dùng để chọn ngôn ngữ trả
+lời). Hai lần phát hiện độc lập có thể cho kết quả khác nhau; nên cân nhắc
+để backend trả `language` thật qua sự kiện `meta`/`done` thay vì để FE tự
+đoán lại.
 
 ## 9. Tham chiếu
 

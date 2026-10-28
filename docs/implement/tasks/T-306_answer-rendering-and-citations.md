@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-304 (API SSE), T-305 (Composer/store) |
-| Trạng thái | To do |
+| Trạng thái | In progress (hiển thị + chip nguồn cơ bản, chưa markdown/sanitize/hover) |
 
 ## 1. Mục tiêu
 
@@ -110,21 +110,30 @@ Không có. Câu trả lời chỉ sống trong RAM (Zustand + cache TanStack Qu
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] XSS: nội dung AI chứa `<script>alert(1)</script>` và `<img onerror=...>` → không thực thi, bị sanitize (IR-04)
-- [ ] Thẻ nguồn **không** xuất hiện ở `streaming`, chỉ xuất hiện khi `done` (IR-01)
-- [ ] `incomplete` → thẻ nguồn bị ẩn hoàn toàn dù đã nhận `citations`
-- [ ] `[n]` không khớp → chữ thường, không focus được bằng Tab (IR-03)
-- [ ] Hover `[1]` làm nổi bật đúng chip `[1]` và ngược lại (UX-04)
-- [ ] Câu trả lời từ 4 tài liệu → đủ 4 chip, không trùng (AC-014.2)
-- [ ] NVDA/`aria-live` công bố "Đã có câu trả lời" khi hoàn tất
-- [ ] axe-core không có lỗi nghiêm trọng trên vùng câu trả lời
+- [x] XSS không thực thi — hiện render answer bằng `{answer}` trong JSX (React escape mặc định, không `dangerouslySetInnerHTML`) nên an toàn mặc định; nhưng cũng có nghĩa là **không có markdown nào được render** dù `react-markdown`/`rehype-sanitize`/`remark-gfm` có trong `package.json` — phụ thuộc chưa được dùng
+- [x] Thẻ nguồn không xuất hiện khi streaming — `citations` chỉ được `setCitations` khi nhận `event: citations`, đúng sau khi `delta` kết thúc và trước `done` (khớp thứ tự backend ở T-304)
+- [ ] `incomplete` → ẩn thẻ nguồn — **chưa có khái niệm `incomplete`** ở FE (không xử lý `event: error`/ngắt kết nối giữa chừng)
+- [ ] `[n]` không khớp → chữ thường — không áp dụng vì câu trả lời không được parse thành các đoạn `[n]` tương tác, chỉ hiện thô
+- [ ] Hover `[1]` nổi bật chip — chưa có (chip chỉ có `onClick` phát `citation_viewed`, không có hover-link với vị trí trong văn bản)
+- [ ] 4 tài liệu → 4 chip không trùng — về lý thuyết đúng vì `citations.map` render mọi phần tử nhận được, chưa có test
+- [ ] aria-live công bố "Đã có câu trả lời" — `aria-live="polite"` có trên vùng trả lời nhưng nội dung thay đổi dần theo từng token (có thể đọc nhiều lần, không có thông báo hoàn tất riêng)
+- [ ] axe-core — chưa cài
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Khớp ảnh [`SCR-02_14_answer-with-citations.png`](../../design/html_design/SCR-02_14_answer-with-citations.png) và [`SCR-02_24_streaming.png`](../../design/html_design/SCR-02_24_streaming.png) ở 1280px và 1024px
-- [ ] Bảng `phase` ở §3 được cài đủ 7 dòng, mỗi dòng có ít nhất 1 ca kiểm thử (CN-10)
-- [ ] Không có nội dung câu trả lời trong Web Storage (CN-06)
-- [ ] `citation_viewed` không chứa tên tệp hay nội dung (US-020)
+- [ ] Khớp ảnh thiết kế — chưa đối chiếu
+- [ ] Bảng `phase` 7 dòng — chỉ có trước/trong/sau stream (3 trạng thái ngầm), chưa đủ 7
+- [x] Không lưu câu trả lời vào Web Storage — xác nhận bằng đọc code
+- [x] `citation_viewed` không chứa tên tệp/nội dung — `track("citation_viewed", {citation_index: i+1})`, chỉ gửi chỉ số
+
+### Ghi chú triển khai thực tế
+
+Phần cốt lõi (ẩn thẻ nguồn khi đang stream, chỉ hiện sau khi nhận đủ) đã
+đúng nhờ thứ tự sự kiện SSE của T-304. Thiếu: markdown rendering (dependency
+đã cài nhưng chưa dùng), liên kết hover giữa `[n]` trong văn bản và chip
+nguồn, xử lý trạng thái `incomplete` khi SSE bị ngắt giữa chừng, và a11y
+(axe-core, thông báo hoàn tất riêng cho trình đọc màn hình). Giữ
+"In progress".
 
 ## 9. Tham chiếu
 

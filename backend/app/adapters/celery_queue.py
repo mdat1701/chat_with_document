@@ -4,9 +4,17 @@ DUY NHẤT trong hệ thống gọi `celery_app.send_task` trực tiếp —
 không import Celery.
 """
 
+import importlib
 from typing import Any
 
-from app.workers.celery_app import celery_app
+
+class _CeleryProxy:
+    def send_task(self, task_name: str, *, kwargs: dict[str, Any]) -> Any:
+        module = importlib.import_module("app.workers.celery_app")
+        return module.celery_app.send_task(task_name, kwargs=kwargs)
+
+
+celery_app = _CeleryProxy()
 
 
 class CeleryQueueAdapter:

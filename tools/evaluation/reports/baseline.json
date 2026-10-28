@@ -1,0 +1,11 @@
+{
+  "status": "pending-run",
+  "prompt_version": "v2",
+  "model_id": "configured",
+  "metrics": {
+    "not_found_recall": null,
+    "uncited_rate": null,
+    "grounded_accuracy": null,
+    "accuracy_by_lang": {"vi": null, "en": null}
+  }
+}

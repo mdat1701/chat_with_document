@@ -10,7 +10,7 @@
 | Vai trò chính | OPS (chính) + TL + QA |
 | Ước lượng | 2 ngày công |
 | Phụ thuộc | T-007 (log/OTel), T-103 (CLI cấp quyền), T-207 (job định kỳ), T-505 (ngưỡng hiệu năng), T-603 (điều kiện kèm theo của ATTT) |
-| Trạng thái | To do |
+| Trạng thái | In progress (runbook có nội dung thật, chưa diễn tập/chưa đối chiếu Alertmanager) |
 
 ## 1. Mục tiêu
 
@@ -119,6 +119,20 @@ Mức sẵn sàng: **giờ làm việc 08:00 – 18:00** theo hướng mặc đ�
 - [ ] Mục "Giới hạn đã biết" nêu rõ các tính năng post-MVP và điều kiện của ATTT
 - [ ] Đã diễn tập ít nhất một lần trước ngày mở pilot
 - [ ] Runbook **không** hướng dẫn bất kỳ thao tác nào làm lộ nội dung tài liệu (giữ P-03 và G-04)
+
+### Ghi chú triển khai thực tế
+
+`docs/pilot/RUNBOOK.md` có nội dung thật (không phải khung rỗng): phạm vi
+trực/leo thang, health check thật (`/healthz`, `/readyz`), tra cứu sự cố
+qua `trace_id`/`error_code`/`route`/`user_hash` (đúng không log nội dung),
+bảng alert với ngưỡng khớp số liệu đã thiết kế (p90 15s, lỗi 2%, hàng đợi
+5 phút — khớp `T-505`/`T-301`), lệnh vận hành thật (`python -m app.cli
+grant-access/revoke-access`, `purge_expired.delay()` — đã xác nhận các
+module/hàm này tồn tại đúng đường dẫn khi đọc `app/cli.py` và
+`app/workers/retention_tasks.py`), và điều kiện dừng pilot rõ ràng. Thiếu:
+diễn tập sự cố thật (§7 yêu cầu ít nhất 1 lần trước khi mở pilot) và đối
+chiếu ngưỡng với cấu hình Alertmanager thật (không có Alertmanager trong
+môi trường này để đối chiếu).
 
 ## 9. Tham chiếu
 

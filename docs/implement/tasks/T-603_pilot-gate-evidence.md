@@ -10,7 +10,7 @@
 | Vai trò chính | TL (chủ trì hồ sơ) + QA + PM/BA + ATTT + Chủ sở hữu nghiệp vụ |
 | Ước lượng | 2 ngày công |
 | Phụ thuộc | T-404, T-501 – T-506, T-601, T-602 |
-| Trạng thái | To do |
+| Trạng thái | To do (khung hồ sơ 6 gate đã có, toàn bộ ở trạng thái Pending) |
 
 ## 1. Mục tiêu
 
@@ -81,6 +81,16 @@ Không có. Task này chỉ tạo hồ sơ (tài liệu, báo cáo, biên bản)
 - [ ] Danh sách story post-MVP chưa làm được nêu công khai trong hồ sơ, tránh hiểu nhầm phạm vi
 - [ ] Quyết định mở/hoãn pilot được truyền đạt tới nhóm người dùng thử nghiệm
 - [ ] Số liệu MET-003, MET-004 và baseline chất lượng được ghi lại phục vụ BRD BO-003
+
+### Ghi chú triển khai thực tế
+
+`docs/pilot/PILOT_GATE_EVIDENCE.md` đã có đủ khung cho cả 7 gate (G-01→G-07),
+mỗi dòng ghi đúng nguồn bằng chứng sẽ cần (báo cáo T-504/T-501/canary/k6/
+UAT) và người ký tương ứng, tất cả ở trạng thái "Pending" — không có kết
+luận giả. Dựa trên các phát hiện thật trong phiên rà soát này, các gate
+sau **chưa đủ điều kiện kết luận "Đạt" khi đến lượt**: G-02 (T-501 chưa có
+số liệu), G-03 (test cô lập chỉ mới viết, chưa chạy thật — xem T-504),
+G-06 (k6 chưa chạy). Giữ "To do".
 
 ## 9. Tham chiếu
 

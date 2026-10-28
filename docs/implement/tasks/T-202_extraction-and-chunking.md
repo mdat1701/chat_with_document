@@ -10,7 +10,7 @@
 | Vai trò chính | BE (hỗ trợ: AI cho tham số chia đoạn) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-201 (bước quét & kiểm tra PDF) |
-| Trạng thái | To do |
+| Trạng thái | In progress (lõi chạy đúng; tham số chia đoạn đã nối với cấu hình trong phiên này) |
 
 ## 1. Mục tiêu
 
@@ -96,20 +96,33 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] PDF văn bản 20 trang → sinh số đoạn hợp lý (~2 đoạn/trang theo ước lượng SADD Phụ lục A.2), mọi đoạn có `page_start ≤ page_end`.
-- [ ] PDF scan thuần (ảnh) → `PDF_NO_TEXT`.
-- [ ] PDF hỗn hợp 30% trang scan → **không** lỗi, vẫn tạo đoạn từ phần văn bản.
-- [ ] Văn bản tiếng Việt có dấu: so sánh chuỗi sau trích xuất với bản gốc ở dạng NFC → khớp 100% (test chống lỗi tổ hợp dấu).
-- [ ] Đoạn trải hai trang: có ít nhất 1 test khẳng định `page_start != page_end` được ghi đúng.
-- [ ] Không đoạn nào vượt quá `target_tokens * 1.2` sau khi chia.
-- [ ] Số trang trong `ExtractedChunk` khớp số trang thật khi mở PDF thủ công (test thủ công 1 lần với tài liệu mẫu, ghi vào biên bản).
+- [x] PDF văn bản nhiều trang → mọi đoạn có `page_start ≤ page_end` — `test_extract_and_chunk_preserves_page_ranges`
+- [x] PDF scan thuần (ảnh) → `PDF_NO_TEXT` — `test_extract_and_chunk_rejects_scan_only_pdf`
+- [ ] PDF hỗn hợp 30% trang scan → không lỗi — chưa có test riêng cho ca hỗn hợp
+- [ ] Văn bản tiếng Việt có dấu, so khớp NFC 100% — code có `unicodedata.normalize("NFC", ...)` nhưng chưa có test riêng khẳng định round-trip với văn bản tiếng Việt
+- [ ] Đoạn trải hai trang (`page_start != page_end`) — logic hỗ trợ việc này (gộp từ theo cửa sổ trượt qua nhiều trang) nhưng chưa có test khẳng định riêng
+- [ ] Không đoạn nào vượt `target_tokens * 1.2` — chưa có test đo kích thước đoạn
+- [ ] Đối chiếu thủ công số trang với tài liệu mẫu — chưa thực hiện (cần biên bản thủ công)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] `extract_and_chunk` có unit test với ít nhất 5 PDF mẫu (văn bản, scan, hỗn hợp, nhiều cột, có bảng).
-- [ ] Tham số chia đoạn nằm trong cấu hình (P-06), **không** hard-code — để T-502 hiệu chỉnh mà không cần sửa code.
-- [ ] `page_start`/`page_end` chính xác 100% trên bộ mẫu — đây là điều kiện tiên quyết của US-015.
-- [ ] Không log nội dung văn bản ở bất kỳ mức log nào (P-03).
+- [ ] `extract_and_chunk` có test với ≥ 5 PDF mẫu — hiện có 2 test (page-range, scan-only); thiếu mẫu hỗn hợp/nhiều cột/có bảng
+- [x] Tham số chia đoạn nằm trong cấu hình, không hard-code — **đã sửa**: `_process_document` giờ dựng `ChunkConfig(target_tokens=get_settings().chunk_size_tokens, overlap_tokens=get_settings().chunk_overlap_tokens)` trước khi gọi `extract_and_chunk`, thay vì `ChunkConfig()` mặc định — T-502/T-506 đổi được qua cấu hình, không cần sửa code
+- [x] `page_start`/`page_end` chính xác trên bộ test hiện có
+- [x] Không log nội dung văn bản — xác nhận bằng đọc code
+
+### Ghi chú triển khai thực tế
+
+`extract_and_chunk()` (`app/modules/ingestion/service.py`) chạy đúng về mặt
+logic và đã có 2 test thật xanh. **Đã sửa (phiên này):** `_process_document`
+giờ đọc `settings.chunk_size_tokens`/`settings.chunk_overlap_tokens` khi
+dựng `ChunkConfig`, thay vì dùng mặc định `dataclass` cứng — xác nhận bằng
+đọc code (`ruff`/`mypy` đều sạch); chưa viết test riêng cho việc nối cấu
+hình này (chi phí mock `_process_document` — vốn còn gọi DB/Redis/ClamAV —
+không tương xứng với một thay đổi 1 dòng, để lại cho khi viết test tích
+hợp đầy đủ cho `_process_document`). Các ca test sâu hơn (hỗn hợp
+scan/text, giới hạn `target_tokens*1.2`, NFC tiếng Việt) vẫn chưa được
+viết — nên giữ trạng thái "In progress" thay vì "Done".
 
 ## 9. Tham chiếu
 

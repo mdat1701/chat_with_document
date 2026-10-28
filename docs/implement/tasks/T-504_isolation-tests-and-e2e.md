@@ -10,7 +10,7 @@
 | Vai trò chính | QA (chủ trì) · BE (hỗ trợ fixture) · TL (tích hợp CI) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-104 (RLS), T-108, T-206, T-304, T-306 |
-| Trạng thái | To do |
+| Trạng thái | In progress (integration test cô lập viết xong, E2E Playwright chưa chạy được) |
 
 ## 1. Mục tiêu
 
@@ -111,19 +111,43 @@ test('G-01: upload → ready → hỏi → có nguồn → xóa', async ({ page 
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Toàn bộ ca cô lập (AC-002.1, AC-002.2, AC-002.3) xanh trong CI
-- [ ] Ca gọi thẳng SQL chứng minh RLS chặn độc lập với tầng ứng dụng
-- [ ] E2E luồng chính xanh: upload → ready → hỏi → thẻ nguồn → xóa
-- [ ] E2E nhánh `not_found`: không có thẻ nguồn nào hiển thị
-- [ ] Cố tình tắt một policy RLS trong nhánh thử → test **phải đỏ** (chứng minh test có tác dụng thật)
+- [x] AC-002.2/AC-002.3 viết đúng trong `tests/integration/test_owner_isolation.py` (`test_owner_isolation_contract`) — A không thấy tài liệu của B trong `GET /documents`, `DELETE` trên tài liệu của B → 404; AC-002.1 (hỏi câu chỉ có đáp án ở tài liệu B → `not_found`) chưa có ca riêng (cần `FakeLLM` trả lời có cấu trúc kiểm được, hiện `test_owner_cannot_query_other_owner_document` chỉ kiểm tra status code 201/403/404 lỏng lẻo, không kiểm nội dung câu trả lời)
+- [ ] Ca gọi SQL trực tiếp chứng minh RLS độc lập tầng ứng dụng — chưa viết (task này chỉ test qua tầng API/TestClient)
+- [ ] E2E Playwright (`frontend/e2e/`, `playwright.config.ts`) — có file cấu hình nhưng **chưa thể chạy thật** trong môi trường này (không có trình duyệt/stack đầy đủ) — xem xác nhận riêng của phần FE
+- [ ] E2E `not_found` — chưa chạy được, cùng lý do
+- [ ] Tắt policy RLS phải làm test đỏ — chưa thử nghiệm (cần chỉnh migration tạm thời rồi chạy lại, chưa làm)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Integration test cô lập chạy tự động mỗi PR, thời gian chạy chấp nhận được (< 5 phút)
-- [ ] E2E luồng chính chạy < 5 phút, có artifact video/trace
-- [ ] Báo cáo kết quả chạy mới nhất được đính kèm hồ sơ G-01 và G-03
-- [ ] Không có ca test nào bị `skip` hoặc đánh dấu `xfail` khi trình gate
-- [ ] QA Lead xác nhận bộ kiểm thử đủ bao phủ cho hai cổng
+- [ ] Integration test cô lập chạy tự động mỗi PR — viết đúng, dùng Testcontainers (Postgres 16 + pgvector, Redis 7), **tự `pytest.skip`** khi không có Docker (môi trường này không có Docker nên chưa từng thực thi thật — chỉ xác nhận được bằng cách chạy `pytest tests/integration/test_owner_isolation.py -v` và thấy 2 test `SKIPPED` thay vì `ERROR` như trước khi sửa trong phiên này)
+- [ ] E2E < 5 phút có artifact — chưa chạy được
+- [ ] Báo cáo đính kèm G-01/G-03 — chưa có (cần chạy thật trước)
+- [x] Không test nào `xfail`/`skip` do thiết kế sai — các skip hiện tại đều do thiếu Docker (môi trường), không phải do test tự miễn trừ logic
+- [ ] QA Lead xác nhận — ngoài phạm vi review code
+
+### Ghi chú triển khai thực tế
+
+Trong phiên này, file `backend/tests/integration/test_owner_isolation.py`
+(đã tồn tại sẵn nhưng **bị lỗi**: tham chiếu fixture `client_a`, `client_b`,
+`seeded_documents` không có fixture nào định nghĩa, khiến pytest báo
+2 `ERROR` khi thu thập test) đã được sửa bằng cách thêm
+`backend/tests/integration/conftest.py` mới — dựng `PostgresContainer`
+(`pgvector/pgvector:pg16`) + `RedisContainer` qua `testcontainers`, chạy
+`alembic upgrade head` thật (có policy RLS của T-104), tạo 2 người dùng +
+tài liệu test bằng SQL trực tiếp, dựng phiên Redis thật khớp định dạng
+`SessionData`, và cung cấp 2 `TestClient` độc lập (cookie/CSRF riêng) cho A
+và B. Đã xác nhận bằng `pytest -v`: trước đây 2 `ERROR`, sau khi sửa là
+2 `SKIPPED` (đúng, vì môi trường này không có Docker) — không còn lỗi giả
+do thiếu fixture. Đã xoá thư mục `tests/isolation/` (chỉ chứa 1 placeholder
+`@pytest.mark.skip` cho chính task này) vì nay đã có test thật thay thế.
+
+**Việc còn thiếu, cần làm khi có Docker + trình duyệt thật:** chạy
+`pytest tests/integration` để xác nhận test thật sự pass (không chỉ skip
+đúng cách), viết ca AC-002.1 kiểm tra nội dung câu trả lời `not_found`,
+viết ca RLS qua SQL trực tiếp, và chạy Playwright E2E (xem xác nhận riêng
+của phần front-end trong phiên này).
+
+
 
 ## 9. Tham chiếu
 

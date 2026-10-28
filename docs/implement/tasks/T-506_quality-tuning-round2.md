@@ -97,6 +97,12 @@ python -m tools.evaluation.compare reports/baseline.json reports/r2_<thay-doi>.j
 - [ ] Mọi rủi ro còn lại về chất lượng được ghi vào hồ sơ UAT để người đánh giá biết trước
 - [ ] Không còn thay đổi chất lượng nào chưa được đo lường bằng T-501
 
+### Ghi chú triển khai thực tế
+
+Khung ghi log (`docs/pilot/QUALITY_TUNING_R2.md`) đã có, đúng tinh thần
+trung thực ("Pending staging evaluation" ở mọi cột, không số liệu giả).
+Chưa thể bắt đầu vì phụ thuộc T-501/T-502 chưa có số liệu.
+
 ## 9. Tham chiếu
 
 - [SADD §2.2.2 (trích xuất, chia đoạn), §2.2.3 (rerank, prompt), §6.1 AR-02/AR-03/AR-04, nguyên tắc P-04/P-07](../../requirements/SADD.md)

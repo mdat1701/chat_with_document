@@ -10,7 +10,7 @@
 | Vai trò chính | BE (chính) + FE + QA |
 | Ước lượng | 2 ngày công |
 | Phụ thuộc | T-007 (bộ lọc log `core`), T-304 (`answer_rendered`), T-204 (sự kiện tài liệu) |
-| Trạng thái | To do |
+| Trạng thái | In progress (allow-list + hash đúng; 6/15 sự kiện phía BE đã nối trong phiên này; sự kiện phía FE vẫn thiếu) |
 
 ## 1. Mục tiêu
 
@@ -114,22 +114,53 @@ Body: { "events": [ { event_name, timestamp, props }, … ] }   // tối đa 20 
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] **AC-020.1 / canary test:** chuỗi canary không xuất hiện trong `analytics_event`, log (Loki) hay metric sau khi chạy trọn luồng
-- [ ] Unit test allow-list: gửi `props` có khóa `question` → khóa bị loại, sự kiện vẫn ghi, có cảnh báo ở dev
-- [ ] Không có sự kiện nào chứa `document_name`/`file_name` (test duyệt toàn bộ lược đồ đã khai báo)
-- [ ] `user_hash` khác nhau giữa 2 người dùng và **không** đảo ngược được về `user_id` (kiểm tra bằng mắt + không lưu secret trong repo)
-- [ ] Đủ 12 sự kiện của §3.2 được phát đúng thời điểm (test tích hợp theo phễu: `session_started` → `empty_state_viewed` → `document_upload_started` → `document_processing_succeeded` → `question_submitted` → `answer_rendered`)
-- [ ] Ghi `analytics_event` lỗi (mock DB down) → luồng hỏi đáp vẫn trả lời bình thường
-- [ ] Lint/kiểm tra ranh giới: không module nào ngoài `shared/analytics` gửi sự kiện (DR-05)
+- [ ] Canary test tự động — chưa có, mới xác nhận bằng đọc code
+- [ ] Unit test allow-list — **0 test cho `app/modules/analytics/`**; logic đúng khi đọc: `props` ngoài allow-list bị loại (`rejected_props`), log cảnh báo, sự kiện vẫn ghi với `safe_props`
+- [x] Không sự kiện nào chứa `document_name`/`file_name` — cả `ALLOWED_EVENTS` và allow-list `props` đều không có trường tên tệp/tài liệu
+- [x] `user_hash` khác nhau giữa 2 người, không đảo ngược được — HMAC-SHA256 với `analytics_hash_secret`, một chiều
+- [ ] Đủ 12 sự kiện phát đúng thời điểm theo phễu — **đã nối thêm 3 sự kiện phía BE trong phiên này**: `document_processing_succeeded`/`document_processing_failed` (`app/workers/ingestion_tasks.py::_emit_processing_outcome_event`, sau khi pipeline kết thúc) và `document_deleted` cả 2 nhánh `trigger=user` (`app/api/routers/documents.py::delete_document`) và `trigger=retention` (`app/workers/retention_tasks.py::_emit_deleted_events`, dùng `owner_id` mà `purge_expired_use_case` giờ trả về thay vì chỉ đếm số lượng). Vẫn **chưa có lời gọi nào** cho `session_started`, `empty_state_viewed`, `document_upload_started`, `document_upload_rejected_client`, `retry_clicked`, `feedback_submitted` — đây đều là sự kiện phát từ **phía FE** theo thiết kế (SDD §3.8.4), cần làm cùng T-106/T-109/T-205/T-208/T-307
+- [~] Ghi `analytics_event` lỗi không chặn câu trả lời — trong `conversations.py`, `session.add(Answer)` + `record_event` + `commit` chạy **sau** khi `event: done` đã được gửi cho client, nên người dùng vẫn thấy đủ câu trả lời trước khi có thể gặp lỗi lưu phía sau; tuy vậy lỗi commit vẫn khiến SSE kết thúc bằng `event: error` nối sau `done` — hơi khác "vẫn trả lời bình thường, không có dấu hiệu lỗi nào"
+- [ ] Lint ranh giới chỉ `shared/analytics` được gửi sự kiện (DR-05) — chưa cấu hình (xem T-106)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-020.1 có ca kiểm thử tự động chạy trong CI (canary test), không phải kiểm tra thủ công
-- [ ] AC-020.2 có biên bản/email xác nhận của ATTT đính kèm hồ sơ Pilot Gate G-04
-- [ ] `POST /events` được bổ sung vào SADD §2.4.2 (hoặc ghi rõ là endpoint nội bộ ngoài danh mục API-xx)
-- [ ] Bảng `analytics_event` phân vùng theo tháng + job tạo phân vùng đã đăng ký
-- [ ] **Không** có `mv_weekly_usage`, **không** đăng ký `analytics.rollup_daily` (xác nhận bằng rà soát code — giữ đúng ADR-09)
-- [ ] Tài liệu một trang về danh mục sự kiện + allow-list đã bàn giao cho ATTT và PM
+- [ ] AC-020.1 canary test trong CI — chưa có
+- [ ] AC-020.2 xác nhận ATTT — chưa có (cần quy trình ngoài code)
+- [ ] `POST /events` trong SADD §2.4.2 — chưa kiểm tra tài liệu SADD có cập nhật hay chưa (ngoài phạm vi rà soát code)
+- [ ] `analytics_event` phân vùng theo tháng — chưa kiểm tra migration có tạo partition hay chỉ bảng thường (cần xem `migrations/versions/0001_baseline.py` kỹ hơn)
+- [x] Không có `mv_weekly_usage`/`analytics.rollup_daily` — xác nhận bằng grep, không tồn tại trong code (đúng ADR-09)
+- [ ] Tài liệu 1 trang bàn giao ATTT/PM — chưa có
+
+### Ghi chú triển khai thực tế
+
+Lõi an toàn (allow-list tên sự kiện + allow-list thuộc tính + hash một
+chiều `user_id`) đã cài đúng trong `app/modules/analytics/service.py` và
+kiểm tra tĩnh sạch.
+
+**Đã sửa (phiên này):** nối thêm 3 sự kiện phía BE — tổng 6/15 tên sự
+kiện giờ có lời gọi thật (`question_submitted`, `citation_viewed`,
+`answer_rendered` từ trước + `document_processing_succeeded/_failed`,
+`document_deleted`). Lưu ý ranh giới module (SADD §2.2.1): không thể gọi
+`record_event()` trực tiếp từ `app.modules.ingestion`/`app.modules.retention`
+(sẽ vi phạm hợp đồng "không phụ thuộc vòng giữa module nghiệp vụ" vì
+`analytics` không nằm trong `ignore_imports` cho phép của 2 module đó) —
+nên việc phát sự kiện được đặt ở tầng `app.workers`/`app.api` (lớp adapter
+được phép import mọi module), đúng nguyên tắc P-01. Vì vậy
+`purge_expired_use_case()` đổi kiểu trả về từ `int` (số lượng) sang
+`list[UUID]` (owner_id từng tài liệu đã xóa) để `retention_tasks.py` có
+đủ thông tin phát `document_deleted{trigger=retention}` — đã kiểm tra
+không còn lời gọi nào khác phụ thuộc kiểu `int` cũ (`grep` xác nhận).
+
+Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports` (3 hợp đồng vẫn
+giữ) và `pytest` (105 passed) — **không có test đơn vị mới riêng** cho
+`_emit_processing_outcome_event`/`_emit_deleted_events` (cần mock
+`worker_session_scope`/`AsyncSession` ở độ phức tạp tương đương test
+tích hợp, để lại cho đợt viết test tích hợp Celery).
+
+**Chưa làm (còn lại, thuộc FE):** `session_started`, `empty_state_viewed`,
+`document_upload_started`, `document_upload_rejected_client`,
+`retry_clicked`, `feedback_submitted` — đều phát từ phía client theo
+thiết kế gốc, cần làm cùng các task FE liên quan. Giữ "In progress".
 
 ## 9. Tham chiếu
 

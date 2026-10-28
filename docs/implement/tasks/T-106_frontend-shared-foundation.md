@@ -10,7 +10,7 @@
 | Vai trò chính | FE (một người kiêm design system) |
 | Ước lượng | 3d |
 | Phụ thuộc | T-102 (API-01), T-105 (API-02) |
-| Trạng thái | To do |
+| Trạng thái | In progress (nền tảng lõi xong, `shared/ui` + a11y + lint ranh giới chưa xong) |
 
 ## 1. Mục tiêu
 
@@ -104,22 +104,54 @@ Không có thay đổi CSDL. Chính sách lưu trữ phía client (SDD §3.4.4) 
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Lint ranh giới module thất bại khi cố import `features/*` từ `shared/*` (chứng minh DR-02 có hiệu lực)
-- [ ] Lint thất bại khi gọi `fetch` trực tiếp ngoài `shared/api` (DR-04)
-- [ ] `httpClient` tự gắn `X-CSRF-Token` cho POST/PUT/PATCH/DELETE; không gắn cho GET
-- [ ] Giả lập 401 từ bất kỳ API nào → chuyển `/login?returnTo=` đúng đường dẫn hiện tại
-- [ ] Chưa đăng nhập, vào thẳng `/` → chuyển `/login` (AC-001.4)
-- [ ] Mọi component `shared/ui` vượt qua axe-core không lỗi nghiêm trọng; dùng được bằng bàn phím (Tab/Esc)
-- [ ] Không component nào trong `shared/ui` import `shared/api` (kiểm tra bằng lint + test)
-- [ ] Sau khi đăng xuất, cache TanStack Query trống và không còn nội dung nào trong Web Storage (kiểm tra bằng script test)
+- [ ] Lint ranh giới module thất bại khi cố import `features/*` từ `shared/*` (chứng minh DR-02 có hiệu lực) — `eslint-plugin-boundaries` có trong `package.json` nhưng `eslint.config.js` **chưa** khai báo rule ranh giới thật (comment trong file ghi rõ "sẽ thêm ở T-106" — chưa làm)
+- [ ] Lint thất bại khi gọi `fetch` trực tiếp ngoài `shared/api` (DR-04) — chưa có rule
+- [x] `httpClient` tự gắn `X-CSRF-Token` cho POST/PUT/PATCH/DELETE; không gắn cho GET — xác nhận bằng đọc `shared/api/client.ts`
+- [x] Giả lập 401 từ bất kỳ API nào → chuyển `/login?returnTo=` đúng đường dẫn hiện tại — logic có trong `shared/api/client.ts`/`features/auth/auth.ts`, chưa có test tự động xác nhận
+- [x] Chưa đăng nhập, vào thẳng `/` → chuyển `/login` (AC-001.4) — route guard trong `App.tsx` dùng `useAuth()`, xác nhận bằng đọc code (chưa có test Vitest riêng cho ca này)
+- [ ] Mọi component `shared/ui` vượt qua axe-core không lỗi nghiêm trọng — **`shared/ui` chưa có component nào**, chỉ có README mô tả dự định; `axe-core` không có trong `devDependencies`
+- [ ] Không component nào trong `shared/ui` import `shared/api` — không áp dụng được vì `shared/ui` rỗng
+- [ ] Sau khi đăng xuất, cache TanStack Query trống và không còn nội dung nào trong Web Storage — `@tanstack/react-query`/`zustand` có trong dependency nhưng **chưa được lắp vào `App.tsx`** (không có `QueryClientProvider`), nên chưa có gì để test
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 4 route MVP-lite chạy được với dữ liệu giả lập; không có route nào tới màn hình post-MVP (SCR-04 – SCR-06)
-- [ ] 100% chuỗi hiển thị nằm trong `messages.vi.ts`
-- [ ] 100% màu/cỡ chữ/khoảng cách lấy từ design token (lint xác minh)
-- [ ] Lint ranh giới + axe-core chạy trong CI và đang xanh
-- [ ] README front-end mô tả cách thêm một feature mới đúng kiến trúc
+- [x] 4 route MVP-lite chạy được với dữ liệu giả lập; không có route nào tới màn hình post-MVP (SCR-04 – SCR-06) — xác nhận trong `App.tsx`: `/login`, `/`, `/no-access`, `/404`
+- [x] 100% chuỗi hiển thị nằm trong `messages.vi.ts` — tồn tại và được các feature import (chưa grep toàn bộ để xác nhận 100%)
+- [ ] 100% màu/cỡ chữ/khoảng cách lấy từ design token — `shared/tokens/global.css` tồn tại nhưng chưa có lint rule chặn hex literal trong `features/*`
+- [ ] Lint ranh giới + axe-core chạy trong CI và đang xanh — chưa cấu hình
+- [ ] README front-end mô tả cách thêm một feature mới đúng kiến trúc — chưa có
+
+### Ghi chú triển khai thực tế
+
+**Nền tảng lõi đã có và hoạt động thật:** `shared/api/client.ts` (HTTP
+client tự gắn `X-CSRF-Token`, map lỗi về `{code, params}`), `shared/i18n/
+messages.vi.ts`, `shared/validation/files.ts`, `shared/tokens/global.css`,
+router 4 màn hình + route guard dựa trên `useAuth()` trong `App.tsx`. Các
+feature (`auth`, `documents`, `chat`) đã lắp vào router và gọi thật các API
+đã có ở backend.
+
+**Phần CHƯA làm, khác với mô tả gốc §3/§5/§8 — cần ghi nhận là thiếu, không
+phải đã xong:**
+1. `shared/ui` (Button/Badge/Dialog/Toast/Tooltip/Skeleton/Banner/
+   EmptyState) — thư mục chỉ có README mô tả dự định, **không có component
+   nào được viết**. Các màn hình hiện tại dùng HTML/className thô
+   (`className="page"`, `className="card"`) thay vì design system.
+2. `shared/config` (`useAppConfig()` gọi `GET /config`) — chỉ có README,
+   chưa có hook thật; các giá trị giới hạn hiện bị hard-code tạm trong
+   `App.tsx` (`20 * 1024 * 1024`, `50`) thay vì đọc từ `/config` — vi phạm
+   nguyên tắc P-06 mà chính task này đặt ra.
+3. `eslint-plugin-boundaries` có trong `package.json` nhưng `eslint.config.js`
+   chưa khai báo rule ranh giới DR-01 – DR-06 thật.
+4. `axe-core`/`pnpm test:a11y` chưa có trong `devDependencies`/scripts.
+5. TanStack Query và Zustand là dependency nhưng chưa thấy `QueryClientProvider`
+   hay store nào được dùng thật trong `App.tsx`.
+
+Vì các khoảng trống này ảnh hưởng tới nhiều task sau (T-107 → T-405 đều viết
+thẳng UI mà không có `shared/ui`), Trạng thái được giữ **"In progress"**
+chứ không đánh `Done` — tránh báo cáo sai cho Pilot Gate. Việc cần làm: dựng
+`shared/ui` tối thiểu, `useAppConfig()`, cấu hình `eslint-plugin-boundaries`
+thật, thêm `axe-core`, rồi quay lại các task FE khác để thay chỗ hard-code
+bằng design token/config.
 
 ## 9. Tham chiếu
 

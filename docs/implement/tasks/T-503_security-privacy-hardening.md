@@ -10,7 +10,7 @@
 | Vai trò chính | TL (chủ trì) · ATTT (phê duyệt) · QA (canary test) · OPS |
 | Ước lượng | 2d |
 | Phụ thuộc | T-301 (LLM adapter), T-404 (sự kiện analytics), D-01, D-06 |
-| Trạng thái | To do |
+| Trạng thái | In progress (phần lớn kiểm soát kỹ thuật đã có rải rác, chưa gói bằng chứng) |
 
 ## 1. Mục tiêu
 
@@ -91,21 +91,30 @@ indexedDB.databases()          // kỳ vọng: rỗng
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Canary test: 0 kết quả ở log api, log worker, trace, metric, `analytics_event`, `audit_log`
-- [ ] Sau một phiên đầy đủ: `localStorage`/`IndexedDB` không chứa nội dung tài liệu, câu hỏi hay câu trả lời
-- [ ] Unit test bộ lọc log: mọi trường nhạy cảm bị loại trước khi ghi
-- [ ] Test allow-list analytics: khóa lạ bị loại bỏ, có cảnh báo ở môi trường dev
-- [ ] Rate limit trả đúng `429 RATE_LIMITED` ở cả hai ngưỡng
-- [ ] Cookie phiên có đủ `HttpOnly; Secure; SameSite=Lax` (kiểm tra tự động trong E2E)
-- [ ] Quét SCA và image không còn lỗ hổng High/Critical chưa xử lý
+- [ ] Canary test tự động 0 kết quả ở mọi kênh — `tools/security/canary_scan.py` tồn tại (code đang được rà soát riêng trong cùng phiên), chưa chạy được end-to-end (cần staging)
+- [x] Bộ lọc log loại trường nhạy cảm — `core/logging.py::scrub()` đã có từ T-007, test `tests/unit/test_logging_scrub.py` xanh
+- [ ] Test allow-list analytics — logic đúng (`analytics/service.py`), nhưng **0 test tự động** (xem T-404)
+- [x] Rate limit trả đúng 429 — `check_rate_limit` (T-105), dùng trong `documents.py`/`conversations.py`
+- [x] Cookie phiên `HttpOnly; Secure; SameSite=Lax` — xác nhận trong `app/api/routers/auth.py` (cả 2 chỗ `set_cookie`)
+- [ ] Quét SCA/image — không chạy được (không có registry/scanner trong sandbox)
+- [ ] `localStorage`/IndexedDB không chứa nội dung — chưa có test tự động FE (xác nhận thủ công bằng đọc code: không component nào ghi nội dung vào Web Storage)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Gói bằng chứng G-04 hoàn chỉnh: sơ đồ luồng dữ liệu, trace mẫu, kết quả canary, bảng kiểm cấu hình bảo mật
-- [ ] **Biên bản rà soát có chữ ký/xác nhận của ATTT** (AC-020.2)
-- [ ] D-06 (thời hạn lưu metadata) đã được chốt và áp dụng
-- [ ] Các kiểm thử ở §7 chạy tự động trong CI (không phải thủ công một lần)
-- [ ] Mọi phát hiện mức High trở lên đã được khắc phục hoặc có chấp nhận rủi ro bằng văn bản
+- [ ] Gói bằng chứng G-04 — `docs/pilot/privacy_checklist.md`-tương-đương là `tools/security/privacy_checklist.md`, toàn bộ mục còn `[ ]` trống (trung thực, chưa chạy canary thật)
+- [ ] Biên bản ATTT — ngoài phạm vi code
+- [ ] D-06 thời hạn lưu metadata — chưa thấy quyết định ghi ở đâu trong phiên rà soát này
+- [ ] Test §7 tự động trong CI — một phần có (scrub, rate limit, cookie flags qua code), phần canary/SCA chưa
+- [ ] Phát hiện High+ đã xử lý — chưa chạy quét nào để có phát hiện
+
+### Ghi chú triển khai thực tế
+
+Các kiểm soát kỹ thuật nền tảng (lọc log, rate limit, cookie flags, CSRF,
+RLS, security headers ở `main.py::security_headers`) đã có sẵn từ các task
+trước (T-007, T-104, T-105) và được xác nhận lại ở đây — T-503 về bản chất
+là **gói bằng chứng + canary scan**, chưa phải xây mới nhiều kiểm soát.
+Việc còn thiếu là chạy canary/SCA thật và tập hợp bằng chứng vào
+`docs/pilot/PILOT_GATE_EVIDENCE.md` — cả hai đều cần staging.
 
 ## 9. Tham chiếu
 

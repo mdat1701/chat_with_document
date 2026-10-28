@@ -1,0 +1,42 @@
+version: 1
+items:
+  - id: NQ-001
+    lang: vi
+    question: "Thủ đô của Pháp là gì?"
+    expected_answer_type: not_found
+  - id: NQ-002
+    lang: vi
+    question: "Ai phát minh ra bóng đèn?"
+    expected_answer_type: not_found
+  - id: NQ-003
+    lang: en
+    question: "What is the population of Mars?"
+    expected_answer_type: not_found
+  - id: NQ-004
+    lang: vi
+    question: "Ai là người đầu tiên đặt chân lên Sao Hỏa?"
+    expected_answer_type: not_found
+  - id: NQ-005
+    lang: vi
+    question: "Mã số thuế của công ty giả định ABC là bao nhiêu?"
+    expected_answer_type: not_found
+  - id: NQ-006
+    lang: en
+    question: "What is the boiling point of a fictional alloy named CWD-X?"
+    expected_answer_type: not_found
+  - id: NQ-007
+    lang: en
+    question: "Which country signed the imaginary contract ZX-999?"
+    expected_answer_type: not_found
+  - id: NQ-008
+    lang: vi
+    question: "Ngày thành lập của tổ chức hư cấu Sao Bắc Đẩu là ngày nào?"
+    expected_answer_type: not_found
+  - id: NQ-009
+    lang: en
+    question: "How many employees does the fictional company Northwind Zero have?"
+    expected_answer_type: not_found
+  - id: NQ-010
+    lang: vi
+    question: "Điều khoản phạt của hợp đồng không tồn tại HD-NOT-000 là gì?"
+    expected_answer_type: not_found

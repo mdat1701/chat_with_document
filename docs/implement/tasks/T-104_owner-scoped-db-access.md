@@ -10,7 +10,7 @@
 | Vai trò chính | BE + TL (hỗ trợ: QA cho bộ test cô lập) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-005 (schema), T-102 (`SET LOCAL app.user_id`) |
-| Trạng thái | To do |
+| Trạng thái | Done |
 
 ## 1. Mục tiêu
 

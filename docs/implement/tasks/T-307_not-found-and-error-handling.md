@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-304 (API SSE), T-306 (AnswerMessage) |
-| Trạng thái | To do |
+| Trạng thái | To do (FE chưa xử lý sự kiện `done`/`error` của SSE) |
 
 ## 1. Mục tiêu
 
@@ -111,6 +111,15 @@ Sự kiện analytics liên quan (chi tiết allow-list ở T-404): `answer_rend
 - [ ] Đủ 6 mã lỗi ở bảng §3, mỗi mã có ít nhất 1 ca kiểm thử (CN-10)
 - [ ] Toàn bộ thông báo lấy từ `messages.vi.ts`
 - [ ] Thao tác Thử lại/Gửi lại dùng được bằng bàn phím
+
+### Ghi chú triển khai thực tế
+
+`ChatPage.tsx` hiện chỉ đọc 2 loại sự kiện SSE (`delta`, `citations`) và bỏ
+qua hoàn toàn `done`/`error` — nghĩa là phân loại `not_found`/`partial`,
+mã lỗi `SERVICE_BUSY`/`ANSWER_NETWORK`/`ANSWER_TIMEOUT`/`ANSWER_INTERRUPTED`,
+nút Thử lại, và error boundary **đều chưa được xây**. Backend (T-304) đã
+phát đúng `done{type, uncited}` và `event: error` nên dữ liệu cần thiết đã
+sẵn sàng ở phía server — việc còn lại hoàn toàn nằm ở FE. Giữ "To do".
 
 ## 9. Tham chiếu
 

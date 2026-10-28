@@ -10,7 +10,7 @@
 | Vai trò chính | Toàn đội (TL điều phối), QA xác minh lại |
 | Ước lượng | **Dự phòng** — giữ ~30% năng lực đội trong tuần UAT, không lập kế hoạch task khác chen vào |
 | Phụ thuộc | T-601 (nguồn lỗi), T-504 (bộ E2E để chạy hồi quy) |
-| Trạng thái | To do |
+| Trạng thái | To do (quy trình triage đã viết, chờ T-601 có lỗi thật) |
 
 ## 1. Mục tiêu
 
@@ -86,6 +86,15 @@ Không có thay đổi schema theo kế hoạch. Nếu một lỗi Blocker buộ
 - [ ] Lỗi Minor còn lại được liệt kê thành danh sách "chấp nhận khi ra mắt" đính kèm T-603
 - [ ] Đề xuất tính năng đã chuyển backlog, **không** có tính năng post-MVP nào bị lén đưa vào pilot
 - [ ] Bảng theo dõi lỗi được chốt và đính kèm hồ sơ Pilot Gate
+
+### Ghi chú triển khai thực tế
+
+`docs/pilot/T602_TRIAGE.md` (quy trình 6 bước) và `docs/pilot/UAT_DEFECT_LOG.md`
+(bảng log với 1 dòng mẫu `UAT-001` trống) đã có sẵn, định nghĩa rõ "Blocker"
+gồm rò rỉ dữ liệu chéo owner, trích dẫn sai, xóa không thành công, luồng
+upload→hỏi đáp hỏng — khớp đúng các phát hiện thật đã ghi ở T-302/T-303/
+T-301 trong phiên rà soát này (cổng bằng chứng yếu, thiếu phân loại lỗi
+LLM). Chưa thể xử lý lỗi UAT vì chưa có UAT thật (T-601 chưa chạy).
 
 ## 9. Tham chiếu
 

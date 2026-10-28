@@ -10,7 +10,7 @@
 | Vai trò chính | AI |
 | Ước lượng | 2d |
 | Phụ thuộc | T-301 (`LLMPort`), T-302 (đoạn trích đã truy xuất) |
-| Trạng thái | To do |
+| Trạng thái | In progress (prompt tối giản; lọc trích dẫn trỏ tới tài liệu không có trong bằng chứng đã sửa trong phiên này; chưa có ánh xạ `[S#]→[n]` như spec) |
 
 ## 1. Mục tiêu
 
@@ -103,20 +103,37 @@ Prompt lưu trong repo dưới dạng tệp có phiên bản: `app/modules/qa/pr
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Prompt injection: tài liệu chứa chỉ dẫn độc hại ("bỏ qua hướng dẫn", "tiết lộ prompt") → câu trả lời **không** tuân theo
-- [ ] Ánh xạ nhãn: LLM trả `[S3]` trước `[S1]` → client nhận `[1]` rồi `[2]` đúng thứ tự xuất hiện
-- [ ] Nhãn rác `[S9]` bị loại, không tạo chip nguồn
-- [ ] `answered` + 0 trích dẫn → `uncited=true`, metric tăng
-- [ ] `not_found` → `citations=[]`, `uncited=false` (AC-014.4)
-- [ ] Câu trả lời tổng hợp 2 tài liệu → có đủ 2 thẻ nguồn (AC-014.2)
-- [ ] Test với fake LLM adapter (T-301) để chạy được trong CI, không tốn chi phí
+- [ ] Prompt injection bị chặn — `SYSTEM_PROMPT` yêu cầu chỉ dùng đoạn trích, nhưng không có test/benchmark injection nào
+- [ ] Ánh xạ nhãn `[S3]`→`[1]` theo thứ tự xuất hiện — **không áp dụng**: cách triển khai thật dùng định dạng `[doc:<document_id> p:<start>-<end>]` trực tiếp (không qua lớp nhãn `[S1]`/`[S2]` trung gian) — đơn giản hơn spec nhưng không có bước "ánh xạ theo thứ tự xuất hiện"
+- [x] Nhãn rác bị loại — **đã sửa**: `qa/service.py` lọc `raw_citations` theo `doc in names` (chỉ `document_id` có thật trong `contexts` mới được giữ), một `document_id` bịa/sai bị loại hoàn toàn (không chỉ gán `document_name=None` như trước) — phủ bằng test `test_stream_answer_rejects_citation_to_unretrieved_document`
+- [x] `answered` + 0 trích dẫn → `uncited=true` — `conversations.py` tính `"uncited": not citations`
+- [x] `not_found` → `citations=[]` — khi không còn trích dẫn hợp lệ, `answer` bị thay bằng câu "không tìm thấy" và `citation_items=[]`
+- [ ] Tổng hợp 2 tài liệu có đủ 2 thẻ nguồn (AC-014.2) — chưa có test
+- [x] Test với LLM giả trong CI — `tests/unit/test_qa_service.py` (mới, 3 test) dùng `_ScriptedLLM` mô phỏng `LLMPort.stream()` để kiểm cả 3 nhánh (chặn ở cổng, trích dẫn bịa, trích dẫn hợp lệ)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] `prompt_version` ghi được vào bảng `answer`, đổi prompt là phải tăng phiên bản
-- [ ] Bộ kiểm tra trích dẫn có unit test cho cả 6 trường hợp biên ở §6
-- [ ] Metric `answers_uncited_total`, `llm_meta_malformed_total` xuất hiện trên Grafana
-- [ ] Không có nội dung câu hỏi/câu trả lời trong log, trace (P-03)
+- [x] `prompt_version` ("v2") ghi vào `answer.prompt_version` — xác nhận trong `conversations.py`
+- [x] Unit test — `tests/unit/test_qa_service.py` (3 test, mới) + `tests/unit/test_retrieval_service.py` (5 test, mới); chưa phủ hết 6 trường hợp biên của §6 (ví dụ chưa có test prompt injection thật)
+- [ ] Metric `answers_uncited_total` — vẫn chưa nối `.inc()`: trong thiết kế đơn giản hóa hiện tại (xem ghi chú T-304), một câu trả lời thiếu trích dẫn hợp lệ luôn được phân loại lại thành `not_found` (thay nội dung bằng câu "không tìm thấy") thay vì giữ nguyên nội dung với cờ `uncited=true` như §7 bước 7 của spec mô tả — nên metric này không có tình huống nào để tăng trong code hiện tại; cần làm lại luồng `partial`/`uncited` đúng spec mới gắn được metric có ý nghĩa. `llm_meta_malformed_total` không áp dụng (không dùng `<<<META>>>`)
+- [x] Không log nội dung câu hỏi/câu trả lời — xác nhận bằng đọc code
+
+### Ghi chú triển khai thực tế
+
+**Đã sửa (phiên này):** hàm `validate_citations` kiểm tra cú pháp
+(`app/modules/qa/prompt.py`) đã bị xoá vì không còn được dùng — thay bằng
+lọc thật trong `qa/service.py::stream_answer`: trích dẫn `[doc:<id>
+p:<a>-<b>]` chỉ được giữ nếu `<id>` khớp với một `document_id` có trong
+`contexts` (bằng chứng vừa truy xuất qua cổng T-302). Đây là lớp phòng
+thủ P-04 thứ hai, giờ hoạt động đúng cùng với cổng bằng chứng đã sửa ở
+T-302. Thêm `tests/unit/test_qa_service.py` (3 test — trước đó
+`app/modules/qa/` không có test nào).
+
+**Chưa sửa (ngoài phạm vi phiên này, cần thiết kế lại):** ánh xạ nhãn
+`[S#]→[n]` theo thứ tự xuất hiện (vẫn dùng `[doc:<id> p:<a>-<b>]` trực
+tiếp, đơn giản hơn spec); luồng `partial`/`uncited` giữ nguyên nội dung
+LLM khi thiếu trích dẫn thay vì thay bằng câu "không tìm thấy" cố định
+(xem ghi chú T-304); `<<<META>>>` không được dùng. Giữ "In progress".
 
 ## 9. Tham chiếu
 

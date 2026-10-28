@@ -3,6 +3,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "0 2 * * *"
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -126,16 +128,35 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
-  # T-504 điền: chạy Playwright trên staging sau khi deploy (cần T-004).
   e2e:
-    if: false
     runs-on: ubuntu-latest
     steps:
-      - run: echo "placeholder for T-504"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci && npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: npx playwright test
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: playwright-artifacts, path: frontend/reports/ }
 
-  # T-501 điền: chạy khi đổi qa / retrieval / prompt.
   rag-eval:
-    if: false
     runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || contains(join(github.event.pull_request.changed_files, ','), 'backend/app/modules/qa')
     steps:
-      - run: echo "placeholder for T-501"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pyyaml
+      - run: python -m tools.evaluation.run_eval --datasets tools/evaluation/datasets/golden_set.yaml tools/evaluation/datasets/no_answer_set.yaml --base-url "$EVAL_BASE_URL" --cookie "$EVAL_COOKIE" --out tools/evaluation/reports/ci-${{ github.sha }}.json
+        env:
+          EVAL_BASE_URL: ${{ secrets.EVAL_BASE_URL }}
+          EVAL_COOKIE: ${{ secrets.EVAL_COOKIE }}
+      - uses: actions/upload-artifact@v4
+        with: { name: rag-evaluation, path: tools/evaluation/reports/ }

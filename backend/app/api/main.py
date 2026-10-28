@@ -6,6 +6,7 @@ uvicorn app.api.main:app --host 0.0.0.0 --port 8000
 from __future__ import annotations
 
 import logging
+import secrets
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -21,8 +22,14 @@ from app.api.routers.auth import router as auth_router
 from app.core.config import get_settings
 from app.core.errors import ERROR_HTTP_STATUS, FALLBACK_ERROR_CODE, DomainError
 from app.core.logging import configure_logging, hash_user_id
-from app.core.metrics import http_request_duration_seconds, http_requests_total
+from app.core.metrics import (
+    csrf_rejected_total,
+    http_request_duration_seconds,
+    http_requests_total,
+)
+from app.core.redis_client import get_redis
 from app.core.tracing import configure_tracing, instrument_fastapi
+from app.modules.identity import sessions
 
 logger = logging.getLogger("app.api")
 
@@ -94,9 +101,62 @@ async def log_requests(request: Request, call_next: RequestHandler) -> Response:
     return response
 
 
+@app.middleware("http")
+async def security_headers(request: Request, call_next: RequestHandler) -> Response:
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault(
+        "Content-Security-Policy", "default-src 'self'; connect-src 'self'"
+    )
+    if _settings.app_env == "production":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
+@app.middleware("http")
+async def csrf_protection(request: Request, call_next: RequestHandler) -> Response:
+    """Protect API write methods with the CSRF token bound to the session.
+
+    Redirect-based auth endpoints are intentionally outside `/api/v1`; they
+    do not mutate application resources and keep their own OIDC transaction
+    validation.
+    """
+    if request.url.path.startswith("/api/v1") and request.method in {
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+    }:
+        sid = request.cookies.get("cwd_sid")
+        token = request.headers.get("X-CSRF-Token")
+        # Let the normal authentication/validation layer produce the
+        # appropriate response when no session exists.  A session-bearing
+        # write must always prove CSRF ownership before reaching a handler.
+        if not sid:
+            return await call_next(request)
+        data = await sessions.get_session(get_redis(), sid)
+        if data is None or not token or not secrets.compare_digest(token, data.csrf_token):
+            csrf_rejected_total.inc()
+            return JSONResponse(
+                status_code=403,
+                content={"code": "CSRF_INVALID", "params": {}},
+            )
+    return await call_next(request)
+
+
 @app.exception_handler(DomainError)
 async def handle_domain_error(_request: Request, exc: DomainError) -> JSONResponse:
-    return JSONResponse(status_code=exc.http_status, content=exc.to_response_body())
+    headers = {}
+    if exc.code == "RATE_LIMITED":
+        headers["Retry-After"] = str(exc.params.get("retry_after_seconds", 1))
+    return JSONResponse(
+        status_code=exc.http_status,
+        content=exc.to_response_body(),
+        headers=headers,
+    )
 
 
 @app.exception_handler(RequestValidationError)

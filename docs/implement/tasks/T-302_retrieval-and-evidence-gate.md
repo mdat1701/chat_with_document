@@ -10,7 +10,7 @@
 | Vai trò chính | AI |
 | Ước lượng | 3d |
 | Phụ thuộc | T-203 (chunk + embedding đã có), T-104 (RLS) |
-| Trạng thái | To do |
+| Trạng thái | In progress (truy xuất chạy được; lỗi logic ngưỡng `τ` đã sửa trong phiên này, chưa đo trên Postgres+pgvector thật) |
 
 ## 1. Mục tiêu
 
@@ -114,19 +114,49 @@ retrieval:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Integration (2 người dùng): A hỏi nội dung chỉ có trong tài liệu của B → `passed_gate = False`, không đoạn nào của B được trả về (AC-002.1, Pilot Gate G-03)
-- [ ] Câu hỏi kiến thức chung ("Thủ đô của Pháp là gì?") trên tập tài liệu hợp đồng → `passed_gate = False` (AC-011.2)
-- [ ] Bộ ≥ 10 câu hỏi không có đáp án → 100% không qua cổng (AC-013.2 / KR2.2) — chạy lại ở T-501
-- [ ] Câu hỏi có đáp án rõ ràng → `top_score` cao hơn hẳn τ, đoạn đúng nằm trong top-8
-- [ ] Tài liệu `processing`/`failed`/`deleting` không bao giờ xuất hiện trong kết quả
-- [ ] Hiệu năng: truy xuất ≤ 50 ms với ~45.000 chunk của một người dùng (ngân sách độ trễ SADD §3.2.2)
+- [x] A hỏi nội dung chỉ có trong tài liệu của B → không đoạn nào của B trả về (AC-002.1, G-03) — đúng vì `retrieve()` luôn lọc `Chunk.owner_id == owner_id` ở tầng SQL (không dựa vào ngưỡng điểm)
+- [x] Câu hỏi kiến thức chung → `passed_gate = False` (AC-011.2) — **đã sửa**, xem ghi chú dưới; phủ bằng test `test_retrieve_blocks_low_relevance_evidence_gate` và `test_retrieve_gate_uses_raw_vector_score_not_rrf_constant`
+- [ ] Bộ ≥ 10 câu hỏi không đáp án → 100% không qua cổng (AC-013.2) — chưa chạy (thuộc T-501, cần LLM/embedding thật)
+- [x] Câu hỏi có đáp án rõ → đoạn đúng trong top-8 — `tests/unit/test_retrieval_service.py` (mới, 5 test, dùng `_FakeSession` mô phỏng `AsyncSession.execute`)
+- [x] Tài liệu `processing`/`failed`/`deleting` không xuất hiện — cả 2 truy vấn (vector + FTS) đều có `Document.status == "ready"`
+- [ ] Hiệu năng ≤ 50ms/45k chunk — không có Postgres+pgvector thật để đo
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] `τ` và `candidate_limit` đọc từ cấu hình, đổi được không cần build lại
-- [ ] Metric `retrieval_top_score` có dữ liệu trên Grafana
-- [ ] Không có nội dung câu hỏi/đoạn trích trong log, trace, metric (P-03)
-- [ ] Test cô lập 2 người dùng chạy tự động trong CI (G-03)
+- [x] `τ` (`retrieval_tau`) đọc từ `get_settings()`, đổi được không cần build lại, **và giờ thực sự được so sánh trực tiếp với điểm tương đồng cosine cao nhất** (đã sửa)
+- [x] Metric `retrieval_top_score` — đã nối `.observe(top_vector_score)` ngay sau khi tính `top_vector_score` trong `retrieve()`
+- [x] Không log nội dung câu hỏi/đoạn trích — xác nhận bằng đọc code
+- [x] Test cô lập 2 người dùng trong CI — `tests/integration/test_owner_isolation.py` (mới thêm trong phiên này, dùng Testcontainers, skip khi không có Docker) phủ đúng kịch bản này ở tầng API
+
+### Ghi chú triển khai thực tế — lỗi logic cổng bằng chứng đã sửa
+
+Phiên bản trước lọc bằng chứng bằng
+`float(score) >= (1 / (60 + top_k)) or not min_score`, trong đó `score`
+là điểm RRF hợp nhất (không phải cosine similarity [0..1]) và `min_score`
+(`τ`) chỉ xuất hiện trong `not min_score` (đúng duy nhất khi `τ = 0`) —
+nghĩa là `τ` cấu hình không hề được dùng làm ngưỡng thật, cổng gần như
+không bao giờ chặn.
+
+**Đã sửa:** tách riêng `top_vector_score` = cosine similarity cao nhất
+trong các ứng viên từ truy vấn vector (CHƯA qua RRF), so sánh trực tiếp
+`top_vector_score < min_score` → nếu đúng, trả về danh sách bằng chứng
+rỗng (`[]`) ngay tại `retrieve()`, trước khi hợp nhất RRF/xếp hạng. Điểm
+RRF chỉ còn dùng để **xếp hạng thứ tự** các đoạn đã qua cổng (đúng vai
+trò của T-401), không còn lẫn vào quyết định "có đủ bằng chứng hay
+không" nữa. `qa/service.py::stream_answer` cũng được sửa đồng thời: khi
+`retrieve()` trả về rỗng, trả thẳng `not_found` mà **không gọi LLM**
+(sửa luôn phần lệch ở T-304).
+
+Xác nhận bằng: `ruff check .`, `mypy app`, `lint-imports` đều sạch; 5 test
+mới trong `tests/unit/test_retrieval_service.py` (bao gồm 1 test hồi quy
+đặt tên rõ `test_retrieve_gate_uses_raw_vector_score_not_rrf_constant` để
+tránh tái diễn đúng lỗi này) và 3 test trong `tests/unit/test_qa_service.py`
+đều chạy qua `python -m pytest` thật.
+
+Còn tồn đọng: chưa đo được trên Postgres+pgvector thật (không có Docker
+trong môi trường này) nên chỉ xác minh logic bằng `AsyncSession.execute`
+giả lập, chưa đo hiệu năng ≤ 50ms/45k chunk; bộ ≥10 câu hỏi không đáp án
+(AC-013.2) cần chạy thật ở T-501 với embedding/LLM thật.
 
 ## 9. Tham chiếu
 

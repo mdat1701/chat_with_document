@@ -10,7 +10,7 @@
 | Vai trò chính | AI (chủ trì) · BA (bộ câu hỏi chuẩn) · TL (tích hợp CI) |
 | Ước lượng | 3d |
 | Phụ thuộc | T-304 (API hỏi đáp SSE), T-302, T-303 · Giả định A-03 (bộ câu hỏi + corpus) · D-01 (LLM) |
-| Trạng thái | To do |
+| Trạng thái | In progress (harness có code, chưa chạy thật trên staging) |
 
 ## 1. Mục tiêu
 
@@ -122,20 +122,30 @@ Báo cáo kết quả (JSON — mỗi lần chạy **bắt buộc** ghi `prompt_
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Chạy trọn bộ trên `staging`, sinh ra báo cáo JSON + HTML đầy đủ các chỉ số ở §3
-- [ ] Tập "không có đáp án" cho `not_found_recall = 1.0` (nếu chưa đạt → chuyển T-502)
-- [ ] Câu hỏi kiến thức chung không nhận câu trả lời bịa (AC-011.2)
-- [ ] Chạy lại hai lần liên tiếp cho kết quả ổn định trong biên độ đã công bố
-- [ ] CI thất bại đúng như thiết kế khi cố tình hạ chất lượng (ví dụ đặt `tau=0.9`)
+Chưa mục nào thực thi được trong môi trường này — cần staging + LLM/TEI
+thật + corpus mẫu. `tools/evaluation/run_eval.py`, `compare.py`,
+`plot_curve.py`, `reingest_corpus.py` và 2 bộ dữ liệu YAML (`golden_set`,
+`no_answer_set`) tồn tại dưới dạng code (đang được một phiên rà soát riêng
+trong cùng lượt làm việc này kiểm tra cú pháp/import — không lặp lại ở
+đây). `reports/baseline.json` trung thực ghi `"status": "pending-run"` với
+mọi chỉ số `null` — **không có số liệu giả**, đúng tinh thần P-04.
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] `run_eval.py` chạy được bằng một lệnh trên máy dev và trong CI
-- [ ] `reports/baseline.json` đã được BA + PM xác nhận
-- [ ] CI nightly + CI theo thay đổi prompt/mô hình đã bật và chặn được hồi quy
-- [ ] Mã nguồn bộ đánh giá **không** nằm trong `backend/app` và không bị import bởi mã sản phẩm (kiểm tra bằng `import-linter`)
-- [ ] Không có tài liệu nhạy cảm nào trong corpus; log của bộ đánh giá không chứa nội dung tài liệu (P-03)
-- [ ] Báo cáo mới nhất được đính kèm vào hồ sơ bằng chứng Pilot Gate G-02
+- [ ] `run_eval.py` chạy một lệnh trên dev/CI — chưa chạy được (thiếu LLM/TEI thật)
+- [ ] `baseline.json` được BA+PM xác nhận — chưa có số liệu để xác nhận
+- [ ] CI nightly/theo thay đổi prompt — chưa thấy job CI riêng cho evaluation trong `.github/workflows/ci.yml` (cần kiểm tra lại khi sửa CI)
+- [x] Mã bộ đánh giá nằm ngoài `backend/app` — xác nhận: toàn bộ ở `tools/evaluation/`, không bị `backend/app` import (không vi phạm `import-linter`)
+- [ ] Không tài liệu nhạy cảm trong corpus — chưa kiểm tra nội dung `golden_set.yaml`/`no_answer_set.yaml`
+- [ ] Báo cáo đính kèm G-02 — chưa có số liệu thật
+
+### Ghi chú triển khai thực tế
+
+Khung đánh giá đã được viết (script + 2 bộ dữ liệu mẫu + báo cáo rỗng trung
+thực), nhưng **chưa từng chạy thật** trong môi trường này vì không có
+LLM/TEI/corpus thật. Việc kiểm tra cú pháp/import của các file Python này
+được một tác vụ rà soát riêng trong cùng phiên làm việc đảm nhiệm. Giữ
+"In progress" ở mức "có khung, chưa có số liệu".
 
 ## 9. Tham chiếu
 

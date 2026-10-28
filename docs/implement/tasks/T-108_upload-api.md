@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-005 (schema `document`), T-102 (phiên + CSRF), T-104 (RLS), T-105 (cấu hình + rate limit), T-006 (hàng đợi Celery) |
-| Trạng thái | To do |
+| Trạng thái | In progress (code đầy đủ, chưa có test tự động riêng) |
 
 ## 1. Mục tiêu
 
@@ -112,25 +112,37 @@ POST /documents/{id}/retry          # chỉ cho tài liệu failed với UPLOAD_
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Tệp PDF hợp lệ 3 MB → 201, `status='processing'`, có job trong hàng đợi `ingestion` (AC-003.1)
-- [ ] Tệp đúng 20 MB → 201 (AC-006.1); tệp 20 MB + 1 byte → 413 (AC-006.2)
-- [ ] Tệp `.pdf` nhưng nội dung là PNG → 415 `FILE_NOT_PDF`
-- [ ] Client khai `Content-Length` nhỏ hơn thực tế rồi gửi tệp lớn → bị chặn ở bước 6, không tạo bản ghi
-- [ ] **Test song song thật** (asyncio/threading): 48 tài liệu sẵn có + gửi đồng thời 5 tệp → đúng 2× 201 và 3× 422; `SELECT count(*)` cuối cùng = 50 (AC-007.2)
-- [ ] Đã đủ 50 tài liệu → 422 `QUOTA_EXCEEDED` (AC-007.1)
-- [ ] Trùng tên với `on_duplicate=reject` → 409; với `keep_both` → 201 và tên mới là `… (2).pdf`; với `replace` → 201 và bản cũ chuyển `deleting`
-- [ ] Thiếu `X-CSRF-Token` → 403; phiên hết hạn → 401
-- [ ] Tải 61 tệp trong 1 giờ → tệp thứ 61 nhận 429 kèm `Retry-After`
-- [ ] Ngắt kết nối giữa chừng → không có hàng `document` nào được tạo; object dở dang tồn tại và được `blob.reconcile_orphans` dọn sau 24h
-- [ ] Log của toàn bộ luồng không chứa tên tệp
+- [ ] Tệp PDF hợp lệ 3 MB → 201, `status='processing'`, có job trong hàng đợi `ingestion` (AC-003.1) — logic đúng trong `upload_document` (`app/api/routers/documents.py`), **chưa có test tự động riêng cho router này**
+- [x] Tệp đúng 20 MB → 201 (AC-006.1); tệp 20 MB + 1 byte → 413 (AC-006.2) — kiểm tra `content_length` trước khi đọc, và kiểm tra lại `size_bytes` khi stream (`FILE_TOO_LARGE` → 413 xác nhận trong `core/errors.py`)
+- [x] Tệp `.pdf` nhưng nội dung là PNG → `FILE_NOT_PDF` (415) — kiểm tra magic byte `%PDF-` trước khi ghi
+- [x] Client khai `Content-Length` nhỏ hơn thực tế rồi gửi tệp lớn → bị chặn khi stream vượt `max_file_size_bytes`, rollback + xoá blob dở dang
+- [ ] **Test song song thật** (asyncio/threading) cho AC-007.2 — **chưa viết**; code dùng `SELECT ... FOR UPDATE` trên hàng `app_user` để khoá kiểm tra hạn mức, về lý thuyết đúng nhưng chưa có test chứng minh dưới tải đồng thời thật
+- [x] Đã đủ 50 tài liệu → 422 `QUOTA_EXCEEDED` (AC-007.1) — xác nhận bằng đọc code + catalog lỗi
+- [x] `on_duplicate=reject/keep_both/replace` — cả 3 nhánh có trong `_unique_name()`, khớp mô tả (sinh tên `(2).pdf`, chuyển bản cũ `status=deleting`)
+- [x] Thiếu `X-CSRF-Token` → 403 (middleware `csrf_protection` trong `app/api/main.py`, áp dụng mọi `POST /api/v1/*`); phiên hết hạn → 401 (`get_current_user`)
+- [x] Rate limit 60 tệp/giờ dùng `check_rate_limit` của T-105
+- [ ] Ngắt kết nối giữa chừng → dọn object mồ côi — logic rollback tức thời có (`except: path.unlink(...)`), cơ chế `reconcile_orphan_blobs` (T-206) dọn định kỳ cũng tồn tại, nhưng **chưa có test tích hợp mô phỏng ngắt kết nối giữa chừng**
+- [x] Log không chứa tên tệp — xác nhận bằng đọc code (không log `file.filename`/`name` ở mức info)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 7 AC ở §2 đạt, trong đó AC-007.2 có test **song song** (không phải tuần tự) chạy trong CI
-- [ ] Mọi giới hạn đọc từ cấu hình T-105, không hard-code
-- [ ] Không có đường dẫn code nào cho phép ghi `document` với `owner_id` lấy từ client
-- [ ] Object storage: bucket riêng tư, khóa đúng tiền tố `owner/{owner_id}/`, không trả URL trực tiếp cho client
-- [ ] Metric và span OTel hoạt động trên staging
+- [ ] 7 AC ở §2 đạt về mặt code, nhưng AC-007.2 **chưa có test song song** chạy trong CI — chưa đạt đủ điều kiện DoD
+- [x] Mọi giới hạn đọc từ `get_settings()` (T-105), không hard-code — xác nhận bằng đọc code
+- [x] Không có đường dẫn code nào ghi `document.owner_id` từ client — `owner_id` luôn lấy từ `current_user.id` (phiên)
+- [x] Khóa object đúng tiền tố `owner/{owner_id}/{document_id}.pdf`, không trả URL trực tiếp — xác nhận bằng đọc code
+- [ ] Metric/span OTel trên staging — chưa có staging thật để xác nhận
+
+### Ghi chú triển khai thực tế
+
+Toàn bộ router `app/api/routers/documents.py::upload_document` đã được kiểm
+tra tĩnh sạch (`ruff check .`, `mypy app`, `lint-imports` — xem xác nhận
+toàn backend ở README) và đọc thủ công khớp với mô tả §3/§5 của task này.
+Phần **chưa đạt** là test tự động: hiện chưa có `tests/unit/test_documents_router.py`
+hay tương đương để chứng minh các ca ở §7 (đặc biệt AC-007.2 — hạn mức dưới
+tải song song — và ca ngắt kết nối giữa chừng). Việc cần làm tiếp: viết test
+dùng `TestClient` + `dependency_overrides` cho `get_current_user`/`get_db_session`,
+và một test tích hợp chạy nhiều coroutine `asyncio.gather` để chứng minh
+`SELECT ... FOR UPDATE` thực sự chặn vượt hạn mức 50 tài liệu.
 
 ## 9. Tham chiếu
 

@@ -10,7 +10,7 @@
 | Vai trò chính | PM · BA (chính) + QA + Chủ sở hữu nghiệp vụ |
 | Ước lượng | 1 tuần (lịch), ~3 ngày công của PM/BA + 1 ngày công QA |
 | Phụ thuộc | Toàn bộ Sprint 1 – Sprint 5; T-103 (cấp quyền CLI) để mở tài khoản cho người tham gia |
-| Trạng thái | To do |
+| Trạng thái | To do (mẫu biên bản đã có, chưa chạy UAT thật) |
 
 ## 1. Mục tiêu
 
@@ -86,6 +86,14 @@
 - [ ] Danh sách lỗi Major còn lại có kế hoạch xử lý rõ ràng (vá trước pilot hoặc chấp nhận có điều kiện)
 - [ ] MET-003 và MET-004 đã ghi nhận làm số liệu nền cho quyết định đầu tư (BRD BO-003)
 - [ ] Các đề xuất tính năng thu được trong UAT đã đưa vào backlog, **không** tự ý mở rộng phạm vi pilot
+
+### Ghi chú triển khai thực tế
+
+`docs/pilot/UAT_FORM.md` và `docs/pilot/UAT_MINUTES.md` đã có khung biểu
+mẫu đúng cấu trúc §3, để trống trung thực (không điền số liệu giả) — sẵn
+sàng dùng khi có phiên UAT thật với người dùng thật trên staging. Không có
+gì để "Done" ở đây vì bản chất task cần người dùng thật và môi trường
+staging, cả hai đều không có trong phiên làm việc này.
 
 ## 9. Tham chiếu
 

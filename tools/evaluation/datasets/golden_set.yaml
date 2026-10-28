@@ -1,0 +1,9 @@
+version: 1
+items:
+  - id: Q-001
+    lang: vi
+    question: "Nội dung chính của tài liệu là gì?"
+    expected_answer_type: answered
+    expected_facts: []
+    expected_documents: []
+    expected_pages: []

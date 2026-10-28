@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-205 (danh sách tài liệu), T-206 (API xóa), T-106 (`shared/ui`: Dialog, Toast, EmptyState) |
-| Trạng thái | To do |
+| Trạng thái | To do (chỉ có `window.confirm()` tạm thời, chưa có component/trạng thái trống thật) |
 
 ## 1. Mục tiêu
 
@@ -116,11 +116,22 @@ Trường hợp biên:
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 5 trạng thái trống khớp ảnh thiết kế ở 1280px và 1024px.
-- [ ] `resolveEmptyState` có unit test phủ cả 5 nhánh + nhánh `null`.
-- [ ] Toàn bộ chuỗi lấy từ `messages.vi.ts`.
-- [ ] Không dùng optimistic UI cho xóa (chờ `204`) — có test chứng minh.
-- [ ] Mọi phần tử có `data-testid`, thao tác được bằng bàn phím, đạt WCAG 2.1 AA.
+- [ ] 5 trạng thái trống khớp ảnh thiết kế — chưa xây `resolveEmptyState`, `DocumentLibrary.tsx` chỉ có 1 nhánh rỗng chung chung ("Chưa có tài liệu…")
+- [ ] `resolveEmptyState` unit test — hàm chưa tồn tại
+- [ ] Chuỗi lấy từ `messages.vi.ts` — chưa, hard-code
+- [x] Không dùng optimistic UI cho xóa — `remove()` trong `DocumentLibrary.tsx` gọi `await apiFetch(DELETE)` rồi mới `load()` lại, không tự xóa dòng trước khi có `204`
+- [ ] `data-testid`/WCAG AA — có testid cơ bản (`doc-item`, `doc-delete`, `empty-state`) nhưng không có `ConfirmDialog`/toast nên không đạt đủ yêu cầu bàn phím/ARIA của hộp thoại thật
+
+### Ghi chú triển khai thực tế
+
+Task này **về cơ bản chưa bắt đầu**: không có `ConfirmDialog`, không có
+`Toast`/`ToastRegion` (phụ thuộc `shared/ui` — xem T-106), không có hàm
+`resolveEmptyState` cho 5 biến thể ES-01→05, không có sự kiện
+`empty_state_viewed`. Phần duy nhất tồn tại là `window.confirm()` gốc
+trình duyệt trong `DocumentLibrary.tsx` làm tạm cho bước xác nhận xóa — đáp
+ứng tinh thần "không optimistic update" nhưng không đạt yêu cầu UI/AX của
+task (focus mặc định ở Hủy, `Esc` đóng, `data-testid="confirm-delete"`
+dùng trong kịch bản E2E mẫu của T-504). Giữ **"To do"**.
 
 ## 9. Tham chiếu
 

@@ -6,7 +6,7 @@ dần từ Sprint 2-5 (T-204, T-303, T-501) — khai báo sẵn tên ở đây �
 không phải sửa chỗ khác khi thêm.
 """
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 
 # --- RED chung cho mọi endpoint (gắn ở FastAPI middleware, T-008) ---
 http_requests_total = Counter(
@@ -30,3 +30,18 @@ ingestion_queue_depth = Histogram(
     "ingestion_queue_depth", "Độ sâu hàng đợi ingestion tại thời điểm đẩy job"
 )
 documents_failed_total = Counter("documents_failed_total", "Số tài liệu xử lý lỗi", ["error_code"])
+auth_me_total = Counter("auth_me_total", "Kết quả xác thực GET /me", ["outcome"])
+csrf_rejected_total = Counter("csrf_rejected_total", "Số request bị từ chối vì CSRF")
+sse_connections = Gauge("sse_connections", "Số kết nối SSE đang mở")
+
+# --- LLM adapter resilience (T-301) ---
+llm_ttft_seconds = Histogram(
+    "llm_ttft_seconds", "Thời gian từ lúc gọi LLM tới khi nhận token đầu tiên (TTFT)"
+)
+llm_tokens_total = Counter(
+    "llm_tokens_total", "Số mẩu (chunk) token trao đổi với LLM", ["direction"]
+)
+llm_errors_total = Counter("llm_errors_total", "Số lỗi khi gọi LLM theo mã lỗi", ["code"])
+circuit_breaker_state = Gauge(
+    "circuit_breaker_state", "Trạng thái circuit breaker gọi LLM (0=closed, 1=open)"
+)

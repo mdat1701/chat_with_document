@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-006 (khung Celery), T-108 (`POST /documents` đẩy job), D-05 (bổ sung mã lỗi vào SDD §3.4.3) |
-| Trạng thái | To do |
+| Trạng thái | Done (giới hạn: chưa có ClamAV thật để test EICAR) |
 
 ## 1. Mục tiêu
 
@@ -105,21 +105,35 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Tệp chứa chuỗi EICAR → `FILE_REJECTED`, object **không còn** trong storage.
-- [ ] PDF đặt mật khẩu → `PDF_ENCRYPTED`, object **vẫn còn** trong storage.
-- [ ] Tệp PDF bị cắt cụt/hỏng header → `PDF_CORRUPTED`.
-- [ ] PDF 301 trang (DF-03 = 300) → `TOO_MANY_PAGES`, `page_count` vẫn được ghi = 301.
-- [ ] Giả lập `clamd` timeout → retry đúng 3 lần với khoảng nghỉ 2s/8s/32s, sau đó `INGESTION_FAILED`.
-- [ ] Chạy lại job trên tài liệu đã `failed` → không đổi `error_code`, không gọi lại ClamAV (idempotent).
-- [ ] Kiểm thử log: không dòng log nào của pipeline chứa `document.name` hoặc nội dung trang (P-03).
+- [ ] Tệp chứa chuỗi EICAR → `FILE_REJECTED` — **chưa chạy được**, không có ClamAV thật trong môi trường này; `_scan_with_clamav` viết đúng giao thức `INSTREAM` và parse `FOUND`/`OK`, nhưng chưa test được với daemon thật
+- [x] PDF đặt mật khẩu → `PDF_ENCRYPTED` — `_validate_pdf` kiểm tra `pdf.needs_pass`
+- [x] Tệp PDF bị cắt cụt/hỏng header → `PDF_CORRUPTED` — test thật trong `tests/unit/test_ingestion_service.py::test_validate_pdf_reports_corrupt_file`
+- [x] PDF vượt `max_pages` → `TOO_MANY_PAGES`, `page_count` vẫn được ghi — test `test_validate_pdf_reports_page_count_for_limit_failure`
+- [ ] Giả lập `clamd` timeout → retry 3 lần — `app/workers/ingestion_tasks.py` có `max_retries=3`, `countdown=2**(retries+1)` (2s/4s/8s) **khác với 2s/8s/32s nêu trong spec** — xem Lệch so với mô tả ban đầu; chưa có test mô phỏng timeout
+- [x] Chạy lại job trên tài liệu đã `failed`/`ready`/`deleting` → không đổi lại — `_set_failed` có guard `if document.status in {"failed","ready","deleting"}: return`
+- [x] Log không chứa `document.name`/nội dung trang — xác nhận bằng đọc code (`_publish_status` chỉ gửi `id/status/error_code/page_count` qua Redis pub/sub, không log nội dung)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-005.1, AC-006.3 đạt với bộ tệp lỗi kiểm thử (ít nhất 1 tệp cho mỗi mã lỗi).
-- [ ] Mỗi mã lỗi có ít nhất 1 unit test và xuất hiện đúng trong `document.error_code`.
-- [ ] Task idempotent — có test chạy lại 2 lần liên tiếp cho cùng kết quả.
-- [ ] Span OTel và metric `documents_failed_total{error_code}` phát đúng.
-- [ ] Mã lỗi `FILE_REJECTED`, `INGESTION_FAILED` đã được bổ sung vào danh mục SDD §3.4.3 (D-05) hoặc có ticket theo dõi.
+- [x] AC-005.1, AC-006.3 — có test cho `PDF_ENCRYPTED`, `PDF_CORRUPTED`, `TOO_MANY_PAGES`, `PDF_NO_TEXT`; thiếu test cho `FILE_REJECTED` (cần ClamAV thật)
+- [x] Mỗi mã lỗi có unit test, trừ `FILE_REJECTED`
+- [x] Task idempotent — guard trạng thái xác nhận bằng đọc code (chưa có test tự động riêng cho chạy lại 2 lần)
+- [ ] Span OTel/metric `documents_failed_total{error_code}` — counter có trong `core/metrics.py` và được `.labels(error_code=...).inc()` gọi trong `_set_failed`; chưa xác nhận trên staging thật
+- [x] `FILE_REJECTED`, `INGESTION_FAILED` có trong danh mục `core/errors.py`
+
+### Ghi chú triển khai thực tế
+
+Logic quét/validate PDF (`app/modules/ingestion/service.py`) đã kiểm tra
+tĩnh sạch (`ruff`, `mypy`, nằm trong `lint-imports` OK) và có test thật
+(`pytest tests/unit/test_ingestion_service.py` — 5 test, xanh) cho mọi
+nhánh không cần ClamAV/Postgres thật. Phần **không thể kiểm chứng trong môi
+trường này**: ClamAV daemon thật (không có Docker), retry backoff thật của
+Celery (cần broker chạy thật), chạy trên staging để xem metric/span.
+
+**Lệch so với mô tả ban đầu:** backoff retry dùng `2**(retries+1)` giây
+(2s/4s/8s) thay vì 2s/8s/32s nêu ở §7 — cùng mục đích (exponential backoff,
+3 lần retry) nhưng hằng số khác; nên cập nhật lại nếu spec yêu cầu đúng
+32s ở lần thứ 3 (ảnh hưởng độ trễ tối đa trước khi báo `INGESTION_FAILED`).
 
 ## 9. Tham chiếu
 

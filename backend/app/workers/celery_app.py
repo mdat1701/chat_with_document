@@ -37,6 +37,23 @@ celery_app.conf.update(
     task_time_limit=15 * 60,  # chặn job treo vĩnh viễn
     task_soft_time_limit=10 * 60,  # khớp ngưỡng reap_stuck (T-207)
     timezone="Asia/Ho_Chi_Minh",
+    beat_schedule={
+        "retention-purge-expired": {
+            "task": "retention.purge_expired",
+            "schedule": 24 * 60 * 60,
+            "options": {"queue": "maintenance"},
+        },
+        "ingestion-reap-stuck": {
+            "task": "maintenance.reap_stuck",
+            "schedule": 5 * 60,
+            "options": {"queue": "maintenance"},
+        },
+        "blob-reconcile-orphans": {
+            "task": "blob.reconcile_orphans",
+            "schedule": 24 * 60 * 60,
+            "options": {"queue": "maintenance"},
+        },
+    },
 )
 
 # T-007: logging JSON + trace_id lan từ api sang worker qua header task

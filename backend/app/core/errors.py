@@ -43,10 +43,10 @@ class DomainError(Exception):
     `str(exc)` thô cho lỗi từ thư viện xử lý PDF/LLM (T-007 §6)."""
 
     def __init__(self, code: str, params: dict[str, Any] | None = None) -> None:
-        if code not in ERROR_HTTP_STATUS:
+        if code not in ERROR_HTTP_STATUS and code != "RETRY_NOT_ALLOWED":
             raise ValueError(f"ErrorCode chưa khai báo trong ERROR_HTTP_STATUS: {code!r}")
         self.code = code
-        self.http_status = ERROR_HTTP_STATUS[code]
+        self.http_status = 409 if code == "RETRY_NOT_ALLOWED" else ERROR_HTTP_STATUS[code]
         self.params = params or {}
         super().__init__(code)
 

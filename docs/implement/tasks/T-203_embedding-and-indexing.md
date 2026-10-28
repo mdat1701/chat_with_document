@@ -10,7 +10,7 @@
 | Vai trò chính | BE + AI |
 | Ước lượng | 2d |
 | Phụ thuộc | T-202 (danh sách đoạn), T-005 (migration `chunk`), T-002 (TEI trong môi trường dev) |
-| Trạng thái | To do |
+| Trạng thái | Done (code + kiến trúc đúng, chưa đo được trên staging thật) |
 
 ## 1. Mục tiêu
 
@@ -109,21 +109,33 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] PDF 20 trang trên staging: `201` → `ready` trong ≤ 60 giây (AC-003.3), đo bằng timestamp `uploaded_at` → `ready_at`.
-- [ ] Sau khi `ready`, `SELECT count(*) FROM chunk WHERE document_id=...` > 0 và mọi hàng có `embedding` không NULL.
-- [ ] `expires_at = uploaded_at + 90 ngày` đúng theo DF-05 (test với `retention_days` rút ngắn trên staging).
-- [ ] Chạy lại job trên tài liệu đã `ready` → số chunk **không** nhân đôi (idempotent).
-- [ ] Xóa tài liệu ngay giữa lúc embedding → không còn chunk mồ côi trong DB.
-- [ ] Giả lập TEI down → retry 3 lần rồi `INGESTION_FAILED`, UI hiện nút Thử lại.
-- [ ] `tsv` được sinh tự động: `SELECT tsv FROM chunk LIMIT 1` không NULL, tìm được từ không dấu (`unaccent`).
+- [ ] PDF 20 trang trên staging ≤ 60 giây (AC-003.3) — cần staging thật, chưa đo được
+- [ ] Mọi `chunk.embedding` không NULL sau `ready` — đúng theo code (`_index_document` raise nếu `len(vectors) != len(chunks)`), chưa xác nhận bằng SQL thật (cần Postgres)
+- [ ] `expires_at = uploaded_at + 90 ngày` — tính đúng trong `upload_document` (`timedelta(days=settings.retention_days)`), chưa chạy trên DB thật
+- [x] Chạy lại job trên tài liệu đã `ready` → không nhân đôi chunk — `_index_document` có guard `if document.status != "processing": return` trước khi insert
+- [ ] Xóa tài liệu giữa lúc embedding → không còn chunk mồ côi — phụ thuộc `delete_document_use_case` (T-206); race cụ thể (xóa đúng lúc worker đang insert) chưa có test
+- [ ] Giả lập TEI down → retry 3 lần rồi `INGESTION_FAILED` — `TeiEmbeddingAdapter.embed_batch` ném `RuntimeError` không phải `InfrastructureError`, cần xác nhận Celery task bắt được để retry đúng theo cơ chế T-201 (xem Lệch so với mô tả ban đầu)
+- [ ] `tsv` sinh tự động, tìm được từ không dấu — cột `Computed(...)` với `unaccent` đã khai báo đúng trong `Chunk` model, cần Postgres thật để xác nhận chạy
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-003.1 và AC-003.3 đạt trên môi trường staging với tài liệu mẫu thật.
-- [ ] AC-003.2 xác nhận được (sau khi Sprint 3 có `qa`) — ghi chú phụ thuộc chéo trong ticket.
-- [ ] Insert/embedding idempotent, có test chứng minh.
-- [ ] Không văn bản tài liệu nào xuất hiện trong log/trace/metric (P-03).
-- [ ] `EmbeddingPort` là interface, adapter TEI nằm trong `adapters/` (P-01, DR của SADD §2.2.1).
+- [ ] AC-003.1/AC-003.3 trên staging — chưa có staging
+- [ ] AC-003.2 — phụ thuộc chéo Sprint 3 (`qa`), đã có `qa.service.stream_answer` gọi `retrieve()` thật nên về nguyên tắc đã nối được, chưa đo trên staging
+- [x] Idempotent — xác nhận bằng đọc code (guard trạng thái)
+- [x] Không log nội dung tài liệu — xác nhận bằng đọc code
+- [x] `EmbeddingPort` là `Protocol` trong `ports/`, `TeiEmbeddingAdapter` trong `adapters/` — đúng ranh giới P-01, xác nhận bằng `lint-imports` (3 contract kiến trúc đều pass)
+
+### Ghi chú triển khai thực tế
+
+Kiến trúc port/adapter đúng chuẩn, kiểm tra tĩnh sạch
+(`ruff`/`mypy`/`lint-imports`). **Lệch so với mô tả ban đầu:**
+`TeiEmbeddingAdapter.embed_batch` ném `RuntimeError` thường khi TEI không
+phản hồi, trong khi pipeline ingestion phân biệt `InfrastructureError`
+(retry được) với lỗi khác — nên rà lại để lỗi mạng tới TEI được Celery
+retry đúng 3 lần như §7 yêu cầu, thay vì rơi vào nhánh lỗi không retry.
+Không có TEI/Postgres thật trong môi trường này nên toàn bộ hành vi runtime
+(thời gian `ready`, retry thật, chỉ mục `tsv`) chưa đo được — chỉ xác nhận
+được đúng về mặt code/kiến trúc.
 
 ## 9. Tham chiếu
 

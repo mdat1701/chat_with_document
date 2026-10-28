@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (nền tảng FE), T-304 (API SSE), T-205 (biết số tài liệu ready) |
-| Trạng thái | To do |
+| Trạng thái | In progress (composer tối giản chạy được, thiếu đa số trạng thái/UX đặc tả) |
 
 ## 1. Mục tiêu
 
@@ -93,20 +93,31 @@ Không đụng CSDL. Lưu trữ phía client (SDD §3.4.4):
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Đo bằng Performance API: `TypingIndicator` xuất hiện ≤ 300 ms sau `Enter` (IX-03)
-- [ ] `Enter`/`Shift+Enter`/`/` hoạt động đúng; thao tác được hoàn toàn bằng bàn phím
-- [ ] Đủ 7 trạng thái Composer ở §3, đúng thứ tự ưu tiên (unit test bảng điều kiện)
-- [ ] Ngắt mạng khi đang chờ trả lời → câu hỏi không bị mất, có nút Gửi lại (NE-02)
-- [ ] Phiên hết hạn → bản nháp khôi phục đúng sau khi đăng nhập lại (AC-001.3)
-- [ ] axe-core: không lỗi nghiêm trọng trên khu vực composer
-- [ ] Kiểm tra `localStorage`/`IndexedDB` không chứa nội dung câu hỏi (CN-06)
+- [ ] `TypingIndicator` ≤ 300ms — chưa có indicator riêng, chỉ có chữ tĩnh "Đang tìm trong tài liệu…"
+- [ ] `Enter`/`Shift+Enter`/`/` — hiện dùng `<form onSubmit>` (nút Gửi hoặc Enter mặc định của form/textarea); chưa xử lý `Shift+Enter` xuống dòng hay phím tắt `/` focus
+- [ ] Đủ 7 trạng thái Composer — chỉ có 2 trạng thái thực tế (`busy`/không); thiếu offline/quota/error states
+- [ ] Ngắt mạng giữa chừng → câu hỏi không mất, có nút Gửi lại — **chưa có**: `fetch` lỗi sẽ ném exception không bắt (không có `try/catch` quanh `fetch`/`reader` trong `ask()`), `busy` có thể kẹt `true` mãi vì `setBusy(false)` nằm cuối hàm không có `finally`
+- [ ] Phiên hết hạn → khôi phục nháp (AC-001.3) — chưa có (xem T-107)
+- [ ] axe-core — chưa cài
+- [x] Không lưu nội dung câu hỏi vào Web Storage — xác nhận bằng đọc code (state chỉ nằm trong React state, không ghi localStorage)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Khớp ảnh thiết kế ở 1280px và 1024px
-- [ ] Mọi phần tử tương tác có `data-testid`
-- [ ] Chuỗi hiển thị lấy từ `messages.vi.ts`, không hard-code trong component
-- [ ] Sự kiện `question_submitted` không chứa nội dung câu hỏi (US-020)
+- [ ] Khớp ảnh thiết kế — chưa đối chiếu
+- [x] `data-testid` cho `question-input` — có; thiếu cho các trạng thái khác
+- [ ] Chuỗi lấy từ `messages.vi.ts` — chưa, hard-code
+- [x] `question_submitted` không chứa nội dung câu hỏi — `track("question_submitted", {question_length, language, ready_doc_count: 0})`, không gửi text thật; `ready_doc_count: 0` bị hard-code thay vì giá trị thật
+
+### Ghi chú triển khai thực tế
+
+`ChatPage.tsx` có một composer hoạt động được ở mức cơ bản: gửi câu hỏi,
+nhận SSE streaming thật qua `fetch` + `ReadableStream` (không dùng
+`EventSource` vì đây là POST — lựa chọn đúng), hiển thị câu trả lời tăng
+dần, phát `question_submitted` không kèm nội dung câu hỏi. Đây là một phần
+nhỏ của đặc tả 7-trạng-thái: thiếu typing indicator, xử lý ngắt mạng
+(không có `try/catch`, lỗi mạng sẽ làm `busy` kẹt ở `true` vì không có
+khối `finally`), giữ nháp khi hết phiên, và hầu hết các trạng thái biên.
+Giữ "In progress".
 
 ## 9. Tham chiếu
 

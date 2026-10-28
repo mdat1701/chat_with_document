@@ -22,6 +22,11 @@ async def get_by_email(session: AsyncSession, email: str) -> AppUser | None:
     return result.scalar_one_or_none()
 
 
+async def get_by_id(session: AsyncSession, user_id: uuid.UUID) -> AppUser | None:
+    result = await session.execute(select(AppUser).where(AppUser.id == user_id))
+    return result.scalar_one_or_none()
+
+
 async def link_oidc_subject(
     session: AsyncSession, *, user: AppUser, oidc_subject: str, display_name: str | None
 ) -> None:

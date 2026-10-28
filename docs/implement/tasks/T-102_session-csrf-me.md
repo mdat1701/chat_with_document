@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 1d |
 | Phụ thuộc | T-101 (session đã được tạo) |
-| Trạng thái | To do |
+| Trạng thái | Done |
 
 ## 1. Mục tiêu
 

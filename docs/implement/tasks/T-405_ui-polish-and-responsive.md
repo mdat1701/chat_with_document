@@ -10,7 +10,7 @@
 | Vai trò chính | FE (chính) + QA |
 | Ước lượng | 3 ngày công |
 | Phụ thuộc | T-205 (thư viện tài liệu), T-305 (`Composer`), T-306 (`AnswerMessage`) |
-| Trạng thái | To do |
+| Trạng thái | To do (chưa bắt đầu — phụ thuộc `shared/ui` của T-106) |
 
 ## 1. Mục tiêu
 
@@ -90,6 +90,15 @@ Không có thay đổi CSDL. Chỉ dùng `localStorage` cho **tùy chọn giao d
 - [ ] Không còn mã màu cố định trong component (lint kiểm tra token)
 - [ ] Menu người dùng **không** còn mục post-MVP (Báo cáo tuần / Chấm điểm / Quản lý quyền)
 - [ ] Chạy đúng trên Chrome, Edge, Firefox (2 phiên bản mới nhất)
+
+### Ghi chú triển khai thực tế
+
+Không tìm thấy bằng chứng triển khai nào trong `App.tsx`/`ChatPage.tsx`/
+`UploadDropzone.tsx` cho: bộ đếm ký tự ER-09, khóa composer khi mất mạng
+(`ChatPage` không đọc `navigator.onLine` — chỉ `UploadDropzone` có), ngăn
+trượt responsive 900px, ẩn `CitationList` khi streaming (thực ra đã đúng
+nhờ thứ tự SSE, xem T-306), axe-core, menu người dùng. Task này phụ thuộc
+trực tiếp vào `shared/ui` (T-106) chưa tồn tại nên giữ nguyên "To do".
 
 ## 9. Tham chiếu
 

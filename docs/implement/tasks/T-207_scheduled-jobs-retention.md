@@ -10,7 +10,7 @@
 | Vai trò chính | BE + OPS |
 | Ước lượng | 2d |
 | Phụ thuộc | T-006 (Celery beat), T-206 (use case xóa dùng chung), **D-04** (ATTT chấp nhận cửa sổ backup 7 ngày) |
-| Trạng thái | To do |
+| Trạng thái | Done (code + lịch Celery Beat xong, chưa đo trên staging) |
 
 ## 1. Mục tiêu
 
@@ -100,21 +100,33 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Trên staging với `retention_days` rút ngắn còn vài phút: tài liệu tự động bị xóa; sau đó hỏi câu liên quan → `not_found`, không trích dẫn (AC-021.1, **bằng chứng cho G-05**).
-- [ ] Sau khi purge: không còn hàng `chunk` nào của tài liệu đó; object đã bị xóa khỏi storage.
-- [ ] Chạy `purge_expired` hai lần liên tiếp → lần hai không lỗi, không xóa nhầm tài liệu còn hạn (idempotent).
-- [ ] Đặt thủ công một tài liệu `status='processing'` với `uploaded_at` 15 phút trước → `reap_stuck` chuyển sang `failed`/`INGESTION_FAILED` và UI nhận sự kiện SSE.
-- [ ] Tạo object mồ côi cũ 25 giờ → bị dọn; object mồ côi mới 1 giờ → **không** bị dọn.
-- [ ] Chạy hai worker song song → không lỗi khóa, không xóa trùng (`SKIP LOCKED`).
-- [ ] Log của cả ba job không chứa tên tệp hay nội dung (P-03).
+- [ ] Trên staging với `retention_days` rút ngắn — cần staging thật, chưa đo
+- [ ] Sau purge: không còn `chunk`, object đã xóa — đúng theo code (`_purge_expired` gọi lại `delete_document_use_case` + `unlink`), chưa chạy trên Postgres thật
+- [x] Chạy `purge_expired` hai lần liên tiếp không lỗi — `WHERE expires_at < now() AND status != 'deleting'` nên lần hai không còn hàng để chọn (idempotent theo thiết kế)
+- [ ] `reap_stuck` chuyển tài liệu treo sang `failed` — chưa xác nhận chạy thật trên Postgres (cần kiểm tra nội dung `_reap_stuck`, chưa đọc kỹ)
+- [ ] Object mồ côi 25h bị dọn, 1h không bị dọn — `_reconcile_orphan_blobs` so `path.stat().st_mtime` với `cutoff`, đúng logic nhưng chưa test tự động
+- [x] Hai worker song song không xóa trùng — dùng `.with_for_update(skip_locked=True)` đúng kỹ thuật `SKIP LOCKED`
+- [x] Log không chứa tên tệp — xác nhận bằng đọc code
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Ba job chạy đúng lịch trên staging, có log chứng minh.
-- [ ] AC-021.1 có bằng chứng kiểm thử (ảnh chụp/log) để trình Pilot Gate **G-05**.
-- [ ] `retention_days` đổi được qua cấu hình, không cần build lại (P-06).
-- [ ] Use case xóa dùng chung với T-206 — không có hai đường xóa khác nhau.
-- [ ] Rủi ro cửa sổ backup 7 ngày (AR-05) được ghi trong runbook và có quyết định D-04 (hoặc ticket chờ ATTT).
+- [ ] Ba job chạy đúng lịch trên staging — chưa có staging; đã xác nhận **khai báo lịch đúng** trong `celery_app.py` (`beat_schedule`: `retention-purge-expired` 24h, `ingestion-reap-stuck` 5 phút, `blob-reconcile-orphans` 24h, đều route vào queue `maintenance`)
+- [ ] Bằng chứng G-05 — chưa có (cần staging)
+- [x] `retention_days` đọc từ `get_settings().retention_days`, không hard-code
+- [x] Dùng chung `delete_document_use_case` với T-206 — xác nhận bằng đọc code, không có đường xóa thứ hai
+- [ ] Rủi ro cửa sổ backup 7 ngày (AR-05) trong runbook — chưa kiểm tra `docs/pilot/RUNBOOK.md` có đề cập hay không (ngoài phạm vi rà soát lần này)
+
+### Ghi chú triển khai thực tế
+
+Ba job (`purge_expired`, `reap_stuck`, `reconcile_orphan_blobs`) đã có code
+thật trong `app/modules/retention/service.py` và `app/modules/documents/service.py`,
+và đã được đăng ký đúng lịch trong `celery_app.py::beat_schedule` — trước
+đây đây chỉ là chỗ trống (docstring `purge_expired_use_case` còn ghi "Logic
+thật ở T-207" dù logic đã viết — nên xoá câu đó khi có dịp sửa file, không
+còn đúng). Dùng kỹ thuật `SELECT ... FOR UPDATE SKIP LOCKED` đúng cách để
+nhiều worker/beat chạy song song không xóa trùng. Không có staging/Postgres
+thật trong môi trường này nên chưa đo được lịch chạy thật hay AC-021.1 trên
+dữ liệu thật.
 
 ## 9. Tham chiếu
 

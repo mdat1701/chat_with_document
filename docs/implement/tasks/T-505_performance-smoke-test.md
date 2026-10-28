@@ -10,7 +10,7 @@
 | Vai trò chính | QA (chủ trì) · OPS (hạ tầng, autoscale) · TL (phân tích ngân sách độ trễ) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-203, T-304, T-004 (staging) · D-02 (nền tảng triển khai) |
-| Trạng thái | To do |
+| Trạng thái | To do (script k6 đã viết, chưa chạy trên staging) |
 
 ## 1. Mục tiêu
 
@@ -107,11 +107,16 @@ Theo dõi trong lúc chạy (Prometheus):
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Báo cáo hiệu năng hoàn chỉnh (cấu hình + số liệu + biểu đồ + kết luận) đã nộp
-- [ ] Mọi ngưỡng ở §7 đạt, hoặc có phân tích nguyên nhân + kế hoạch xử lý được Tech Lead chấp nhận
-- [ ] Script k6 được lưu trong repo để chạy lại trước Production Gate
-- [ ] Dữ liệu test đã dọn sạch khỏi `staging`
-- [ ] Tech Lead ký bằng chứng cho Pilot Gate G-06
+- [ ] Báo cáo hiệu năng — chưa có, cần staging thật
+- [ ] Ngưỡng §7 đạt/có kế hoạch xử lý — chưa đo được
+- [x] Script k6 lưu trong repo — `k6/ingestion_burst.js`, `k6/qa_load.js` tồn tại (nội dung đang được rà soát cú pháp riêng trong cùng phiên làm việc)
+- [ ] Dữ liệu test dọn khỏi staging — không áp dụng (chưa chạy)
+- [ ] Tech Lead ký — ngoài phạm vi code
+
+### Ghi chú triển khai thực tế
+
+Không thể chạy k6 thật (không có `k6` CLI, không có staging) trong môi
+trường này. Giữ "To do" — chỉ công nhận phần kịch bản test đã được viết sẵn.
 
 ## 9. Tham chiếu
 

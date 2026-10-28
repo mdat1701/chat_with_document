@@ -24,5 +24,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test-setup.ts"],
+    // e2e/ chứa kịch bản Playwright (T-504), chạy bằng `playwright test`,
+    // không phải vitest — loại trừ để tránh xung đột runner.
+    exclude: ["e2e/**", "node_modules/**"],
   },
 });

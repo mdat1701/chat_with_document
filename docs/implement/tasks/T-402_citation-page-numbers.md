@@ -10,7 +10,7 @@
 | Vai trò chính | FE (chính) + BE |
 | Ước lượng | 1 ngày công |
 | Phụ thuộc | T-202 (chunk giữ `page_start`/`page_end`), T-306 (CitationChip), **CL-02 / SDD DQ-07** chưa chốt |
-| Trạng thái | To do |
+| Trạng thái | In progress (hàm định dạng xong, chưa nối feature flag, chưa test) |
 
 ## 1. Mục tiêu
 
@@ -96,21 +96,29 @@ Bổ sung khóa cấu hình `features.citation_page_numbers` (mặc định `tru
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Unit test `formatCitationPage`: 4 nhánh (null, bằng nhau, khác nhau, start > end)
-- [ ] **AC-015.1:** câu trả lời có nguồn → chip hiển thị `tên tệp · tr. 12`
-- [ ] **AC-015.3:** mock sự kiện `citations` với `page_start = null` → chip chỉ có tên tệp, snapshot không chứa chuỗi `undefined`
-- [ ] Tắt `features.citation_page_numbers` → chip không hiện số trang, giao diện không vỡ
-- [ ] **AC-015.2** (thủ công, cùng T-501): với ≥ 5 câu trong bộ câu hỏi chuẩn, mở PDF tại trang được trích dẫn và xác nhận trang đó chứa thông tin
-- [ ] Đối chiếu ảnh thiết kế `SCR-02_14_answer-with-citations.png` ở 1280px
+- [ ] Unit test `formatCitationPage` 4 nhánh — hàm tồn tại và đúng logic (đọc code: `null`→`null`, bằng nhau→`tr. N`, khác nhau→`tr. N–M`), nhưng **chưa có file test nào** cho `citations.ts`
+- [x] AC-015.1: chip hiển thị `tên · tr. 12` — `ChatPage.tsx` gọi `formatCitation(name, page_start, page_end)` đúng định dạng
+- [x] AC-015.3: `page_start = null` → chỉ tên, không có `undefined` — `formatCitationPage` trả `null` khi `start == null`, `formatCitation` fallback về `name` (không nối chuỗi `undefined`)
+- [ ] Tắt `features.citation_page_numbers` → ẩn số trang — **chưa nối**: backend `GET /config` đã trả `features.citation_page_numbers` (`app/api/routers/config.py`), nhưng FE không đọc `/config` ở đâu cả (chưa có `useAppConfig`, xem T-106) nên `formatCitation(..., enabled=true)` luôn dùng mặc định `true`, không có đường tắt
+- [ ] AC-015.2 (đối chiếu thủ công PDF) — cần T-501/bộ câu hỏi chuẩn, chưa làm
+- [ ] Đối chiếu ảnh thiết kế — chưa làm
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-015.1 và AC-015.3 đạt, có ca kiểm thử tự động
-- [ ] Feature flag hoạt động hai chiều (bật/tắt) mà không cần build lại front-end
-- [ ] Chuỗi hiển thị nằm trong `messages.vi.ts`
-- [ ] `citation_viewed` được phát đúng thời điểm và **không** chứa tên tệp (kiểm tra cùng T-404)
-- [ ] Ghi chú `TODO(DQ-07)` tồn tại để không quên chốt định dạng khoảng trang
-- [ ] Giao diện khớp ảnh thiết kế ở 1280px và 1024px
+- [ ] AC-015.1/AC-015.3 có test tự động — logic đúng nhưng chưa có test file
+- [ ] Feature flag hai chiều không cần build lại — **chưa đạt**, xem trên (thiếu `useAppConfig`)
+- [ ] Chuỗi lấy từ `messages.vi.ts` — `"tr."` hard-code trong `citations.ts` thay vì i18n
+- [x] `citation_viewed` không chứa tên tệp — `track("citation_viewed", {citation_index: i+1})`
+- [x] Ghi chú `TODO(DQ-07)` tồn tại — có trong `citations.ts::formatCitationPage`
+- [ ] Khớp ảnh thiết kế — chưa đối chiếu
+
+### Ghi chú triển khai thực tế
+
+Hàm định dạng (`formatCitationPage`/`formatCitation`) đúng logic và đã
+được dùng thật trong `ChatPage.tsx`. Thiếu: unit test riêng, i18n cho chuỗi
+"tr.", và quan trọng nhất — **feature flag `citation_page_numbers` tồn tại
+ở backend nhưng chưa có đường dẫn nào ở FE đọc `GET /config` để tắt/bật
+nó**, nên AC về tắt flag chưa thể kiểm chứng.
 
 ## 9. Tham chiếu
 

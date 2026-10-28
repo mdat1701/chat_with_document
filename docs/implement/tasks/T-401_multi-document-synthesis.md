@@ -10,7 +10,7 @@
 | Vai trò chính | AI (chính) + BE |
 | Ước lượng | 2 ngày công |
 | Phụ thuộc | T-302 (truy xuất vector + cổng bằng chứng), T-303 (prompt v1 + kiểm tra trích dẫn) |
-| Trạng thái | To do |
+| Trạng thái | In progress (FTS+RRF+đa dạng hoá đã làm ở T-302, thiếu cross-encoder rerank) |
 
 ## 1. Mục tiêu
 
@@ -92,23 +92,35 @@ Không thêm bảng mới.
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] **AC-012.1:** dựng 2 PDF kiểm thử, mỗi tệp chứa một nửa đáp án; hỏi một câu cần cả hai → câu trả lời nêu đủ hai ý, `citations` có đủ 2 `document_id` khác nhau
-- [ ] **AC-012.2:** dựng 2 PDF có số liệu mâu thuẫn về cùng một điều khoản → câu trả lời nêu cả hai giá trị, mỗi giá trị có `[n]` riêng
-- [ ] **Đa dạng:** tài liệu A có 10 đoạn rất liên quan, tài liệu B có 2 đoạn liên quan → tập 8 đoạn gửi LLM chứa **tối đa 4** đoạn của A và có ít nhất 1 đoạn của B
-- [ ] **FTS:** hỏi bằng mã hợp đồng dạng `HD-2026/A-17` (vector thường bỏ sót) → đoạn chứa mã đó nằm trong top-8
-- [ ] **Không dấu:** hỏi "thoi han thanh toan" (không dấu) vẫn khớp đoạn có "thời hạn thanh toán" nhờ `unaccent`
-- [ ] **Rerank lỗi:** mock TEI reranker trả 5xx → vẫn có câu trả lời, log có cảnh báo, không có exception tới người dùng
-- [ ] Độ trễ p90 end-to-end vẫn ≤ 15 giây sau khi thêm 2 bước (đo ở staging)
+- [ ] AC-012.1 (đáp án rải 2 tài liệu) — logic RRF hợp nhất vector+FTS hỗ trợ việc này về nguyên tắc, nhưng **0 test retrieval/qa nào tồn tại** để chứng minh
+- [ ] AC-012.2 (mâu thuẫn, nêu cả hai nguồn) — phụ thuộc hành vi LLM thật theo `prompt.py::build_prompt` ("Nếu có mâu thuẫn, nêu cả hai giá trị"), không kiểm chứng được với `FakeLLM`
+- [x] Đa dạng tài liệu — `diversify_evidence(max_chunks_per_doc=4, limit=8)` đúng cơ chế giới hạn theo tài liệu, xác nhận bằng đọc code; chưa có test
+- [x] FTS tìm được mã dạng `HD-2026/A-17` — dùng `websearch_to_tsquery('simple', unaccent(query_text))`, về nguyên tắc đúng vì FTS không phụ thuộc embedding; chưa test với Postgres thật
+- [x] Không dấu khớp có dấu nhờ `unaccent` — cả truy vấn và `tsv` đều áp `unaccent`, nhất quán hai chiều
+- [ ] Rerank lỗi vẫn trả lời được — **không áp dụng**: không có bước gọi reranker/cross-encoder nào (xem ghi chú), nên không có lỗi "rerank" để mô phỏng
+- [ ] p90 ≤ 15s — không đo được (không có staging/LLM thật)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-012.1 và AC-012.2 có ca kiểm thử tự động, chạy trong CI
-- [ ] `answer.cited_doc_count` ghi đúng số tài liệu riêng biệt được trích dẫn
-- [ ] Chỉ mục GIN trên `chunk(tsv)` tồn tại; `EXPLAIN` xác nhận FTS dùng chỉ mục
-- [ ] Span `retrieval.fts`, `retrieval.rerank` xuất hiện trong trace
-- [ ] `prompt_version` mới được ghi vào `answer`; prompt cũ không còn dùng
-- [ ] Log/metric của bước mới **không** chứa nội dung câu hỏi hay nội dung chunk (P-03)
-- [ ] Tham số `rrf_k`, `rerank_top_n`, `max_chunks_per_doc`, `τ` nằm trong cấu hình, không hard-code (P-06)
+- [ ] AC-012.1/AC-012.2 có test tự động trong CI — chưa có
+- [x] `answer.cited_doc_count` — tính bằng `len({item["document_id"] for item in citations})` trong `conversations.py`
+- [ ] Chỉ mục GIN trên `chunk(tsv)` — khai báo `Index("ix_chunk_tsv_gin", "tsv", postgresql_using="gin")` trong model, chưa `EXPLAIN` trên Postgres thật
+- [ ] Span `retrieval.fts`/`retrieval.rerank` trong trace — không có span thủ công nào cho các bước này
+- [x] `prompt_version="v2"` ghi vào `answer`
+- [x] Không log nội dung — xác nhận bằng đọc code
+- [x] `rrf_k`/`max_chunks_per_doc`/`τ`/`top_in`/`top_out` đều đọc từ `get_settings()` — xác nhận trong `qa/service.py::stream_answer`, không hard-code
+
+### Ghi chú triển khai thực tế
+
+Phần lớn T-401 **đã được làm sẵn khi triển khai T-302** (code không tách
+rời "chỉ vector" rồi "thêm FTS" theo đúng trình tự 2 task — `retrieve()` đã
+làm FTS+RRF+đa dạng hoá ngay từ đầu). Điều **chưa làm** là bước rerank bằng
+cross-encoder nêu ở §1 bước 2 (nửa sau) — không có adapter/model rerank nào,
+`diversify_evidence` chỉ giới hạn số đoạn/tài liệu chứ không chấm điểm lại
+bằng cross-encoder. Cũng lưu ý lỗi logic cổng bằng chứng `τ` đã ghi ở T-302
+ảnh hưởng trực tiếp tới độ tin cậy của toàn bộ kết quả truy xuất ở đây.
+Không có test nào cho `app/modules/retrieval/` hay `app/modules/qa/` —
+đây là khoảng trống lớn nhất trước khi coi Sprint 3-4 "Done" thật sự.
 
 ## 9. Tham chiếu
 

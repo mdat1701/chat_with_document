@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import CHAR, BigInteger, Computed, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import CHAR, BigInteger, Computed, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,7 +24,13 @@ class Document(Base):
     __table_args__ = (
         # AC-007.2 / US-003: tên không phân biệt hoa-thường trong phạm vi
         # một owner_id (ER-08 trùng tên dựa trên chỉ mục này).
-        Index("ix_document_owner_name_unique", "owner_id", "name", unique=True),
+        Index(
+            "ix_document_owner_name_unique",
+            "owner_id",
+            text("lower(name)"),
+            unique=True,
+            postgresql_where=text("status <> 'deleting'"),
+        ),
         Index("ix_document_expires_at", "expires_at"),
     )
 

@@ -40,69 +40,69 @@
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
 | [T-101](T-101_oidc-login.md) | Đăng nhập OIDC (BFF) | US-001 | BE | 3d | Done (chưa có IdP thật, D-03) |
-| [T-102](T-102_session-csrf-me.md) | Phiên, CSRF, `GET /me` | US-001 | BE | 1d | To do |
-| [T-103](T-103_access-grant-cli.md) | Cấp quyền qua CLI/config | US-023 | BE | 1d | To do |
-| [T-104](T-104_owner-scoped-db-access.md) | Cô lập `owner_id` + RLS | US-002 | BE | 2d | To do |
-| [T-105](T-105_config-api-and-rate-limit.md) | `GET /config` & rate limit | US-006, US-007 | BE | 1d | To do |
-| [T-106](T-106_frontend-shared-foundation.md) | Nền tảng front-end dùng chung | — | FE | 3d | To do |
-| [T-107](T-107_auth-screens.md) | Màn hình đăng nhập & chưa cấp quyền | US-001 | FE | 2d | To do |
-| [T-108](T-108_upload-api.md) | `POST /documents` (tải lên) | US-003, 004, 006, 007 | BE | 3d | To do |
-| [T-109](T-109_upload-client.md) | Client tải lên | US-003, US-004 | FE | 3d | To do |
+| [T-102](T-102_session-csrf-me.md) | Phiên, CSRF, `GET /me` | US-001 | BE | 1d | **Done** |
+| [T-103](T-103_access-grant-cli.md) | Cấp quyền qua CLI/config | US-023 | BE | 1d | **Done** |
+| [T-104](T-104_owner-scoped-db-access.md) | Cô lập `owner_id` + RLS | US-002 | BE | 2d | **Done** |
+| [T-105](T-105_config-api-and-rate-limit.md) | `GET /config` & rate limit | US-006, US-007 | BE | 1d | **Done** |
+| [T-106](T-106_frontend-shared-foundation.md) | Nền tảng front-end dùng chung | — | FE | 3d | In progress (thiếu `shared/ui`/a11y/lint ranh giới) |
+| [T-107](T-107_auth-screens.md) | Màn hình đăng nhập & chưa cấp quyền | US-001 | FE | 2d | In progress (thiếu AC-001.3, i18n) |
+| [T-108](T-108_upload-api.md) | `POST /documents` (tải lên) | US-003, 004, 006, 007 | BE | 3d | In progress (code đầy đủ, chưa có test) |
+| [T-109](T-109_upload-client.md) | Client tải lên | US-003, US-004 | FE | 3d | In progress (chỉ có dropzone cơ bản) |
 
 ## Sprint 2 — Hoàn thiện ingestion & quản lý tài liệu (18 ngày công)
 
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
-| [T-201](T-201_ingestion-scan-and-validate.md) | Quét mã độc & kiểm tra PDF | US-003, US-005 | BE | 3d | To do |
-| [T-202](T-202_extraction-and-chunking.md) | Trích xuất & chia đoạn | US-003 | BE | 2d | To do |
-| [T-203](T-203_embedding-and-indexing.md) | Embedding & đánh chỉ mục | US-003 | AI | 2d | To do |
-| [T-204](T-204_document-events-sse.md) | Trạng thái tài liệu realtime (SSE) | US-010 | BE | 2d | To do |
-| [T-205](T-205_document-library-ui.md) | Thư viện tài liệu (UI) | US-009, 010, 021 | FE | 3d | To do |
-| [T-206](T-206_delete-document.md) | Xóa tài liệu | US-008 | BE | 2d | To do |
-| [T-207](T-207_scheduled-jobs-retention.md) | Job định kỳ & retention (D-04) | US-021 | BE | 2d | To do |
-| [T-208](T-208_empty-states-and-delete-confirm.md) | Trạng thái trống & xác nhận xóa | US-003, 008, 010 | FE | 2d | To do |
+| [T-201](T-201_ingestion-scan-and-validate.md) | Quét mã độc & kiểm tra PDF | US-003, US-005 | BE | 3d | Done (chưa có ClamAV thật) |
+| [T-202](T-202_extraction-and-chunking.md) | Trích xuất & chia đoạn | US-003 | BE | 2d | In progress (tham số đã nối cấu hình; thiếu test mẫu hỗn hợp/NFC) |
+| [T-203](T-203_embedding-and-indexing.md) | Embedding & đánh chỉ mục | US-003 | AI | 2d | Done (chưa đo trên staging) |
+| [T-204](T-204_document-events-sse.md) | Trạng thái tài liệu realtime (SSE) | US-010 | BE | 2d | Done (BE; FE `sseClient` chưa có) |
+| [T-205](T-205_document-library-ui.md) | Thư viện tài liệu (UI) | US-009, 010, 021 | FE | 3d | In progress (danh sách cơ bản, chưa realtime) |
+| [T-206](T-206_delete-document.md) | Xóa tài liệu | US-008 | BE | 2d | In progress (thiếu audit_log/analytics) |
+| [T-207](T-207_scheduled-jobs-retention.md) | Job định kỳ & retention (D-04) | US-021 | BE | 2d | Done (chưa đo trên staging) |
+| [T-208](T-208_empty-states-and-delete-confirm.md) | Trạng thái trống & xác nhận xóa | US-003, 008, 010 | FE | 2d | To do (chỉ có `window.confirm()` tạm) |
 
 ## Sprint 3 — Hỏi đáp lõi (19 ngày công)
 
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
-| [T-301](T-301_llm-port-and-adapters.md) | `LLMPort` & 2 adapter (D-01) | — | TL | 3d | To do |
-| [T-302](T-302_retrieval-and-evidence-gate.md) | Truy xuất & cổng bằng chứng | US-011, US-013 | AI | 3d | To do |
-| [T-303](T-303_prompt-v1-and-citation-check.md) | Prompt v1 & kiểm tra trích dẫn | US-011, US-014 | AI | 2d | To do |
-| [T-304](T-304_question-sse-api.md) | API hỏi đáp SSE | US-011 | BE | 3d | To do |
-| [T-305](T-305_chat-composer.md) | Composer & chỉ báo đang trả lời | US-011 | FE | 3d | To do |
-| [T-306](T-306_answer-rendering-and-citations.md) | Hiển thị câu trả lời & trích dẫn | US-011, US-014 | FE | 3d | To do |
-| [T-307](T-307_not-found-and-error-handling.md) | Không tìm thấy & xử lý lỗi | US-013 | FE | 2d | To do |
+| [T-301](T-301_llm-port-and-adapters.md) | `LLMPort` & 2 adapter (D-01) | — | TL | 3d | In progress (retry/circuit-breaker/metric đã cài; chưa chạy trên LLM thật) |
+| [T-302](T-302_retrieval-and-evidence-gate.md) | Truy xuất & cổng bằng chứng | US-011, US-013 | AI | 3d | In progress (lỗi logic ngưỡng τ đã sửa; chưa đo trên Postgres thật) |
+| [T-303](T-303_prompt-v1-and-citation-check.md) | Prompt v1 & kiểm tra trích dẫn | US-011, US-014 | AI | 2d | In progress (đã lọc nhãn rác; chưa có ánh xạ `[S#]→[n]`) |
+| [T-304](T-304_question-sse-api.md) | API hỏi đáp SSE | US-011 | BE | 3d | In progress (đã sửa: bỏ qua LLM khi thiếu bằng chứng) |
+| [T-305](T-305_chat-composer.md) | Composer & chỉ báo đang trả lời | US-011 | FE | 3d | In progress (composer tối giản) |
+| [T-306](T-306_answer-rendering-and-citations.md) | Hiển thị câu trả lời & trích dẫn | US-011, US-014 | FE | 3d | In progress (chưa markdown/hover/a11y) |
+| [T-307](T-307_not-found-and-error-handling.md) | Không tìm thấy & xử lý lỗi | US-013 | FE | 2d | To do (FE chưa xử lý `done`/`error`) |
 
 ## Sprint 4 — Hoàn thiện hỏi đáp & đo lường tối thiểu (10 ngày công)
 
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
-| [T-401](T-401_multi-document-synthesis.md) | Tổng hợp nhiều tài liệu | US-012 | AI | 2d | To do |
-| [T-402](T-402_citation-page-numbers.md) | Số trang trong trích dẫn | US-015 | FE | 1d | To do |
-| [T-403](T-403_multilingual-qa.md) | Hỏi đáp đa ngôn ngữ | US-017 | AI | 2d | To do |
-| [T-404](T-404_minimal-analytics-events.md) | Sự kiện đo lường tối thiểu | US-020 | BE | 2d | To do |
-| [T-405](T-405_ui-polish-and-responsive.md) | Hoàn thiện UI & responsive | — | FE | 3d | To do |
+| [T-401](T-401_multi-document-synthesis.md) | Tổng hợp nhiều tài liệu | US-012 | AI | 2d | In progress (đã làm ở T-302, thiếu rerank) |
+| [T-402](T-402_citation-page-numbers.md) | Số trang trong trích dẫn | US-015 | FE | 1d | In progress (chưa nối feature flag) |
+| [T-403](T-403_multilingual-qa.md) | Hỏi đáp đa ngôn ngữ | US-017 | AI | 2d | In progress (có test fallback; `lingua` không cài được trong sandbox — thiếu C++ Build Tools) |
+| [T-404](T-404_minimal-analytics-events.md) | Sự kiện đo lường tối thiểu | US-020 | BE | 2d | In progress (6/15 sự kiện BE đã nối; phần FE còn thiếu) |
+| [T-405](T-405_ui-polish-and-responsive.md) | Hoàn thiện UI & responsive | — | FE | 3d | To do (chưa bắt đầu) |
 
 ## Sprint 5 — Chất lượng & hoá cứng (14 ngày công)
 
 | Task | Tên | Gate | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
-| [T-501](T-501_rag-evaluation-harness.md) | Bộ đánh giá RAG offline | G-02 | AI | 3d | To do |
-| [T-502](T-502_quality-tuning-round1.md) | Hiệu chỉnh chất lượng vòng 1 | G-02 | AI | 3d | To do |
-| [T-503](T-503_security-privacy-hardening.md) | Hoá cứng bảo mật & quyền riêng tư | G-04 | TL | 2d | To do |
-| [T-504](T-504_isolation-tests-and-e2e.md) | Kiểm thử cô lập & E2E | G-01, G-03 | QA | 2d | To do |
-| [T-505](T-505_performance-smoke-test.md) | Kiểm thử hiệu năng quy mô pilot | G-06 | QA | 2d | To do |
-| [T-506](T-506_quality-tuning-round2.md) | Hiệu chỉnh chất lượng vòng 2 | G-02 | AI | 2d | To do |
+| [T-501](T-501_rag-evaluation-harness.md) | Bộ đánh giá chất lượng RAG offline | G-02 | AI | 3d | In progress (harness viết xong, chưa chạy) |
+| [T-502](T-502_quality-tuning-round1.md) | Hiệu chỉnh chất lượng vòng 1 | G-02 | AI | 3d | To do (chờ T-501 có số liệu) |
+| [T-503](T-503_security-privacy-hardening.md) | Hoá cứng bảo mật & quyền riêng tư | G-04 | TL | 2d | In progress (kiểm soát có sẵn, chưa gói bằng chứng) |
+| [T-504](T-504_isolation-tests-and-e2e.md) | Kiểm thử cô lập & E2E | G-01, G-03 | QA | 2d | In progress (integration test viết xong, E2E chưa chạy) |
+| [T-505](T-505_performance-smoke-test.md) | Kiểm thử hiệu năng quy mô pilot | G-06 | QA | 2d | To do (script k6 sẵn sàng, chưa chạy) |
+| [T-506](T-506_quality-tuning-round2.md) | Hiệu chỉnh chất lượng vòng 2 | G-02 | AI | 2d | To do (có điều kiện, chờ T-502) |
 
 ## UAT & Pilot Gate (2 tuần)
 
 | Task | Tên | Gate | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
-| [T-601](T-601_uat-execution.md) | Thực hiện UAT | G-07 | PM · BA | 1 tuần | To do |
-| [T-602](T-602_uat-defect-fixing.md) | Khắc phục lỗi chặn từ UAT | G-01 – G-07 | Cả đội | Dự phòng | To do |
-| [T-603](T-603_pilot-gate-evidence.md) | Tổng hợp bằng chứng Pilot Gate | Tất cả | TL · QA | 2d | To do |
-| [T-604](T-604_pilot-runbook.md) | Runbook vận hành pilot | — | OPS | 2d | To do |
+| [T-601](T-601_uat-execution.md) | Thực hiện UAT | G-07 | PM · BA | 1 tuần | To do (mẫu biên bản sẵn sàng, chưa chạy UAT thật) |
+| [T-602](T-602_uat-defect-fixing.md) | Khắc phục lỗi chặn từ UAT | G-01 – G-07 | Cả đội | Dự phòng | To do (quy trình triage sẵn sàng, chờ T-601) |
+| [T-603](T-603_pilot-gate-evidence.md) | Tổng hợp bằng chứng Pilot Gate | Tất cả | TL · QA | 2d | To do (khung 7 gate sẵn sàng, toàn bộ Pending) |
+| [T-604](T-604_pilot-runbook.md) | Runbook vận hành pilot | — | OPS | 2d | In progress (nội dung thật, chưa diễn tập) |
 
 ---
 

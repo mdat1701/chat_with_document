@@ -10,7 +10,7 @@
 | Vai trò chính | BE (phối hợp FE ở T-205) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-201/T-203 (worker publish sự kiện), T-102 (phiên), T-106 (SSE client ở `shared/api`) |
-| Trạng thái | To do |
+| Trạng thái | Done (BE; phụ thuộc FE `sseClient` ở T-106 chưa có) |
 
 ## 1. Mục tiêu
 
@@ -93,19 +93,33 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Worker đổi trạng thái → UI cập nhật trong ≤ 5 giây **qua Ingress staging** (không chỉ dev local) — AC-010.1.
-- [ ] Người dùng A **không** nhận được sự kiện của người dùng B (test 2 phiên song song) — hỗ trợ G-03.
-- [ ] Ngắt mạng 30 giây rồi nối lại → UI hiển thị đúng trạng thái cuối cùng nhờ `GET /documents`, không kẹt ở "Đang xử lý".
-- [ ] Để kết nối idle 60 giây → không bị proxy đóng (nhờ `: ping`).
-- [ ] Đóng tab → metric `sse_connections` giảm, không rò rỉ kết nối Redis.
-- [ ] Tải 10 tệp, 1 tệp lỗi → nhận đúng 10 sự kiện cuối cùng với 9 `ready` + 1 `failed` (AC-004.2).
+- [ ] Worker đổi trạng thái → UI cập nhật ≤ 5s qua Ingress staging — không có staging/Ingress thật, không đo được
+- [x] A không nhận sự kiện của B — kênh pub/sub theo `doc-status:{owner_id}` (lấy từ `current_user.id`, không nhận từ client) nên tách biệt theo thiết kế; chưa có test 2 phiên song song tự động
+- [ ] Ngắt mạng 30s rồi nối lại → UI dùng `GET /documents` để đồng bộ lại — endpoint `GET /documents` tồn tại và trả trạng thái mới nhất, nhưng **chưa có FE nào gọi SSE để mất kết nối rồi fallback** (xem T-106: `sseClient` chưa tồn tại)
+- [x] Idle 60s không bị đóng — `document_events` gửi `": ping\n\n"` mỗi 15s khi không có message mới
+- [x] Đóng tab → `sse_connections.dec()` trong khối `finally`, có `pubsub.unsubscribe()`/`close()`
+- [ ] 10 tệp, 1 lỗi → 10 sự kiện cuối — logic publish đúng (mỗi lần đổi trạng thái gọi `_publish_status`), chưa có test tích hợp đo đủ số sự kiện
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-010.1 đạt, đo trên staging qua Ingress.
-- [ ] Không rò rỉ kết nối Redis/SSE sau 100 lần mở-đóng (test tải nhẹ).
-- [ ] Chỉ `shared/api` phía FE gọi `EventSource` (DR-04 của SADD).
-- [ ] Payload sự kiện không chứa tên tệp hay nội dung (P-03) — chỉ `id`, `status`, `error_code`, `page_count`.
+- [ ] AC-010.1 trên staging — chưa có staging
+- [ ] Không rò rỉ kết nối sau 100 lần mở-đóng — chưa test tải
+- [ ] Chỉ `shared/api` phía FE gọi `EventSource` — **chưa áp dụng được, FE chưa có `sseClient`/`EventSource` nào cả** (gap nằm ở T-106, không phải T-204)
+- [x] Payload không chứa tên tệp/nội dung — `_publish_status` chỉ gửi `id/status/error_code/page_count`
+
+### Ghi chú triển khai thực tế
+
+Phần backend (`GET /documents/events` trong `app/api/routers/documents.py`,
+publish qua `app/modules/ingestion/service.py::_publish_status`) đã viết
+đúng kiến trúc: kênh Redis theo `owner_id` lấy từ phiên (cô lập G-03),
+keep-alive bằng comment SSE, dọn kết nối trong `finally`, payload tối giản
+không rò rỉ nội dung. Kiểm tra tĩnh sạch (ruff/mypy/lint-imports).
+
+**Chưa làm được, không thuộc phạm vi code T-204:** phía front-end chưa có
+`shared/api/sseClient` nào gọi `EventSource` tới endpoint này (xem gap đã
+ghi ở T-106) — nghĩa là SSE backend đã sẵn sàng nhưng chưa có UI nào tiêu
+thụ nó. Đây là lý do T-205 (thư viện tài liệu UI) chưa thể tự cập nhật
+real-time.
 
 ## 9. Tham chiếu
 

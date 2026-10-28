@@ -10,7 +10,7 @@
 | Vai trò chính | BE (người dùng cuối: Admin / vận hành pilot) |
 | Ước lượng | 1d |
 | Phụ thuộc | T-005 (schema `app_user`, `user_role`), T-101 (cơ chế session Redis) |
-| Trạng thái | To do |
+| Trạng thái | Done |
 
 ## 1. Mục tiêu
 

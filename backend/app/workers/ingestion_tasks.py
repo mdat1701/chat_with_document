@@ -4,20 +4,68 @@ trong `app.modules.ingestion.service` — không chứa logic PDF ở đây
 bằng import-linter trong `pyproject.toml`).
 """
 
+import asyncio
 import logging
+from datetime import UTC, datetime
+from uuid import UUID
 
-from app.modules.ingestion.service import process_document_use_case
+from sqlalchemy import select
+
+from app.adapters.tei_embedding import TeiEmbeddingAdapter
+from app.core.db import worker_session_scope
+from app.modules.analytics.service import record_event
+from app.modules.documents.models import Document
+from app.modules.ingestion.service import (
+    InfrastructureError,
+    _set_failed,
+    process_document_use_case,
+)
 from app.modules.retention.service import reap_stuck_ingestion_use_case
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
 
+async def _emit_processing_outcome_event(document_id: str) -> None:
+    """T-404: phát `document_processing_succeeded`/`_failed` sau khi
+    pipeline ingestion kết thúc — chỉ chỉ số (trang, thời lượng, mã lỗi),
+    KHÔNG tên tệp/nội dung (P-03)."""
+    async with worker_session_scope() as session:
+        document = (
+            await session.execute(select(Document).where(Document.id == UUID(document_id)))
+        ).scalar_one_or_none()
+        if document is None or document.status not in {"ready", "failed"}:
+            return
+        duration_ms = int((datetime.now(UTC) - document.uploaded_at).total_seconds() * 1000)
+        if document.status == "ready":
+            await record_event(
+                session,
+                "document_processing_succeeded",
+                user_id=document.owner_id,
+                props={"page_count": document.page_count, "duration_ms": duration_ms},
+            )
+        else:
+            await record_event(
+                session,
+                "document_processing_failed",
+                user_id=document.owner_id,
+                props={"error_code": document.error_code},
+            )
+        await session.commit()
+
+
 @celery_app.task(name="ingestion.process", bind=True, max_retries=3)  # type: ignore[untyped-decorator]
 def process_document(self, document_id: str) -> None:  # type: ignore[no-untyped-def]
     # Chỉ log document_id — KHÔNG log tên tệp hay nội dung (P-03).
     logger.info("ingestion.process nhận document_id=%s", document_id)
-    process_document_use_case(document_id)
+    try:
+        process_document_use_case(document_id, TeiEmbeddingAdapter())
+    except InfrastructureError as exc:
+        try:
+            raise self.retry(exc=exc, countdown=2 ** (self.request.retries + 1))
+        except self.MaxRetriesExceededError:
+            asyncio.run(_set_failed(UUID(document_id), "INGESTION_FAILED"))
+    asyncio.run(_emit_processing_outcome_event(document_id))
 
 
 @celery_app.task(name="maintenance.reap_stuck")  # type: ignore[untyped-decorator]

@@ -10,7 +10,7 @@
 | Vai trò chính | BE (UI xác nhận ở T-208) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-104 (RLS/`owner_id`), T-203 (`chunk` đã tồn tại) |
-| Trạng thái | To do |
+| Trạng thái | In progress (xóa dữ liệu đúng, thiếu audit_log + sự kiện analytics) |
 
 ## 1. Mục tiêu
 
@@ -87,20 +87,34 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Xóa xong, hỏi lại câu mà đáp án chỉ có trong tài liệu đã xóa → nhận `not_found`, **không** trích dẫn tài liệu đó (AC-008.2; xác nhận đầy đủ sau Sprint 3).
-- [ ] Sau `204`: `SELECT count(*) FROM chunk WHERE document_id=...` = 0 và hàng `document` không còn.
-- [ ] Người dùng A gọi `DELETE` trên `document_id` của B → **404**, dữ liệu của B nguyên vẹn (AC-002.3, G-03).
-- [ ] Gọi `DELETE` hai lần → không lỗi 500.
-- [ ] Xóa tài liệu đang xử lý → worker thoát êm, không ghi chunk mồ côi.
-- [ ] Giả lập lỗi xóa object → API vẫn trả `204`, object được dọn bởi `blob.reconcile_orphans`.
-- [ ] Kiểm tra `audit_log` có bản ghi, **không** chứa tên tệp.
+- [ ] Hỏi lại câu chỉ có đáp án trong tài liệu đã xóa → `not_found` — phụ thuộc `retrieval` (T-302) lọc `Document.status == "ready"`, tài liệu đã xóa không còn hàng nên tự động đạt; chưa có test end-to-end xác nhận
+- [x] Sau `204`: chunk + document không còn — `delete_document_use_case` xóa `Chunk` rồi `Document` trong cùng transaction, commit một lần
+- [x] A xóa `document_id` của B → 404 — `select(Document).where(Document.id==document_id).with_for_update()` chạy trong session đã có `SET LOCAL app.user_id` (RLS) nên hàng của B không thấy được, trả `None` → router trả `DOC_NOT_FOUND`
+- [x] Gọi `DELETE` hai lần → lần hai 404 (không 500) — vì hàng đã bị xóa thật ở lần đầu, `scalar_one_or_none()` trả `None`
+- [x] Xóa tài liệu đang `processing` → `_index_document`/`_set_failed` đều có guard theo `document.status`, không ghi chunk mồ côi vì bản ghi `document` đã bị xóa hẳn
+- [x] Lỗi xóa object vẫn trả `204` — router bọc `unlink(missing_ok=True)` sau khi đã xóa DB; `reconcile_orphan_blobs` (T-207) dọn sau
+- [ ] `audit_log` có bản ghi — **chưa có**: `delete_document_use_case` không ghi `audit_log`
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-008.1 – AC-008.3 đạt (UI xác nhận do T-208 hoàn thiện).
-- [ ] `204` chỉ được trả sau khi chunk đã bị xóa — có integration test chứng minh thứ tự này.
-- [ ] Use case xóa dùng chung được cho job retention (T-207) — không trùng lặp code.
-- [ ] Hỗ trợ Pilot Gate G-05: có bằng chứng tài liệu đã xóa không còn truy xuất được.
+- [ ] AC-008.1 – AC-008.3 — phần API đạt; UI xác nhận thuộc T-208 (xem ghi chú T-205: hiện dùng `window.confirm()` thô, không phải dialog theo thiết kế)
+- [x] `204` chỉ trả sau khi chunk đã xóa — đúng, cùng transaction, commit trước khi response
+- [x] Use case dùng chung cho retention — `retention/service.py::_purge_expired` gọi lại `delete_document_use_case` (xem T-207), không trùng code
+- [ ] Bằng chứng G-05 — chưa có báo cáo/test tổng hợp riêng
+
+### Ghi chú triển khai thực tế
+
+`delete_document_use_case` (`app/modules/documents/service.py`) xóa dứt
+khoát trong một transaction (chunk rồi document), dựa vào RLS để tự động
+trả 404 cho tài liệu của người khác — đơn giản hơn quy trình 2 pha ở §5
+(đánh dấu `deleting` trước, xóa chunk sau) nhưng đạt cùng mục tiêu "204
+nghĩa là đã ra khỏi phạm vi truy vấn" vì chunk+document biến mất cùng lúc,
+không có cửa sổ trạng thái trung gian để retrieval đọc nhầm.
+
+**Thiếu so với §5 bước 8:** không ghi `audit_log`, không phát sự kiện
+analytics `document_deleted{trigger:'user'}`. Đây là việc cần làm thêm —
+không phải lỗi logic xóa, nhưng là khoảng trống thật so với Definition of
+Done và sẽ thiếu bằng chứng khi tổng hợp Pilot Gate G-05 (T-603).
 
 ## 9. Tham chiếu
 
