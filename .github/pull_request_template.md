@@ -1,8 +1,8 @@
 ## Task / AC
-- Task: <!-- liên kết tệp task, ví dụ docs/implement/tasks/T-201_upload-api.md -->
-- AC được phủ: <!-- T-201-AC1, AC-003.2 ... -->
+- Task: <!-- liên kết tệp task, ví dụ docs/implement/tasks/T-108_upload-api.md -->
+- AC được phủ: <!-- AC-003.2, AC-007.2 ... -->
 
-> Tiêu đề PR theo Conventional Commits có mã task: `feat(documents): T-201 upload API`.
+> Tiêu đề PR theo Conventional Commits có mã task: `feat(documents): T-108 upload API`.
 
 ## Checklist Definition of Done
 - [ ] CI xanh

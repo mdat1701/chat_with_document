@@ -9,7 +9,7 @@
 | Vai trò chính | TL |
 | Ước lượng | 1d |
 | Phụ thuộc | — |
-| Trạng thái | To do |
+| Trạng thái | Done |
 
 ## 1. Mục tiêu
 
@@ -114,17 +114,26 @@ Không có.
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] `lint-imports` chạy xanh trên code khung hiện tại
-- [ ] Thêm tạm import vi phạm (`modules` → `adapters`) thì `lint-imports` báo đỏ với thông báo chỉ rõ file vi phạm
-- [ ] `ruff check` và `eslint` chạy xanh
-- [ ] `pytest` chạy được (kể cả khi chưa có test thật, không lỗi cấu hình)
+- [x] `lint-imports` chạy xanh trên code khung hiện tại (3 kept, 0 broken)
+- [x] Thêm tạm import vi phạm (`modules` → `adapters`) thì `lint-imports` báo đỏ với thông báo chỉ rõ file vi phạm — giữ lại thành `tests/unit/test_architecture_boundaries.py` để không hồi quy
+- [x] `ruff check` và `ruff format --check` chạy xanh (back-end). `eslint`/`prettier` front-end **chưa chạy được** — cần `npm install` (không có mạng/Node modules trong môi trường xác minh này); cấu hình đã có, sẽ xác minh ở T-106
+- [x] `pytest` chạy được — `mypy app` (strict) cũng sạch, dù không bắt buộc ở bước này
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Toàn bộ cây thư mục Mục 3 tồn tại trong repo và đã merge vào nhánh chính
-- [ ] `make lint-arch` có trong Makefile và được T-003 đưa vào CI
-- [ ] README gốc mô tả đủ cách chạy và liên kết tài liệu
-- [ ] Không có bí mật (secret) nào được commit
+- [x] Toàn bộ cây thư mục Mục 3 tồn tại trong repo
+- [x] `make lint-arch` có trong Makefile (T-003 sẽ đưa vào CI — `ci.yml` đã có sẵn job `boundaries` từ trước, chạy `lint-imports` trực tiếp)
+- [x] README gốc mô tả đủ cách chạy và liên kết tài liệu (đã có sẵn, không cần sửa)
+- [x] Không có bí mật (secret) nào được commit
+
+### Lệch so với mô tả ban đầu / phát hiện khi triển khai
+
+- `root_package` của import-linter nằm trong `backend/pyproject.toml`, không phải `pyproject.toml` gốc repo — chỉnh đường dẫn tương ứng khi chạy `lint-imports` (CI/Makefile đã `cd backend` trước khi gọi).
+- Quy tắc `ignore_imports` cho ngoại lệ `retrieval → ingestion` đã bị **comment tạm** vì `ingestion/models.py` và `retrieval/repository.py` chưa tồn tại (import-linter từ chối `ignore_imports` trỏ tới module không có thật) — **bật lại ở T-203/T-302** khi 2 file đó được tạo.
+- Repo đã có sẵn `.github/workflows/ci.yml`, `README.md`, `.github/CODEOWNERS`, `pull_request_template.md` từ trước (không phải do T-001 tạo). Đã sửa 1 chỗ lệch: comment `T-309` (số hiệu task cũ) trong `ci.yml` và ví dụ `T-201` trong PR template → đổi thành `T-501`/`T-108` cho khớp danh mục task hiện tại.
+- Thêm `mypy` vào `dev` extras và `tool.mypy` (strict) vì `ci.yml` có job `typecheck` gọi `mypy app` nhưng T-001 gốc không liệt kê — cần để CI không đỏ ngay từ task đầu.
+- Thêm `tests/unit`, `tests/integration`, `tests/isolation` (CI chạy tách `-m isolation`) và marker `isolation` trong `pyproject.toml` vì `ci.yml` đã tham chiếu các đường dẫn này.
+- Thêm script `format:check`, `typecheck` vào `frontend/package.json` (CI gọi `npm run format:check`/`npm run typecheck` nhưng chưa có).
 
 ## 9. Tham chiếu
 

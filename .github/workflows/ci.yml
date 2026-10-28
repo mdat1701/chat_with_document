@@ -103,9 +103,9 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
-  # T-309 điền: chạy khi đổi qa / retrieval / prompt.
+  # T-501 điền: chạy khi đổi qa / retrieval / prompt.
   rag-eval:
     if: false
     runs-on: ubuntu-latest
     steps:
-      - run: echo "placeholder for T-309"
+      - run: echo "placeholder for T-501"

@@ -1,0 +1,105 @@
+[project]
+name = "chat-with-document-backend"
+version = "0.1.0"
+description = "Chat với tài liệu — back-end (modular monolith, SADD ADR-01)"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "sqlalchemy[asyncio]>=2.0",
+  "asyncpg>=0.30",
+  "alembic>=1.14",
+  "celery[redis]>=5.4",
+  "redis>=5.2",
+  "httpx>=0.27",
+  "python-multipart>=0.0.12",
+  "pymupdf>=1.24",
+  "pgvector>=0.3",
+  "opentelemetry-sdk>=1.27",
+  "opentelemetry-instrumentation-fastapi>=0.48b0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "import-linter>=2.1",
+  "ruff>=0.7",
+  "mypy>=1.13",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "testcontainers[postgres,redis]>=4.8",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+  "isolation: kiểm thử cô lập dữ liệu 2 người dùng (Pilot Gate G-03, T-504)",
+]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["app"]
+strict = true
+ignore_missing_imports = true
+
+# --- Ranh giới module (SADD §2.2.1) --------------------------------------
+# Kiểm tra: `lint-imports` (cài qua import-linter). CI chạy ở T-003.
+
+[tool.importlinter]
+root_package = "app"
+
+[[tool.importlinter.contracts]]
+name = "modules chi import ports va core, khong import adapters/api"
+type = "forbidden"
+source_modules = [
+  "app.modules.identity", "app.modules.documents", "app.modules.ingestion",
+  "app.modules.retrieval", "app.modules.qa", "app.modules.analytics",
+  "app.modules.retention", "app.modules.feedback", "app.modules.evaluation",
+]
+forbidden_modules = ["app.adapters", "app.api", "app.workers"]
+
+[[tool.importlinter.contracts]]
+name = "khong phu thuoc vong giua cac module nghiep vu"
+type = "independence"
+modules = [
+  "app.modules.identity",
+  "app.modules.documents",
+  "app.modules.ingestion",
+  "app.modules.retrieval",
+  "app.modules.qa",
+  "app.modules.analytics",
+  "app.modules.retention",
+]
+# Ngoại lệ duy nhất theo SADD §2.2.1: retrieval đọc bảng `chunk` do
+# ingestion ghi. Không nới lỏng quy tắc chung cho trường hợp khác.
+# import-linter chỉ chấp nhận `ignore_imports` trỏ tới module đã tồn
+# tại — bật dòng dưới khi `ingestion/models.py` và
+# `retrieval/repository.py` được tạo (T-203, T-302):
+# ignore_imports = [
+#   "app.modules.retrieval.repository -> app.modules.ingestion.models",
+# ]
+
+[[tool.importlinter.contracts]]
+name = "api va workers chi la lop adapter vao (goi use case, khong chua logic)"
+type = "layers"
+layers = [
+  "app.api | app.workers",
+  "app.modules",
+  "app.ports | app.core",
+]
