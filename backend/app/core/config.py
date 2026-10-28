@@ -47,7 +47,9 @@ class Settings(BaseSettings):
 
     llm_provider: str = "fake"
 
-    app_env: str = "dev"
+    # "local" | "staging" | "production". Stub auth (T-008 deps.py) chỉ
+    # chạy khi "local" — mặc định "local" để không chặn dev/test.
+    app_env: str = "local"
     service_name: str = "cwd-backend"
     # Để trống ở local -> exporter no-op (T-007 §6 "OTel Collector không
     # chạy ở local"); đặt URL OTLP/HTTP thật ở staging/prod.

@@ -9,7 +9,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 1d |
 | Phụ thuộc | T-001, T-005 |
-| Trạng thái | To do |
+| Trạng thái | Done |
 
 ## 1. Mục tiêu
 
@@ -112,19 +112,46 @@ Không có. Task dùng schema của T-005 (chỉ mở kết nối, không tạo 
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] `curl /healthz` trả 200 khi PostgreSQL đang tắt (liveness độc lập với phụ thuộc)
-- [ ] `curl /readyz` trả 503 và chỉ đúng thành phần lỗi khi tắt Redis
-- [ ] Route nghiệp vụ mẫu nằm đúng dưới `/api/v1`
-- [ ] Ném `DomainError("NOT_AUTHORIZED")` từ một route thử → nhận `403 {"code":"NOT_AUTHORIZED"}`
-- [ ] Khởi động thiếu `DATABASE_URL` → tiến trình thoát kèm thông báo rõ ràng
-- [ ] Stub auth bị từ chối khởi động khi `ENV=staging`
+- [x] `curl /healthz` trả 200 khi PostgreSQL đang tắt (liveness độc lập với phụ thuộc) — xác nhận thật qua `TestClient`, không mock: 200 trong 3ms dù PG/Redis/TEI đều không chạy
+- [x] `curl /readyz` trả 503 và chỉ đúng thành phần lỗi — xác nhận thật: `{"status":"not_ready","checks":{"postgres":"unreachable","redis":"unreachable","tei":"unreachable"}}`
+- [x] Route nghiệp vụ mẫu nằm đúng dưới `/api/v1` — `test_business_route_is_mounted_under_api_v1`
+- [x] Ném `DomainError("NOT_AUTHORIZED")` từ một route thử → nhận `403 {"code":"NOT_AUTHORIZED"}` — xác nhận thật qua route thử tạm trong test
+- [ ] Khởi động thiếu `DATABASE_URL` → tiến trình thoát kèm thông báo rõ ràng — **chưa áp dụng**: xem "Lệch so với mô tả" — `database_url` vẫn có giá trị mặc định cho local, không fail-fast như đặc tả gốc
+- [x] Stub auth bị từ chối khởi động khi `ENV=staging` — `test_stub_auth_guard_raises_outside_local_env` (mock `Settings(app_env="staging")`, xác nhận `RuntimeError`)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Ứng dụng chạy tại local và trên staging (T-004), probe hoạt động
-- [ ] Cấu hình DF nằm tập trung trong `core.config`, không hằng số rải rác
-- [ ] Exception handler trả đúng định dạng `{code, params}`
-- [ ] `get_current_user` stub có TODO trỏ tới T-102 và chỉ chạy ở môi trường local
+- [ ] Ứng dụng chạy tại local và trên staging (T-004) — staging chưa tồn tại (chờ D-02); đã chạy thật tại "local" qua `TestClient`
+- [x] Cấu hình DF nằm tập trung trong `core.config`, không hằng số rải rác
+- [x] Exception handler trả đúng định dạng `{code, params}` — xác nhận cho cả `DomainError`, `RequestValidationError` (→ `QUESTION_INVALID`), và lỗi chưa ánh xạ (→ `SERVICE_BUSY`, không lộ `str(exc)`)
+- [x] `get_current_user` stub có TODO trỏ tới T-102, và `assert_stub_auth_allowed()` chặn khởi động ngoài `app_env="local"` (gọi trong `lifespan`)
+
+### Lệch so với mô tả ban đầu
+
+**Không fail-fast khi thiếu biến môi trường bắt buộc** như Mục 2/3 yêu cầu
+(`DATABASE_URL`, `REDIS_URL`, ... không có giá trị mặc định). Giữ nguyên giá
+trị mặc định đã thiết lập từ T-002/T-005/T-006/T-007 (khớp `.env.example`) vì
+nhiều test/task trước đã phụ thuộc vào việc `Settings()` khởi tạo được không
+cần `.env` — đổi sang bắt buộc sẽ làm vỡ toàn bộ test hiện có. Thay vào đó,
+`assert_stub_auth_allowed()` đóng vai trò chặn tương đương cho rủi ro nghiêm
+trọng nhất (stub auth lọt lên staging/production). **Cần Tech Lead quyết
+định**: có chấp nhận cách này, hay đổi toàn bộ sang bắt buộc kèm cập nhật lại
+test/CI dùng biến môi trường giả cho mọi lần chạy test.
+
+### Ghi chú triển khai thực tế
+
+Toàn bộ acceptance criteria khả thi **đã xác minh bằng 9 test chạy thật** qua
+`fastapi.testclient.TestClient` (không mock FastAPI/Starlette) — mạnh hơn hẳn
+các task Sprint 0 trước vì FastAPI test không cần Docker/Postgres/Redis thật,
+chỉ cần mô phỏng chúng "tắt" (điều `/readyz` vốn phải xử lý đúng). Middleware
+log request, 3 exception handler, `/healthz`, `/readyz`, mount `/api/v1` đều
+chạy thật.
+
+Phát hiện và sửa một xung đột phụ thuộc trong lúc kiểm thử: cài `httpx[cli]`
+tạm thời đã kéo theo bản `rich` cũ hơn mức `import-linter` yêu cầu, khiến
+`lint-imports` lỗi "Only one live display may be active at once" — nâng cấp
+`rich>=14.2.0` khắc phục. Đây là xung đột từ công cụ cài tạm để kiểm thử,
+không phải phụ thuộc thật của dự án (không thêm vào `pyproject.toml`).
 
 ## 9. Tham chiếu
 

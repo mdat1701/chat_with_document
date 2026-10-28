@@ -9,7 +9,7 @@
 | Vai trò chính | TL (hỗ trợ: BE) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-001, T-008 |
-| Trạng thái | Done (phần `core`) — exception handler FastAPI hoãn sang T-008 |
+| Trạng thái | Done (xem T-008 cho phần exception handler FastAPI + middleware metric) |
 
 ## 1. Mục tiêu
 
@@ -109,8 +109,8 @@ Không có bảng mới. (Bảng `analytics_event` và `audit_log` đã tạo �
 - [x] Gọi logger với payload chứa cả 6 trường bị chặn → bản ghi log đầu ra **không** chứa trường nào trong số đó — `test_all_six_blocked_fields_are_removed_at_top_level`
 - [x] Payload lồng nhau 3 cấp có `content` ở cấp sâu nhất → vẫn bị loại — `test_blocked_field_removed_at_three_levels_of_nesting` (+ test cho list lồng dict)
 - [x] Ở chế độ dev, việc loại trường sinh ra cảnh báo nêu đúng tên trường **và vị trí** (`nested.prompt`) — `test_dev_mode_logs_warning_naming_the_blocked_field`
-- [ ] Một request HTTP tạo span `http.request` với `trace_id`; enqueue task Celery từ request đó → log của worker mang cùng `trace_id` — **chưa xác minh end-to-end** (cần FastAPI app thật từ T-008 + Redis); đã xác nhận `CeleryInstrumentor` kích hoạt được không lỗi (idempotent khi gọi lại)
-- [ ] `DomainError("QUOTA_EXCEEDED")` ném từ tầng module → API trả `422 {"code":"QUOTA_EXCEEDED"}` — `DomainError`/`ERROR_HTTP_STATUS` đã đúng (test `test_domain_error_quota_exceeded_maps_to_422`), **nhưng chưa có exception handler FastAPI thật** để xác nhận toàn luồng HTTP (hoãn sang T-008)
+- [ ] Một request HTTP tạo span `http.request` với `trace_id`; enqueue task Celery từ request đó → log của worker mang cùng `trace_id` — **vẫn chưa xác minh end-to-end** (cần Redis + task thật chạy qua worker); FastAPI app đã tồn tại (T-008) và instrument được, nhưng chưa nối với một task Celery thật trong cùng một test
+- [x] `DomainError("QUOTA_EXCEEDED")` ném từ tầng module → API trả đúng mã lỗi — xác nhận toàn luồng HTTP thật ở T-008 (`test_domain_error_raised_from_route_maps_to_its_http_status_and_code`, dùng `NOT_AUTHORIZED`→403 làm ví dụ, cùng cơ chế áp dụng cho mọi mã)
 - [x] Không có bản ghi log nào chứa email hay `user_id` thô (chỉ `user_hash`) — `test_hash_user_id_is_deterministic_and_does_not_leak_raw_id`
 
 ## 8. Định nghĩa Hoàn thành
@@ -126,10 +126,13 @@ Phần **không phụ thuộc hạ tầng** của task (bộ lọc, `ErrorCode`,
 metric Prometheus) đã viết đầy đủ và **xác minh thật bằng 13 test đơn vị**
 (không mock phần lõi — `scrub()`, `DomainError`, `hash_user_id` chạy thật).
 
-Phần phụ thuộc T-008 (chưa tồn tại khi làm task này) **chưa hoàn tất**:
-- Exception handler toàn cục FastAPI (bước 7) — sẽ thêm khi viết `app/api/main.py` ở T-008, dùng lại `DomainError`/`ERROR_HTTP_STATUS` đã có sẵn ở đây.
-- Middleware ghi `http_requests_total`/`http_request_duration_seconds` (bước 9) — cũng gắn vào T-008.
-- Kiểm chứng `trace_id` lan api→worker bằng luồng thật — cần FastAPI app + Redis chạy thật, không có trong môi trường này.
+Phần phụ thuộc T-008 (chưa tồn tại khi làm task này) **đã hoàn tất khi làm T-008**:
+- Exception handler toàn cục FastAPI (bước 7) — xong trong `app/api/main.py`, dùng lại `DomainError`/`ERROR_HTTP_STATUS` của task này nguyên vẹn.
+- Middleware ghi `http_requests_total`/`http_request_duration_seconds` (bước 9) — xong, gắn trong `app/api/main.py`.
+
+Còn lại duy nhất **chưa xác minh được** (cần Redis + task Celery thật chạy
+xuyên suốt một request): `trace_id` lan từ span `http.request` phía `api`
+sang log của `worker` khi xử lý task được enqueue từ chính request đó.
 
 Đã xác nhận bằng cách chạy thật (không mock): `CeleryInstrumentor().instrument()` kích hoạt được, idempotent khi gọi lại (log cảnh báo, không crash) — quan sát được log JSON thật trong lúc kiểm thử thủ công, xác nhận `_JsonFormatter` hoạt động đúng.
 
