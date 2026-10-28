@@ -6,7 +6,11 @@ import { expectNoA11yViolations } from "@shared/testing/axe";
 function Trigger() {
   const { showToast } = useToast();
   return (
-    <button type="button" data-testid="trigger" onClick={() => showToast({ title: "Đã lưu", tone: "success" })}>
+    <button
+      type="button"
+      data-testid="trigger"
+      onClick={() => showToast({ title: "Đã lưu", tone: "success" })}
+    >
       Lưu
     </button>
   );

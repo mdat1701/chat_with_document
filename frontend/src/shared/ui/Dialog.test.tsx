@@ -7,7 +7,13 @@ import { expectNoA11yViolations } from "@shared/testing/axe";
 describe("Dialog", () => {
   it("hiển thị tiêu đề và mô tả khi open=true", () => {
     render(
-      <Dialog open onOpenChange={vi.fn()} title="Xóa tài liệu?" description="Hành động không thể hoàn tác." data-testid="confirm-dialog">
+      <Dialog
+        open
+        onOpenChange={vi.fn()}
+        title="Xóa tài liệu?"
+        description="Hành động không thể hoàn tác."
+        data-testid="confirm-dialog"
+      >
         <Button data-testid="confirm">Xóa</Button>
       </Dialog>,
     );
@@ -16,7 +22,14 @@ describe("Dialog", () => {
   });
 
   it("không render nội dung khi open=false", () => {
-    render(<Dialog open={false} onOpenChange={vi.fn()} title="Xóa tài liệu?" data-testid="confirm-dialog" />);
+    render(
+      <Dialog
+        open={false}
+        onOpenChange={vi.fn()}
+        title="Xóa tài liệu?"
+        data-testid="confirm-dialog"
+      />,
+    );
     expect(screen.queryByTestId("confirm-dialog")).not.toBeInTheDocument();
   });
 
@@ -27,7 +40,11 @@ describe("Dialog", () => {
         onOpenChange={vi.fn()}
         title="Xóa tài liệu?"
         description="Hành động không thể hoàn tác."
-        actions={<Button variant="danger" data-testid="confirm">Xóa</Button>}
+        actions={
+          <Button variant="danger" data-testid="confirm">
+            Xóa
+          </Button>
+        }
       />,
     );
     await expectNoA11yViolations(baseElement);

@@ -31,7 +31,12 @@ export function StatusBadge({ status, errorCode, progress, expiresAt }: Props) {
   if (status === "failed") {
     const text = `${uiText.statusFailed} — ${errorMessage(errorCode)}`;
     return (
-      <Badge tone="danger" data-testid="doc-status" aria-label={text} title={errorMessage(errorCode)}>
+      <Badge
+        tone="danger"
+        data-testid="doc-status"
+        aria-label={text}
+        title={errorMessage(errorCode)}
+      >
         ❌ {uiText.statusFailed}
       </Badge>
     );
@@ -39,7 +44,8 @@ export function StatusBadge({ status, errorCode, progress, expiresAt }: Props) {
   if (status === "ready") {
     const days = daysUntil(expiresAt);
     if (days !== null && days <= 7) {
-      const text = days <= 0 ? uiText.expiringToday : uiText.expiringInDays(days);
+      const text =
+        days <= 0 ? uiText.expiringToday : uiText.expiringInDays(days);
       return (
         <Badge tone="warning" data-testid="doc-status" aria-label={text}>
           ⚠ {text}
@@ -47,14 +53,22 @@ export function StatusBadge({ status, errorCode, progress, expiresAt }: Props) {
       );
     }
     return (
-      <Badge tone="success" data-testid="doc-status" aria-label={uiText.statusReady}>
+      <Badge
+        tone="success"
+        data-testid="doc-status"
+        aria-label={uiText.statusReady}
+      >
         ✅ {uiText.statusReady}
       </Badge>
     );
   }
   const tone: BadgeTone = "info";
   return (
-    <Badge tone={tone} data-testid="doc-status" aria-label={uiText.statusProcessing}>
+    <Badge
+      tone={tone}
+      data-testid="doc-status"
+      aria-label={uiText.statusProcessing}
+    >
       ⏳ {uiText.statusProcessing}
     </Badge>
   );

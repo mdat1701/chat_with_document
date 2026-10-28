@@ -14,15 +14,21 @@ describe("resolveEmptyState", () => {
   });
 
   it("ES-02: có tài liệu nhưng tất cả đang xử lý/tải lên", () => {
-    expect(resolveEmptyState([doc("processing"), doc("uploading")], false)).toBe("ES-02");
+    expect(
+      resolveEmptyState([doc("processing"), doc("uploading")], false),
+    ).toBe("ES-02");
   });
 
   it("ES-03: có tài liệu nhưng tất cả thất bại", () => {
-    expect(resolveEmptyState([doc("failed"), doc("failed")], false)).toBe("ES-03");
+    expect(resolveEmptyState([doc("failed"), doc("failed")], false)).toBe(
+      "ES-03",
+    );
   });
 
   it("ES-04: có tài liệu sẵn sàng nhưng chưa có câu hỏi nào", () => {
-    expect(resolveEmptyState([doc("ready"), doc("processing")], false)).toBe("ES-04");
+    expect(resolveEmptyState([doc("ready"), doc("processing")], false)).toBe(
+      "ES-04",
+    );
   });
 
   it("null khi có tài liệu sẵn sàng và đã có hội thoại", () => {

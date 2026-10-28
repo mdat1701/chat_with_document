@@ -1,5 +1,9 @@
 export type FileReason = "FILE_NOT_PDF" | "FILE_TOO_LARGE" | "QUOTA_EXCEEDED";
-export type FileValidation = { file: File; ok: boolean; reasonCode?: FileReason };
+export type FileValidation = {
+  file: File;
+  ok: boolean;
+  reasonCode?: FileReason;
+};
 
 export function validateFiles(
   files: File[],

@@ -11,7 +11,8 @@ export function resolveEmptyState(
 ): EmptyStateVariant | null {
   if (docs.length === 0) return hasMessages ? "ES-05" : "ES-01";
   const ready = docs.filter((doc) => doc.status === "ready");
-  if (ready.length === 0 && docs.every((doc) => doc.status === "failed")) return "ES-03";
+  if (ready.length === 0 && docs.every((doc) => doc.status === "failed"))
+    return "ES-03";
   if (ready.length === 0) return "ES-02";
   if (!hasMessages) return "ES-04";
   return null;
@@ -23,7 +24,8 @@ export function daysUntil(dateIso: string | undefined): number | null {
   const target = new Date(dateIso);
   if (Number.isNaN(target.getTime())) return null;
   const now = new Date();
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diffMs = startOfDay(target).getTime() - startOfDay(now).getTime();
   return Math.round(diffMs / 86_400_000);
 }

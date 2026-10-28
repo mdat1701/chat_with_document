@@ -10,12 +10,26 @@ export type EmptyStateProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 /** Trạng thái rỗng dùng chung (vd. "Chưa có tài liệu"). Thuần hiển thị. */
-export function EmptyState({ title, description, action, icon, className, "data-testid": testId, ...rest }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  description,
+  action,
+  icon,
+  className,
+  "data-testid": testId,
+  ...rest
+}: EmptyStateProps) {
   return (
-    <div className={["ui-empty-state", className].filter(Boolean).join(" ")} data-testid={testId} {...rest}>
+    <div
+      className={["ui-empty-state", className].filter(Boolean).join(" ")}
+      data-testid={testId}
+      {...rest}
+    >
       {icon}
       <p className="ui-empty-state__title">{title}</p>
-      {description ? <p className="ui-empty-state__description">{description}</p> : null}
+      {description ? (
+        <p className="ui-empty-state__description">{description}</p>
+      ) : null}
       {action ? <div className="ui-empty-state__action">{action}</div> : null}
     </div>
   );

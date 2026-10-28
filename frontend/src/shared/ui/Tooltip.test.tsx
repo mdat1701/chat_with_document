@@ -8,7 +8,11 @@ describe("Tooltip", () => {
   it("hiển thị phần tử kích hoạt", () => {
     render(
       <Tooltip content="Tải xuống tệp">
-        <IconButton label="Tải xuống" icon={<span aria-hidden>⬇</span>} data-testid="download-button" />
+        <IconButton
+          label="Tải xuống"
+          icon={<span aria-hidden>⬇</span>}
+          data-testid="download-button"
+        />
       </Tooltip>,
     );
     expect(screen.getByTestId("download-button")).toBeInTheDocument();
@@ -17,7 +21,11 @@ describe("Tooltip", () => {
   it("không có vi phạm a11y nghiêm trọng", async () => {
     const { container } = render(
       <Tooltip content="Tải xuống tệp">
-        <IconButton label="Tải xuống" icon={<span aria-hidden>⬇</span>} data-testid="download-button" />
+        <IconButton
+          label="Tải xuống"
+          icon={<span aria-hidden>⬇</span>}
+          data-testid="download-button"
+        />
       </Tooltip>,
     );
     await expectNoA11yViolations(container);

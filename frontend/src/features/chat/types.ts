@@ -1,6 +1,7 @@
 // View model của hội thoại hỏi đáp (T-306 §3, SDD §3.4.1).
 
-export type AnswerPhase = "pending" | "streaming" | "complete" | "failed" | "incomplete";
+export type AnswerPhase =
+  "pending" | "streaming" | "complete" | "failed" | "incomplete";
 export type AnswerType = "answered" | "partial" | "not_found";
 
 export type CitationVM = {
@@ -37,8 +38,4 @@ export type AnswerMessage = {
 export type ChatMessage = UserMessage | AnswerMessage;
 
 export type ComposerDisabledReason =
-  | "offline"
-  | "no_docs"
-  | "all_processing"
-  | "all_failed"
-  | "awaiting_answer";
+  "offline" | "no_docs" | "all_processing" | "all_failed" | "awaiting_answer";

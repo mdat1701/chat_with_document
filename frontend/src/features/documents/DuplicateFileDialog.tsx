@@ -12,7 +12,12 @@ type Props = {
  * Tệp trùng tên (ER-08, T-109 §4): mở tuần tự — hàng đợi xử lý tối đa một
  * hộp thoại tại một thời điểm (xem `useUploadQueue.resolveDuplicate`).
  */
-export function DuplicateFileDialog({ fileName, onReplace, onKeepBoth, onCancel }: Props) {
+export function DuplicateFileDialog({
+  fileName,
+  onReplace,
+  onKeepBoth,
+  onCancel,
+}: Props) {
   return (
     <Dialog
       open
@@ -24,13 +29,28 @@ export function DuplicateFileDialog({ fileName, onReplace, onKeepBoth, onCancel 
       data-testid="duplicate-file-dialog"
       actions={
         <>
-          <Button type="button" variant="secondary" data-testid="duplicate-cancel" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            data-testid="duplicate-cancel"
+            onClick={onCancel}
+          >
             {uiText.duplicateCancel}
           </Button>
-          <Button type="button" variant="secondary" data-testid="duplicate-keep-both" onClick={onKeepBoth}>
+          <Button
+            type="button"
+            variant="secondary"
+            data-testid="duplicate-keep-both"
+            onClick={onKeepBoth}
+          >
             {uiText.duplicateKeepBoth}
           </Button>
-          <Button type="button" variant="primary" data-testid="duplicate-replace" onClick={onReplace}>
+          <Button
+            type="button"
+            variant="primary"
+            data-testid="duplicate-replace"
+            onClick={onReplace}
+          >
             {uiText.duplicateReplace}
           </Button>
         </>

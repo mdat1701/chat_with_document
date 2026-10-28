@@ -1,4 +1,8 @@
-import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { Button, Tooltip } from "@shared/ui";
 import { uiText } from "@shared/i18n/messages.vi";
 import type { ComposerDisabledReason } from "./types";
@@ -23,11 +27,18 @@ export type ComposerProps = {
 };
 
 /** Ô nhập câu hỏi + bộ đếm ký tự + lời miễn trừ AI (T-305). */
-export function Composer({ value, onChange, onSubmit, maxLength, disabledReason }: ComposerProps) {
+export function Composer({
+  value,
+  onChange,
+  onSubmit,
+  maxLength,
+  disabledReason,
+}: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Điều kiện #1-4: khóa toàn bộ ô nhập. #5 (awaiting_answer): chỉ khóa nút Gửi,
   // vẫn gõ được.
-  const fullyLocked = disabledReason !== undefined && disabledReason !== "awaiting_answer";
+  const fullyLocked =
+    disabledReason !== undefined && disabledReason !== "awaiting_answer";
   const trimmed = value.trim();
   const overLength = value.length > maxLength;
   const sendDisabled = disabledReason !== undefined || !trimmed || overLength;
@@ -47,7 +58,8 @@ export function Composer({ value, onChange, onSubmit, maxLength, disabledReason 
       if (event.key !== "/") return;
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
-      const isEditable = tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable;
+      const isEditable =
+        tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable;
       if (isEditable) return;
       event.preventDefault();
       textareaRef.current?.focus();
@@ -91,16 +103,29 @@ export function Composer({ value, onChange, onSubmit, maxLength, disabledReason 
       <label className="sr-only" htmlFor="question-input">
         {uiText.composerLabel}
       </label>
-      {disabledReason ? <Tooltip content={LOCK_TOOLTIP[disabledReason]}>{textarea}</Tooltip> : textarea}
+      {disabledReason ? (
+        <Tooltip content={LOCK_TOOLTIP[disabledReason]}>{textarea}</Tooltip>
+      ) : (
+        textarea
+      )}
       <div className="chat-composer__row">
         <span
           id="chat-char-counter"
           data-testid="char-counter"
-          className={overLength ? "chat-char-counter chat-char-counter--danger" : "chat-char-counter"}
+          className={
+            overLength
+              ? "chat-char-counter chat-char-counter--danger"
+              : "chat-char-counter"
+          }
         >
           {uiText.composerCharCounter(value.length, maxLength)}
         </span>
-        <Button type="submit" variant="primary" data-testid="send-button" disabled={sendDisabled}>
+        <Button
+          type="submit"
+          variant="primary"
+          data-testid="send-button"
+          disabled={sendDisabled}
+        >
           {uiText.composerSubmit}
         </Button>
       </div>

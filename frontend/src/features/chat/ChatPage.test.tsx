@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppConfigProvider } from "@shared/config";
 import { DEFAULT_APP_CONFIG, type AppConfig } from "@shared/config/appConfig";
@@ -31,7 +38,10 @@ function sseStream(events: string[]): ReadableStream<Uint8Array> {
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 function installFetchMock(options: FetchMockOptions) {
@@ -39,10 +49,14 @@ function installFetchMock(options: FetchMockOptions) {
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.includes("/config")) return jsonResponse({ ...DEFAULT_APP_CONFIG, ...options.config });
-      if (url.endsWith("/documents")) return jsonResponse(options.documents ?? []);
+      if (url.includes("/config"))
+        return jsonResponse({ ...DEFAULT_APP_CONFIG, ...options.config });
+      if (url.endsWith("/documents"))
+        return jsonResponse(options.documents ?? []);
       if (url.endsWith("/conversations") && init?.method === "POST") {
-        return jsonResponse({ conversation_id: "11111111-1111-1111-1111-111111111111" });
+        return jsonResponse({
+          conversation_id: "11111111-1111-1111-1111-111111111111",
+        });
       }
       if (url.includes("/questions")) {
         if (options.questionResponse) return options.questionResponse();
@@ -65,7 +79,11 @@ async function renderChat() {
       </ToastProvider>
     </AppConfigProvider>,
   );
-  await waitFor(() => expect(screen.queryByTestId("chat-loading-skeleton")).not.toBeInTheDocument());
+  await waitFor(() =>
+    expect(
+      screen.queryByTestId("chat-loading-skeleton"),
+    ).not.toBeInTheDocument(),
+  );
   return utils;
 }
 
@@ -88,11 +106,18 @@ describe("ChatPage", () => {
   });
 
   it("ER-09: câu hỏi vượt quá giới hạn → bộ đếm đỏ, nút Gửi khóa", async () => {
-    installFetchMock({ documents: [{ id: "d1", status: "ready" }], config: { max_question_length: 10 } });
+    installFetchMock({
+      documents: [{ id: "d1", status: "ready" }],
+      config: { max_question_length: 10 },
+    });
     await renderChat();
     const input = screen.getByTestId("question-input");
-    fireEvent.change(input, { target: { value: "0123456789-vuot-qua-gioi-han" } });
-    expect(screen.getByTestId("char-counter")).toHaveClass("chat-char-counter--danger");
+    fireEvent.change(input, {
+      target: { value: "0123456789-vuot-qua-gioi-han" },
+    });
+    expect(screen.getByTestId("char-counter")).toHaveClass(
+      "chat-char-counter--danger",
+    );
     expect(screen.getByTestId("send-button")).toBeDisabled();
   });
 
@@ -117,14 +142,20 @@ describe("ChatPage", () => {
     });
     await renderChat();
     const input = screen.getByTestId("question-input");
-    fireEvent.change(input, { target: { value: "Hợp đồng có hiệu lực đến khi nào?" } });
+    fireEvent.change(input, {
+      target: { value: "Hợp đồng có hiệu lực đến khi nào?" },
+    });
     fireEvent.click(screen.getByTestId("send-button"));
 
     // Optimistic: tin nhắn người dùng + TypingIndicator xuất hiện ngay (IX-03).
-    expect(screen.getByTestId("user-message")).toHaveTextContent("Hợp đồng có hiệu lực đến khi nào?");
+    expect(screen.getByTestId("user-message")).toHaveTextContent(
+      "Hợp đồng có hiệu lực đến khi nào?",
+    );
     expect(screen.getByTestId("typing-indicator")).toHaveTextContent("1");
 
-    await waitFor(() => expect(screen.getByTestId("citation-list")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("citation-list")).toBeInTheDocument(),
+    );
     expect(screen.getByTestId("answer-markdown")).toHaveTextContent("Xin chào");
     const chip = screen.getByTestId("citation-chip");
     expect(chip).toHaveTextContent("HopDong.pdf");
@@ -133,11 +164,17 @@ describe("ChatPage", () => {
 
     expect(track).toHaveBeenCalledWith(
       "question_submitted",
-      expect.objectContaining({ ready_doc_count: 1, question_length: expect.any(Number) }),
+      expect.objectContaining({
+        ready_doc_count: 1,
+        question_length: expect.any(Number),
+      }),
     );
     // T-404 §5.4: `answer_rendered` được backend phát trực tiếp (conversations.py)
     // để latency_ms chính xác — FE không phát lại, tránh đếm trùng.
-    expect(track).not.toHaveBeenCalledWith("answer_rendered", expect.anything());
+    expect(track).not.toHaveBeenCalledWith(
+      "answer_rendered",
+      expect.anything(),
+    );
   });
 
   it("IR-04: nội dung <script> bị rehype-sanitize loại bỏ, không thực thi", async () => {
@@ -150,9 +187,13 @@ describe("ChatPage", () => {
       ],
     });
     await renderChat();
-    fireEvent.change(screen.getByTestId("question-input"), { target: { value: "Câu hỏi bất kỳ đủ dài" } });
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi bất kỳ đủ dài" },
+    });
     fireEvent.click(screen.getByTestId("send-button"));
-    await waitFor(() => expect(screen.getByTestId("answer-latency")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("answer-latency")).toBeInTheDocument(),
+    );
     expect(document.querySelector("script")).toBeNull();
     expect((window as unknown as { __xss?: boolean }).__xss).toBeUndefined();
     // IR-02: answered nhưng citations rỗng → cảnh báo không xác định nguồn.
@@ -162,12 +203,19 @@ describe("ChatPage", () => {
   it("AC-013.1/AC-014.4: done.type=not_found → NotFoundMessage, không thẻ nguồn", async () => {
     installFetchMock({
       documents: [{ id: "d1", status: "ready" }],
-      sseEvents: ['event: citations\ndata: {"items":[]}\n\n', 'event: done\ndata: {"type":"not_found","latency_ms":900}\n\n'],
+      sseEvents: [
+        'event: citations\ndata: {"items":[]}\n\n',
+        'event: done\ndata: {"type":"not_found","latency_ms":900}\n\n',
+      ],
     });
     await renderChat();
-    fireEvent.change(screen.getByTestId("question-input"), { target: { value: "Câu hỏi không có đáp án nào cả" } });
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi không có đáp án nào cả" },
+    });
     fireEvent.click(screen.getByTestId("send-button"));
-    await waitFor(() => expect(screen.getByTestId("not-found-message")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("not-found-message")).toBeInTheDocument(),
+    );
     expect(screen.queryByTestId("citation-list")).not.toBeInTheDocument();
   });
 
@@ -180,9 +228,13 @@ describe("ChatPage", () => {
       ],
     });
     await renderChat();
-    fireEvent.change(screen.getByTestId("question-input"), { target: { value: "Câu hỏi sẽ bị gián đoạn giữa chừng" } });
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi sẽ bị gián đoạn giữa chừng" },
+    });
     fireEvent.click(screen.getByTestId("send-button"));
-    await waitFor(() => expect(screen.getByTestId("incomplete-note")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("incomplete-note")).toBeInTheDocument(),
+    );
     const answer = screen.getByTestId("answer-message");
     expect(answer).toHaveAttribute("data-phase", "incomplete");
     expect(screen.queryByTestId("citation-list")).not.toBeInTheDocument();
@@ -195,22 +247,34 @@ describe("ChatPage", () => {
       documents: [{ id: "d1", status: "ready" }],
       questionResponse: () => {
         questionCalls += 1;
-        return new Response(sseStream(['event: error\ndata: {"code":"SERVICE_BUSY"}\n\n']), {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        });
+        return new Response(
+          sseStream(['event: error\ndata: {"code":"SERVICE_BUSY"}\n\n']),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        );
       },
     });
     await renderChat();
-    fireEvent.change(screen.getByTestId("question-input"), { target: { value: "Câu hỏi sẽ gặp lỗi SERVICE_BUSY" } });
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi sẽ gặp lỗi SERVICE_BUSY" },
+    });
     fireEvent.click(screen.getByTestId("send-button"));
-    await waitFor(() => expect(screen.getByTestId("error-message")).toBeInTheDocument());
-    expect(screen.getByTestId("error-message")).toHaveTextContent("Dịch vụ đang bận");
+    await waitFor(() =>
+      expect(screen.getByTestId("error-message")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("error-message")).toHaveTextContent(
+      "Dịch vụ đang bận",
+    );
     expect(questionCalls).toBe(1);
 
     fireEvent.click(screen.getByTestId("retry-button"));
     await waitFor(() => expect(questionCalls).toBe(2));
-    expect(track).toHaveBeenCalledWith("retry_clicked", expect.objectContaining({ context: "failed" }));
+    expect(track).toHaveBeenCalledWith(
+      "retry_clicked",
+      expect.objectContaining({ context: "failed" }),
+    );
   });
 
   it("T-402: tắt citation_page_numbers → chip chỉ hiện tên tệp, không có 'tr.'", async () => {
@@ -224,9 +288,13 @@ describe("ChatPage", () => {
       ],
     });
     await renderChat();
-    fireEvent.change(screen.getByTestId("question-input"), { target: { value: "Câu hỏi có trích dẫn trang" } });
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi có trích dẫn trang" },
+    });
     fireEvent.click(screen.getByTestId("send-button"));
-    await waitFor(() => expect(screen.getByTestId("citation-chip")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("citation-chip")).toBeInTheDocument(),
+    );
     const chip = screen.getByTestId("citation-chip");
     expect(chip).toHaveTextContent("HopDong.pdf");
     expect(chip).not.toHaveTextContent("tr.");
@@ -241,9 +309,13 @@ describe("ChatPage", () => {
       ],
     });
     await renderChat();
-    fireEvent.change(screen.getByTestId("question-input"), { target: { value: "Câu hỏi có trích dẫn để hover" } });
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi có trích dẫn để hover" },
+    });
     fireEvent.click(screen.getByTestId("send-button"));
-    await waitFor(() => expect(screen.getByTestId("citation-chip")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("citation-chip")).toBeInTheDocument(),
+    );
     const chip = screen.getByTestId("citation-chip");
 
     vi.useFakeTimers();
@@ -255,13 +327,18 @@ describe("ChatPage", () => {
     act(() => {
       vi.advanceTimersByTime(300);
     });
-    expect(track).not.toHaveBeenCalledWith("citation_viewed", expect.anything());
+    expect(track).not.toHaveBeenCalledWith(
+      "citation_viewed",
+      expect.anything(),
+    );
 
     fireEvent.mouseEnter(chip);
     act(() => {
       vi.advanceTimersByTime(500);
     });
-    expect(track).toHaveBeenCalledWith("citation_viewed", { citation_index: 1 });
+    expect(track).toHaveBeenCalledWith("citation_viewed", {
+      citation_index: 1,
+    });
     vi.useRealTimers();
   });
 
@@ -275,10 +352,18 @@ describe("ChatPage", () => {
       ],
     });
     await renderChat();
-    fireEvent.change(screen.getByTestId("question-input"), { target: { value: "Câu hỏi có trích dẫn không khớp" } });
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi có trích dẫn không khớp" },
+    });
     fireEvent.click(screen.getByTestId("send-button"));
-    await waitFor(() => expect(screen.getByTestId("citation-list")).toBeInTheDocument());
-    expect(within(screen.getByTestId("answer-markdown")).queryByTestId("citation-ref")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("citation-list")).toBeInTheDocument(),
+    );
+    expect(
+      within(screen.getByTestId("answer-markdown")).queryByTestId(
+        "citation-ref",
+      ),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("answer-markdown")).toHaveTextContent("[5]");
   });
 });

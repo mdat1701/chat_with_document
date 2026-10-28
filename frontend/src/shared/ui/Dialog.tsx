@@ -23,7 +23,16 @@ export type DialogProps = {
  * Hộp thoại dùng chung, bọc Radix UI (`@radix-ui/react-dialog`) để có sẵn
  * focus trap, đóng bằng Esc, và ARIA đúng chuẩn (CN-08). Thuần hiển thị.
  */
-export function Dialog({ open, onOpenChange, title, description, children, actions, initialFocusRef, "data-testid": testId }: DialogProps) {
+export function Dialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  actions,
+  initialFocusRef,
+  "data-testid": testId,
+}: DialogProps) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
@@ -38,9 +47,13 @@ export function Dialog({ open, onOpenChange, title, description, children, actio
             }
           }}
         >
-          <RadixDialog.Title className="ui-dialog-title">{title}</RadixDialog.Title>
+          <RadixDialog.Title className="ui-dialog-title">
+            {title}
+          </RadixDialog.Title>
           {description ? (
-            <RadixDialog.Description className="ui-dialog-description">{description}</RadixDialog.Description>
+            <RadixDialog.Description className="ui-dialog-description">
+              {description}
+            </RadixDialog.Description>
           ) : null}
           {children}
           {actions ? <div className="ui-dialog-actions">{actions}</div> : null}

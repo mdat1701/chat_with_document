@@ -6,8 +6,16 @@ import { expectNoA11yViolations } from "@shared/testing/axe";
 
 describe("EmptyState", () => {
   it("hiển thị tiêu đề và mô tả", () => {
-    render(<EmptyState data-testid="empty-docs" title="Chưa có tài liệu" description="Hãy tải PDF đầu tiên." />);
-    expect(screen.getByTestId("empty-docs")).toHaveTextContent("Chưa có tài liệu");
+    render(
+      <EmptyState
+        data-testid="empty-docs"
+        title="Chưa có tài liệu"
+        description="Hãy tải PDF đầu tiên."
+      />,
+    );
+    expect(screen.getByTestId("empty-docs")).toHaveTextContent(
+      "Chưa có tài liệu",
+    );
   });
 
   it("không có vi phạm a11y nghiêm trọng", async () => {

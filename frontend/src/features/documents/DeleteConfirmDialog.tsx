@@ -17,7 +17,13 @@ type Props = {
  * `204` thật (nút Xóa chỉ hiện trạng thái loading, cha quyết định khi nào
  * đóng dialog).
  */
-export function DeleteConfirmDialog({ open, fileName, pending, onConfirm, onCancel }: Props) {
+export function DeleteConfirmDialog({
+  open,
+  fileName,
+  pending,
+  onConfirm,
+  onCancel,
+}: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   return (
     <Dialog
@@ -31,10 +37,22 @@ export function DeleteConfirmDialog({ open, fileName, pending, onConfirm, onCanc
       initialFocusRef={cancelRef}
       actions={
         <>
-          <Button ref={cancelRef} type="button" variant="secondary" data-testid="delete-cancel" onClick={onCancel}>
+          <Button
+            ref={cancelRef}
+            type="button"
+            variant="secondary"
+            data-testid="delete-cancel"
+            onClick={onCancel}
+          >
             {uiText.deleteCancel}
           </Button>
-          <Button type="button" variant="danger" data-testid="delete-submit" disabled={pending} onClick={onConfirm}>
+          <Button
+            type="button"
+            variant="danger"
+            data-testid="delete-submit"
+            disabled={pending}
+            onClick={onConfirm}
+          >
             {pending ? uiText.deleteSubmitting : uiText.deleteSubmit}
           </Button>
         </>

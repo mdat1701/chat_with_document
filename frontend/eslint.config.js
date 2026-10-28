@@ -25,9 +25,18 @@ export default tseslint.config(
       "boundaries/elements": [
         { type: "shared-ui", pattern: "shared/ui/**", mode: "folder" },
         { type: "shared-api", pattern: "shared/api/**", mode: "folder" },
-        { type: "shared-analytics", pattern: "shared/analytics/**", mode: "folder" },
+        {
+          type: "shared-analytics",
+          pattern: "shared/analytics/**",
+          mode: "folder",
+        },
         { type: "shared-other", pattern: "shared/**", mode: "folder" },
-        { type: "features", pattern: "features/*", mode: "folder", capture: ["feature"] },
+        {
+          type: "features",
+          pattern: "features/*",
+          mode: "folder",
+          capture: ["feature"],
+        },
         { type: "app", pattern: "app/**", mode: "folder" },
       ],
     },
@@ -38,9 +47,20 @@ export default tseslint.config(
         {
           default: "allow",
           rules: [
-            { from: ["shared-ui", "shared-api", "shared-analytics", "shared-other"], disallow: ["features"] },
+            {
+              from: [
+                "shared-ui",
+                "shared-api",
+                "shared-analytics",
+                "shared-other",
+              ],
+              disallow: ["features"],
+            },
             // shared/ui phải thuần hiển thị — không gọi shared/api hay shared/analytics.
-            { from: ["shared-ui"], disallow: ["shared-api", "shared-analytics"] },
+            {
+              from: ["shared-ui"],
+              disallow: ["shared-api", "shared-analytics"],
+            },
           ],
         },
       ],
@@ -52,12 +72,24 @@ export default tseslint.config(
     // khác phải dùng `apiFetch`/`uploadFile` từ shared/api hoặc `track()` từ
     // shared/analytics — không tự dựng lại hàng đợi sự kiện/gọi mạng riêng.
     files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/shared/api/**", "src/shared/analytics/**", "src/**/*.test.{ts,tsx}", "src/test-setup.ts"],
+    ignores: [
+      "src/shared/api/**",
+      "src/shared/analytics/**",
+      "src/**/*.test.{ts,tsx}",
+      "src/test-setup.ts",
+    ],
     rules: {
       "no-restricted-globals": [
         "error",
-        { name: "fetch", message: "Chỉ shared/api hoặc shared/analytics được gọi fetch trực tiếp (DR-04)." },
-        { name: "EventSource", message: "Chỉ shared/api được dùng EventSource trực tiếp (DR-04)." },
+        {
+          name: "fetch",
+          message:
+            "Chỉ shared/api hoặc shared/analytics được gọi fetch trực tiếp (DR-04).",
+        },
+        {
+          name: "EventSource",
+          message: "Chỉ shared/api được dùng EventSource trực tiếp (DR-04).",
+        },
       ],
     },
   },

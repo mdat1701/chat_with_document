@@ -65,20 +65,20 @@ không chỉ là quy ước bằng lời:
    bắt buộc có test axe-core (`expectNoA11yViolations()` từ
    `shared/testing/axe.ts`).
 7. Chạy `npm run lint && npx tsc -b --noEmit && npm test -- --run &&
-   npm run build` trước khi coi là xong — cả 4 lệnh này là bằng chứng
+npm run build` trước khi coi là xong — cả 4 lệnh này là bằng chứng
    tối thiểu cho mọi thay đổi frontend trong dự án này (xem cách các
    task T-106 trở đi tự xác minh trong `docs/implement/tasks/`).
 
 ## Lệnh thường dùng
 
-| Lệnh | Mục đích |
-|---|---|
-| `npm run dev` | Chạy dev server (Vite) |
-| `npm run build` | `tsc -b` + build production |
-| `npm run lint` | ESLint, bao gồm luật ranh giới module |
-| `npm run typecheck` | `tsc -b --noEmit` |
-| `npm test` | Chạy toàn bộ test (Vitest) |
-| `npm run test:a11y` | Chỉ chạy test axe-core trong `shared/ui` |
+| Lệnh                   | Mục đích                                                                |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `npm run dev`          | Chạy dev server (Vite)                                                  |
+| `npm run build`        | `tsc -b` + build production                                             |
+| `npm run lint`         | ESLint, bao gồm luật ranh giới module                                   |
+| `npm run typecheck`    | `tsc -b --noEmit`                                                       |
+| `npm test`             | Chạy toàn bộ test (Vitest)                                              |
+| `npm run test:a11y`    | Chỉ chạy test axe-core trong `shared/ui`                                |
 | `npm run format:check` | Kiểm tra Prettier (hiện còn nợ kỹ thuật trên một số file cũ, xem T-106) |
 
 ## Tài liệu liên quan

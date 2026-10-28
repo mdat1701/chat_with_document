@@ -98,15 +98,18 @@ export async function streamQuestion(
 ): Promise<void> {
   let response: Response;
   try {
-    response = await fetch(`/api/v1/conversations/${conversationId}/questions`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+    response = await fetch(
+      `/api/v1/conversations/${conversationId}/questions`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+        },
+        body: JSON.stringify({ text }),
       },
-      body: JSON.stringify({ text }),
-    });
+    );
   } catch {
     onEvent({ type: "error", code: "ANSWER_NETWORK" });
     return;
@@ -123,7 +126,8 @@ export async function streamQuestion(
     onEvent({
       type: "error",
       code: body.code,
-      retryAfterSeconds: typeof retryAfter === "number" ? retryAfter : undefined,
+      retryAfterSeconds:
+        typeof retryAfter === "number" ? retryAfter : undefined,
     });
     return;
   }
@@ -158,7 +162,10 @@ export async function streamQuestion(
             onEvent({ type: "delta", text: String(parsed.text ?? "") });
             break;
           case "citations":
-            onEvent({ type: "citations", items: (parsed.items as CitationPayload[] | undefined) ?? [] });
+            onEvent({
+              type: "citations",
+              items: (parsed.items as CitationPayload[] | undefined) ?? [],
+            });
             break;
           case "done":
             onEvent({
@@ -169,7 +176,10 @@ export async function streamQuestion(
             });
             break;
           case "error":
-            onEvent({ type: "error", code: String(parsed.code ?? "SERVICE_BUSY") });
+            onEvent({
+              type: "error",
+              code: String(parsed.code ?? "SERVICE_BUSY"),
+            });
             break;
           default:
             break;
@@ -206,7 +216,9 @@ export function uploadDocument(
   } = {},
 ): { promise: Promise<UploadDocumentResult>; abort: () => void } {
   const xhr = new XMLHttpRequest();
-  const query = options.onDuplicate ? `?on_duplicate=${options.onDuplicate}` : "";
+  const query = options.onDuplicate
+    ? `?on_duplicate=${options.onDuplicate}`
+    : "";
   const promise = new Promise<UploadDocumentResult>((resolve, reject) => {
     xhr.open("POST", `/api/v1/documents${query}`);
     xhr.withCredentials = true;
@@ -221,7 +233,9 @@ export function uploadDocument(
         try {
           resolve(JSON.parse(xhr.responseText) as UploadDocumentResult);
         } catch {
-          reject(new ApiError(xhr.status, { code: "SERVICE_BUSY", params: {} }));
+          reject(
+            new ApiError(xhr.status, { code: "SERVICE_BUSY", params: {} }),
+          );
         }
         return;
       }
@@ -233,8 +247,10 @@ export function uploadDocument(
       }
       reject(new ApiError(xhr.status, body));
     };
-    xhr.onerror = () => reject(new ApiError(0, { code: "UPLOAD_NETWORK", params: {} }));
-    xhr.onabort = () => reject(new ApiError(0, { code: "UPLOAD_ABORTED", params: {} }));
+    xhr.onerror = () =>
+      reject(new ApiError(0, { code: "UPLOAD_NETWORK", params: {} }));
+    xhr.onabort = () =>
+      reject(new ApiError(0, { code: "UPLOAD_ABORTED", params: {} }));
     const formData = new FormData();
     formData.append("file", file);
     xhr.send(formData);
@@ -244,9 +260,12 @@ export function uploadDocument(
 
 /** Yêu cầu máy chủ xử lý lại một tài liệu `failed` (T-205 nút "Thử lại"). */
 export async function retryDocument(documentId: string) {
-  return apiFetch<{ id: string; status: string }>(`/documents/${documentId}/retry`, {
-    method: "POST",
-  });
+  return apiFetch<{ id: string; status: string }>(
+    `/documents/${documentId}/retry`,
+    {
+      method: "POST",
+    },
+  );
 }
 
 export type DocumentEventPayload = {
@@ -271,10 +290,14 @@ export function subscribeDocumentEvents(
   if (typeof EventSource === "undefined") {
     return () => {};
   }
-  const source = new EventSource("/api/v1/documents/events", { withCredentials: true });
+  const source = new EventSource("/api/v1/documents/events", {
+    withCredentials: true,
+  });
   source.addEventListener("status", (event) => {
     try {
-      const payload = JSON.parse((event as MessageEvent<string>).data) as DocumentEventPayload;
+      const payload = JSON.parse(
+        (event as MessageEvent<string>).data,
+      ) as DocumentEventPayload;
       onEvent(payload);
     } catch {
       // Bỏ qua bản ghi SSE không hợp lệ — không làm hỏng luồng.

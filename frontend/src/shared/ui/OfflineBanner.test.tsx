@@ -17,7 +17,9 @@ describe("OfflineBanner", () => {
   });
 
   it("không có vi phạm a11y nghiêm trọng", async () => {
-    const { container } = render(<OfflineBanner offline message="Bạn đang ngoại tuyến" />);
+    const { container } = render(
+      <OfflineBanner offline message="Bạn đang ngoại tuyến" />,
+    );
     await expectNoA11yViolations(container);
   });
 });

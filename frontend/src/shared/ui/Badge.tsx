@@ -9,10 +9,17 @@ export type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
 };
 
 /** Nhãn trạng thái nhỏ (vd. trạng thái xử lý tài liệu). Thuần hiển thị. */
-export function Badge({ tone = "neutral", className, "data-testid": testId, ...rest }: BadgeProps) {
+export function Badge({
+  tone = "neutral",
+  className,
+  "data-testid": testId,
+  ...rest
+}: BadgeProps) {
   return (
     <span
-      className={["ui-badge", `ui-badge--${tone}`, className].filter(Boolean).join(" ")}
+      className={["ui-badge", `ui-badge--${tone}`, className]
+        .filter(Boolean)
+        .join(" ")}
       data-testid={testId}
       {...rest}
     />

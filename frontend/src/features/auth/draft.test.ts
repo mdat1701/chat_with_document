@@ -62,12 +62,16 @@ describe("features/auth/draft (AC-001.3)", () => {
   });
 
   it("chế độ ẩn danh chặn sessionStorage: saveDraft/restoreDraft/clearDraft không ném lỗi", () => {
-    const getItem = vi.spyOn(window.sessionStorage.__proto__, "getItem").mockImplementation(() => {
-      throw new DOMException("blocked");
-    });
-    const setItem = vi.spyOn(window.sessionStorage.__proto__, "setItem").mockImplementation(() => {
-      throw new DOMException("blocked");
-    });
+    const getItem = vi
+      .spyOn(window.sessionStorage.__proto__, "getItem")
+      .mockImplementation(() => {
+        throw new DOMException("blocked");
+      });
+    const setItem = vi
+      .spyOn(window.sessionStorage.__proto__, "setItem")
+      .mockImplementation(() => {
+        throw new DOMException("blocked");
+      });
     const removeItem = vi
       .spyOn(window.sessionStorage.__proto__, "removeItem")
       .mockImplementation(() => {

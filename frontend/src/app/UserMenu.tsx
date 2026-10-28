@@ -29,7 +29,11 @@ function UserMenuContent({ user }: { user: CurrentUser }) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button type="button" className="ui-button ui-button--ghost" data-testid="user-menu-trigger">
+        <button
+          type="button"
+          className="ui-button ui-button--ghost"
+          data-testid="user-menu-trigger"
+        >
           {label}
         </button>
       </DropdownMenu.Trigger>
@@ -40,7 +44,10 @@ function UserMenuContent({ user }: { user: CurrentUser }) {
           sideOffset={6}
           data-testid="user-menu"
         >
-          <DropdownMenu.Label className="app-user-menu__label" data-testid="user-menu-account">
+          <DropdownMenu.Label
+            className="app-user-menu__label"
+            data-testid="user-menu-account"
+          >
             {user.email}
           </DropdownMenu.Label>
           <DropdownMenu.Separator className="app-user-menu__separator" />
@@ -48,12 +55,20 @@ function UserMenuContent({ user }: { user: CurrentUser }) {
             className="app-user-menu__item"
             data-testid="user-menu-help"
             onSelect={() => {
-              window.open("mailto:support@example.com", "_blank", "noopener,noreferrer");
+              window.open(
+                "mailto:support@example.com",
+                "_blank",
+                "noopener,noreferrer",
+              );
             }}
           >
             {uiText.userMenuHelp}
           </DropdownMenu.Item>
-          <DropdownMenu.Item className="app-user-menu__item" data-testid="user-menu-logout" onSelect={handleLogout}>
+          <DropdownMenu.Item
+            className="app-user-menu__item"
+            data-testid="user-menu-logout"
+            onSelect={handleLogout}
+          >
             {uiText.userMenuLogout}
           </DropdownMenu.Item>
         </DropdownMenu.Content>

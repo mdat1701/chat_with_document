@@ -13,8 +13,12 @@ describe("Button", () => {
     const { container } = render(
       <>
         <Button data-testid="primary">Lưu</Button>
-        <Button variant="secondary" data-testid="secondary">Hủy</Button>
-        <Button variant="danger" disabled data-testid="danger">Xóa</Button>
+        <Button variant="secondary" data-testid="secondary">
+          Hủy
+        </Button>
+        <Button variant="danger" disabled data-testid="danger">
+          Xóa
+        </Button>
       </>,
     );
     await expectNoA11yViolations(container);

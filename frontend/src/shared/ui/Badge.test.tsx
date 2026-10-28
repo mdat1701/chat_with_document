@@ -5,7 +5,11 @@ import { expectNoA11yViolations } from "@shared/testing/axe";
 
 describe("Badge", () => {
   it("hiển thị nội dung và data-testid", () => {
-    render(<Badge tone="success" data-testid="status-badge">Đã xử lý</Badge>);
+    render(
+      <Badge tone="success" data-testid="status-badge">
+        Đã xử lý
+      </Badge>,
+    );
     expect(screen.getByTestId("status-badge")).toHaveTextContent("Đã xử lý");
   });
 

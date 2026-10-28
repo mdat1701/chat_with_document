@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import { apiFetch, setCsrfToken, setUnauthorizedHandler } from "@shared/api/client";
+import {
+  apiFetch,
+  setCsrfToken,
+  setUnauthorizedHandler,
+} from "@shared/api/client";
 import { track } from "@shared/analytics/client";
 import { captureDraftOnUnauthorized } from "./draft";
 

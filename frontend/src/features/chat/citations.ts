@@ -1,10 +1,15 @@
 import { uiText } from "@shared/i18n/messages.vi";
 
-export function formatCitationPage(start?: number | null, end?: number | null): string | null {
+export function formatCitationPage(
+  start?: number | null,
+  end?: number | null,
+): string | null {
   if (start == null) return null;
   // TODO(DQ-07): confirm multi-page citation format with Tech Lead.
   const prefix = uiText.citationPagePrefix;
-  return start === end || end == null ? `${prefix} ${start}` : `${prefix} ${start}–${end}`;
+  return start === end || end == null
+    ? `${prefix} ${start}`
+    : `${prefix} ${start}–${end}`;
 }
 
 export function formatCitation(

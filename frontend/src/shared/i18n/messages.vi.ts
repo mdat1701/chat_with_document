@@ -26,7 +26,8 @@ export type ErrorCode = keyof typeof messages;
 
 /** Chuỗi không gắn với mã lỗi — dùng cho EmptyState, dialog, toast, bộ đếm. */
 export const uiText = {
-  documentCounter: (used: number, max: number) => `${formatNumber(used)}/${formatNumber(max)} tài liệu`,
+  documentCounter: (used: number, max: number) =>
+    `${formatNumber(used)}/${formatNumber(max)} tài liệu`,
   quotaReached: "Đã đạt tối đa 50 tài liệu. Xóa bớt tài liệu để tải thêm.",
   statusUploading: (percent: number) => `Đang tải lên ${percent}%`,
   statusProcessing: "Đang xử lý…",
@@ -35,13 +36,15 @@ export const uiText = {
   expiringToday: "Sẽ bị xóa hôm nay",
   expiringInDays: (days: number) => `Sẽ bị xóa sau ${days} ngày`,
   deleteConfirmTitle: "Xóa tài liệu?",
-  deleteConfirmDescription: (name: string) => `Bạn sắp xóa "${name}". Thao tác này không thể hoàn tác.`,
+  deleteConfirmDescription: (name: string) =>
+    `Bạn sắp xóa "${name}". Thao tác này không thể hoàn tác.`,
   deleteCancel: "Hủy",
   deleteSubmit: "Xóa",
   deleteSubmitting: "Đang xóa…",
   deletedToast: (name: string) => `Đã xóa "${name}".`,
   duplicateTitle: "Tệp đã tồn tại",
-  duplicateDescription: (name: string) => `"${name}" đã có trong thư viện của bạn.`,
+  duplicateDescription: (name: string) =>
+    `"${name}" đã có trong thư viện của bạn.`,
   duplicateReplace: "Thay thế tệp cũ",
   duplicateKeepBoth: "Giữ cả hai",
   duplicateCancel: "Hủy",
@@ -57,7 +60,8 @@ export const uiText = {
   es03Description: "Kiểm tra lỗi ở danh sách bên trái và thử tải lại.",
   es04Title: "Bạn có thể hỏi, ví dụ:",
   es05Title: "Chưa có tài liệu nào",
-  es05Description: "Tải lại tài liệu để tiếp tục hỏi đáp. Hội thoại cũ vẫn được giữ nguyên bên phải.",
+  es05Description:
+    "Tải lại tài liệu để tiếp tục hỏi đáp. Hội thoại cũ vẫn được giữ nguyên bên phải.",
   composerLockedNoReady: "Tải tài liệu lên để bắt đầu hỏi",
   composerLockedProcessing: "Tài liệu đang được xử lý, vui lòng chờ…",
   composerLockedAllFailed: "Không có tài liệu nào sẵn sàng",
@@ -67,8 +71,10 @@ export const uiText = {
   composerPlaceholder: "Nhập câu hỏi…",
   composerLabel: "Câu hỏi của bạn",
   composerSubmit: "Gửi",
-  composerCharCounter: (len: number, max: number) => `${formatNumber(len)}/${formatNumber(max)}`,
-  composerAiDisclaimer: "Câu trả lời do AI tạo — hãy kiểm tra nguồn trước khi sử dụng",
+  composerCharCounter: (len: number, max: number) =>
+    `${formatNumber(len)}/${formatNumber(max)}`,
+  composerAiDisclaimer:
+    "Câu trả lời do AI tạo — hãy kiểm tra nguồn trước khi sử dụng",
   composerExamplesTitle: "Bạn có thể hỏi, ví dụ:",
   composerExamples: [
     "Hợp đồng này có hiệu lực đến khi nào?",
@@ -78,9 +84,11 @@ export const uiText = {
   // T-306/T-307 — vòng đời câu trả lời (SDD §3.7.2).
   typingIndicator: (n: number) => `Đang tìm trong ${formatNumber(n)} tài liệu…`,
   answerPending: "Đặt câu hỏi để bắt đầu.",
-  answerLatency: (seconds: number) => `Trả lời trong ${seconds.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} giây`,
+  answerLatency: (seconds: number) =>
+    `Trả lời trong ${seconds.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} giây`,
   answerUncitedWarning: "Không xác định được nguồn — vui lòng kiểm chứng",
-  answerPartialNote: "Một phần thông tin không tìm thấy trong tài liệu đã tải lên.",
+  answerPartialNote:
+    "Một phần thông tin không tìm thấy trong tài liệu đã tải lên.",
   answerIncompleteNote: "Câu trả lời chưa hoàn chỉnh.",
   answeredLiveRegion: "Đã có câu trả lời",
   notFoundTitle: "Không tìm thấy thông tin này trong các tài liệu đã tải lên.",

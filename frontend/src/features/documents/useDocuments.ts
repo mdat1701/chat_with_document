@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch, subscribeDocumentEvents, type DocumentEventPayload } from "@shared/api/client";
+import {
+  apiFetch,
+  subscribeDocumentEvents,
+  type DocumentEventPayload,
+} from "@shared/api/client";
 import type { DocumentStatus, DocumentVM } from "./types";
 
 type RawDocument = {
@@ -52,37 +56,48 @@ export function useDocuments() {
   }, [reload]);
 
   useEffect(() => {
-    const unsubscribe = subscribeDocumentEvents((payload: DocumentEventPayload) => {
-      setDocuments((current) => {
-        const index = current.findIndex((item) => item.id === payload.id);
-        if (index === -1) {
-          // Tài liệu chưa có trong cache cục bộ (vd. tải từ tab khác) — làm mới toàn bộ.
-          void reload();
-          return current;
-        }
-        const next = [...current];
-        next[index] = {
-          ...next[index],
-          status: payload.status as DocumentStatus,
-          errorCode: payload.error_code,
-          pageCount: payload.page_count ?? next[index].pageCount,
-        };
-        return next;
-      });
-    });
+    const unsubscribe = subscribeDocumentEvents(
+      (payload: DocumentEventPayload) => {
+        setDocuments((current) => {
+          const index = current.findIndex((item) => item.id === payload.id);
+          if (index === -1) {
+            // Tài liệu chưa có trong cache cục bộ (vd. tải từ tab khác) — làm mới toàn bộ.
+            void reload();
+            return current;
+          }
+          const next = [...current];
+          next[index] = {
+            ...next[index],
+            status: payload.status as DocumentStatus,
+            errorCode: payload.error_code,
+            pageCount: payload.page_count ?? next[index].pageCount,
+          };
+          return next;
+        });
+      },
+    );
     return unsubscribe;
   }, [reload]);
 
   /** Chèn lạc quan một tài liệu vừa nhận `201` từ hàng đợi tải lên cục bộ. */
-  const upsertFromUpload = useCallback((doc: { id: string; name: string; status: string }) => {
-    setDocuments((current) => {
-      if (current.some((item) => item.id === doc.id)) return current;
-      return [
-        { id: doc.id, name: doc.name, sizeBytes: 0, pageCount: null, status: doc.status as DocumentStatus },
-        ...current,
-      ];
-    });
-  }, []);
+  const upsertFromUpload = useCallback(
+    (doc: { id: string; name: string; status: string }) => {
+      setDocuments((current) => {
+        if (current.some((item) => item.id === doc.id)) return current;
+        return [
+          {
+            id: doc.id,
+            name: doc.name,
+            sizeBytes: 0,
+            pageCount: null,
+            status: doc.status as DocumentStatus,
+          },
+          ...current,
+        ];
+      });
+    },
+    [],
+  );
 
   const removeLocal = useCallback((id: string) => {
     setDocuments((current) => current.filter((item) => item.id !== id));

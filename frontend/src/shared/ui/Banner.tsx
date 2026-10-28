@@ -11,12 +11,21 @@ export type BannerProps = Omit<HTMLAttributes<HTMLDivElement>, "role"> & {
 };
 
 /** Thông báo trạng thái toàn trang/khu vực (offline, lỗi, cảnh báo). Thuần hiển thị. */
-export function Banner({ tone = "info", actions, children, className, "data-testid": testId, ...rest }: BannerProps) {
+export function Banner({
+  tone = "info",
+  actions,
+  children,
+  className,
+  "data-testid": testId,
+  ...rest
+}: BannerProps) {
   const isAlert = tone === "danger" || tone === "warning";
   return (
     <div
       role={isAlert ? "alert" : "status"}
-      className={["ui-banner", `ui-banner--${tone}`, className].filter(Boolean).join(" ")}
+      className={["ui-banner", `ui-banner--${tone}`, className]
+        .filter(Boolean)
+        .join(" ")}
       data-testid={testId}
       {...rest}
     >

@@ -5,7 +5,9 @@ import { expectNoA11yViolations } from "@shared/testing/axe";
 
 describe("Skeleton", () => {
   it("ẩn khỏi cây hỗ trợ tiếp cận (aria-hidden)", () => {
-    const { getByTestId } = render(<Skeleton data-testid="doc-skeleton" width={200} height={20} />);
+    const { getByTestId } = render(
+      <Skeleton data-testid="doc-skeleton" width={200} height={20} />,
+    );
     expect(getByTestId("doc-skeleton")).toHaveAttribute("aria-hidden", "true");
   });
 

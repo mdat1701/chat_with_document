@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import "./ui.css";
 
 export type ToastTone = "neutral" | "success" | "warning" | "danger";
@@ -37,13 +45,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showToast = useCallback((toast: ToastInput) => {
     counter.current += 1;
     const id = `toast-${counter.current}`;
-    setToasts((current) => [...current, { id, duration: 5000, tone: "neutral", ...toast }]);
+    setToasts((current) => [
+      ...current,
+      { id, duration: 5000, tone: "neutral", ...toast },
+    ]);
     return id;
   }, []);
 
-  const value = useMemo(() => ({ toasts, showToast, dismissToast }), [toasts, showToast, dismissToast]);
+  const value = useMemo(
+    () => ({ toasts, showToast, dismissToast }),
+    [toasts, showToast, dismissToast],
+  );
 
-  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
+  return (
+    <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
+  );
 }
 
 /** Hook phát thông báo toast từ bất kỳ đâu trong cây component. */
@@ -64,13 +80,23 @@ export function ToastRegion({ "data-testid": testId }: ToastRegionProps = {}) {
   return (
     <div className="ui-toast-region" aria-live="polite" data-testid={testId}>
       {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onDismiss={() => dismissToast(toast.id)} />
+        <ToastItem
+          key={toast.id}
+          toast={toast}
+          onDismiss={() => dismissToast(toast.id)}
+        />
       ))}
     </div>
   );
 }
 
-function ToastItem({ toast, onDismiss }: { toast: ToastRecord; onDismiss: () => void }) {
+function ToastItem({
+  toast,
+  onDismiss,
+}: {
+  toast: ToastRecord;
+  onDismiss: () => void;
+}) {
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   if (!timerRef.current && toast.duration !== 0) {
     timerRef.current = setTimeout(onDismiss, toast.duration ?? 5000);
@@ -84,7 +110,9 @@ function ToastItem({ toast, onDismiss }: { toast: ToastRecord; onDismiss: () => 
     >
       <div className="ui-toast__body">
         <p className="ui-toast__title">{toast.title}</p>
-        {toast.description ? <p className="ui-toast__description">{toast.description}</p> : null}
+        {toast.description ? (
+          <p className="ui-toast__description">{toast.description}</p>
+        ) : null}
       </div>
       <button
         type="button"

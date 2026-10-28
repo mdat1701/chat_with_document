@@ -1,9 +1,20 @@
-import { Fragment, isValidElement, cloneElement, useEffect, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  isValidElement,
+  cloneElement,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { Banner, Button } from "@shared/ui";
-import { messages as errorMessages, type ErrorCode, uiText } from "@shared/i18n/messages.vi";
+import {
+  messages as errorMessages,
+  type ErrorCode,
+  uiText,
+} from "@shared/i18n/messages.vi";
 import { CitationChip, CitationRef } from "./CitationChip";
 import type { AnswerVM, CitationVM } from "./types";
 
@@ -21,7 +32,11 @@ type HighlightCtx = {
   onHighlight: (index: number | null) => void;
 };
 
-function splitCitationTokens(text: string, ctx: HighlightCtx, keyPrefix: string): ReactNode[] {
+function splitCitationTokens(
+  text: string,
+  ctx: HighlightCtx,
+  keyPrefix: string,
+): ReactNode[] {
   const parts: ReactNode[] = [];
   const regex = /\[(\d+)\]/g;
   let lastIndex = 0;
@@ -47,15 +62,26 @@ function splitCitationTokens(text: string, ctx: HighlightCtx, keyPrefix: string)
 }
 
 /** Duyệt children của react-markdown, thay `[n]` bằng `CitationRef` (UX-04). */
-function renderWithCitationRefs(node: ReactNode, ctx: HighlightCtx, keyPrefix = "c"): ReactNode {
-  if (typeof node === "string") return splitCitationTokens(node, ctx, keyPrefix);
+function renderWithCitationRefs(
+  node: ReactNode,
+  ctx: HighlightCtx,
+  keyPrefix = "c",
+): ReactNode {
+  if (typeof node === "string")
+    return splitCitationTokens(node, ctx, keyPrefix);
   if (Array.isArray(node)) {
     return node.map((child, i) => (
-      <Fragment key={`${keyPrefix}-f-${i}`}>{renderWithCitationRefs(child, ctx, `${keyPrefix}-${i}`)}</Fragment>
+      <Fragment key={`${keyPrefix}-f-${i}`}>
+        {renderWithCitationRefs(child, ctx, `${keyPrefix}-${i}`)}
+      </Fragment>
     ));
   }
   if (isValidElement<{ children?: ReactNode }>(node)) {
-    return cloneElement(node, undefined, renderWithCitationRefs(node.props.children, ctx, keyPrefix));
+    return cloneElement(
+      node,
+      undefined,
+      renderWithCitationRefs(node.props.children, ctx, keyPrefix),
+    );
   }
   return node;
 }
@@ -63,9 +89,15 @@ function renderWithCitationRefs(node: ReactNode, ctx: HighlightCtx, keyPrefix = 
 function markdownComponents(ctx: HighlightCtx): Components {
   const wrap =
     (Tag: "p" | "li" | "strong" | "em") =>
-    ({ children }: { children?: ReactNode }) =>
-      <Tag>{renderWithCitationRefs(children, ctx)}</Tag>;
-  return { p: wrap("p"), li: wrap("li"), strong: wrap("strong"), em: wrap("em") };
+    ({ children }: { children?: ReactNode }) => (
+      <Tag>{renderWithCitationRefs(children, ctx)}</Tag>
+    );
+  return {
+    p: wrap("p"),
+    li: wrap("li"),
+    strong: wrap("strong"),
+    em: wrap("em"),
+  };
 }
 
 export type AnswerMessageProps = {
@@ -76,14 +108,27 @@ export type AnswerMessageProps = {
 };
 
 /** Hiển thị một lượt câu trả lời theo `phase` (T-306 §3 bảng 7 dòng, SDD §3.7.2). */
-export function AnswerMessage({ answer, readyDocCount, showPageNumbers, onRetry }: AnswerMessageProps) {
+export function AnswerMessage({
+  answer,
+  readyDocCount,
+  showPageNumbers,
+  onRetry,
+}: AnswerMessageProps) {
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const citationsByIndex = new Map(answer.citations.map((c) => [c.index, c]));
-  const ctx: HighlightCtx = { citationsByIndex, highlightedIndex, onHighlight: setHighlightedIndex };
+  const ctx: HighlightCtx = {
+    citationsByIndex,
+    highlightedIndex,
+    onHighlight: setHighlightedIndex,
+  };
 
   if (answer.phase === "pending") {
     return (
-      <div className="chat-answer chat-answer--pending" data-testid="answer-message" data-phase="pending">
+      <div
+        className="chat-answer chat-answer--pending"
+        data-testid="answer-message"
+        data-phase="pending"
+      >
         <span className="chat-typing-indicator" data-testid="typing-indicator">
           {uiText.typingIndicator(readyDocCount)}
         </span>
@@ -93,15 +138,28 @@ export function AnswerMessage({ answer, readyDocCount, showPageNumbers, onRetry 
 
   if (answer.phase === "failed") {
     return (
-      <div className="chat-answer chat-answer--failed" data-testid="answer-message" data-phase="failed">
-        <ErrorMessage errorCode={answer.errorCode} retryAfterSeconds={answer.retryAfterSeconds} onRetry={onRetry} />
+      <div
+        className="chat-answer chat-answer--failed"
+        data-testid="answer-message"
+        data-phase="failed"
+      >
+        <ErrorMessage
+          errorCode={answer.errorCode}
+          retryAfterSeconds={answer.retryAfterSeconds}
+          onRetry={onRetry}
+        />
       </div>
     );
   }
 
   if (answer.phase === "complete" && answer.type === "not_found") {
     return (
-      <div className="chat-answer chat-answer--not-found" data-testid="answer-message" data-phase="complete" data-answer-type="not_found">
+      <div
+        className="chat-answer chat-answer--not-found"
+        data-testid="answer-message"
+        data-phase="complete"
+        data-answer-type="not_found"
+      >
         <NotFoundMessage />
       </div>
     );
@@ -109,11 +167,15 @@ export function AnswerMessage({ answer, readyDocCount, showPageNumbers, onRetry 
 
   const isIncomplete = answer.phase === "incomplete";
   const isComplete = answer.phase === "complete";
-  const uncited = Boolean(answer.uncited) || (answer.type === "answered" && isComplete && answer.citations.length === 0);
+  const uncited =
+    Boolean(answer.uncited) ||
+    (answer.type === "answered" && isComplete && answer.citations.length === 0);
 
   return (
     <div
-      className={["chat-answer", isIncomplete ? "chat-answer--incomplete" : ""].filter(Boolean).join(" ")}
+      className={["chat-answer", isIncomplete ? "chat-answer--incomplete" : ""]
+        .filter(Boolean)
+        .join(" ")}
       data-testid="answer-message"
       data-phase={answer.phase}
       data-answer-type={answer.type}
@@ -127,7 +189,11 @@ export function AnswerMessage({ answer, readyDocCount, showPageNumbers, onRetry 
           {answer.markdown}
         </ReactMarkdown>
         {answer.phase === "streaming" && (
-          <span className="chat-cursor" aria-hidden="true" data-testid="streaming-cursor" />
+          <span
+            className="chat-cursor"
+            aria-hidden="true"
+            data-testid="streaming-cursor"
+          />
         )}
       </div>
 
@@ -173,7 +239,11 @@ export function AnswerMessage({ answer, readyDocCount, showPageNumbers, onRetry 
 
       {isIncomplete && (
         <div className="chat-answer__actions">
-          <Button variant="secondary" data-testid="retry-button" onClick={onRetry}>
+          <Button
+            variant="secondary"
+            data-testid="retry-button"
+            onClick={onRetry}
+          >
             {uiText.retryLabel}
           </Button>
         </div>
@@ -221,7 +291,8 @@ function ErrorMessage({
     return () => clearInterval(timer);
   }, [retryAfterSeconds, errorCode]);
 
-  const actionLabel = errorCode === "ANSWER_NETWORK" ? uiText.resendLabel : uiText.retryLabel;
+  const actionLabel =
+    errorCode === "ANSWER_NETWORK" ? uiText.resendLabel : uiText.retryLabel;
   const locked = remaining > 0;
 
   return (
@@ -229,7 +300,12 @@ function ErrorMessage({
       tone="danger"
       data-testid="error-message"
       actions={
-        <Button variant="secondary" data-testid="retry-button" onClick={onRetry} disabled={locked}>
+        <Button
+          variant="secondary"
+          data-testid="retry-button"
+          onClick={onRetry}
+          disabled={locked}
+        >
           {locked ? `${actionLabel} (${remaining}s)` : actionLabel}
         </Button>
       }

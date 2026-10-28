@@ -1,4 +1,8 @@
-type AnalyticsEvent = { event_name: string; timestamp: string; props: Record<string, unknown> };
+type AnalyticsEvent = {
+  event_name: string;
+  timestamp: string;
+  props: Record<string, unknown>;
+};
 
 const queue: AnalyticsEvent[] = [];
 
@@ -25,5 +29,8 @@ export async function flush() {
 
 window.addEventListener("pagehide", () => {
   if (!queue.length) return;
-  navigator.sendBeacon("/api/v1/events", JSON.stringify({ events: queue.splice(0, queue.length) }));
+  navigator.sendBeacon(
+    "/api/v1/events",
+    JSON.stringify({ events: queue.splice(0, queue.length) }),
+  );
 });

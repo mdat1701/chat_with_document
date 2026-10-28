@@ -1,4 +1,11 @@
-import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Component,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   apiFetch,
   ApiError,
@@ -8,7 +15,11 @@ import {
 } from "@shared/api/client";
 import { track } from "@shared/analytics/client";
 import { useAppConfig } from "@shared/config";
-import { registerComposerSource, restoreDraft, clearDraft } from "@features/auth/draft";
+import {
+  registerComposerSource,
+  restoreDraft,
+  clearDraft,
+} from "@features/auth/draft";
 import { Banner, Skeleton, useToast } from "@shared/ui";
 import { uiText } from "@shared/i18n/messages.vi";
 import { AnswerMessage } from "./AnswerMessage";
@@ -29,7 +40,10 @@ function makeId(prefix: string): string {
 }
 
 /** T-307 §5.9: lỗi JS trong khu vực chat không được làm sập phần còn lại của trang. */
-class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+class ChatErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
   state = { hasError: false };
   static getDerivedStateFromError() {
     return { hasError: true };
@@ -105,13 +119,17 @@ function ChatPageInner() {
       .finally(() => {
         if (!cancelled) setDocumentsLoading(false);
       });
-    const unsubscribe = subscribeDocumentEvents((payload: DocumentEventPayload) => {
-      setDocuments((current) => {
-        const exists = current.some((doc) => doc.id === payload.id);
-        if (!exists) return current;
-        return current.map((doc) => (doc.id === payload.id ? { ...doc, status: payload.status } : doc));
-      });
-    });
+    const unsubscribe = subscribeDocumentEvents(
+      (payload: DocumentEventPayload) => {
+        setDocuments((current) => {
+          const exists = current.some((doc) => doc.id === payload.id);
+          if (!exists) return current;
+          return current.map((doc) =>
+            doc.id === payload.id ? { ...doc, status: payload.status } : doc,
+          );
+        });
+      },
+    );
     return () => {
       cancelled = true;
       unsubscribe();
@@ -121,17 +139,25 @@ function ChatPageInner() {
   useEffect(() => {
     const container = listRef.current;
     if (!container) return;
-    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    const distanceToBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
     if (distanceToBottom < 120) container.scrollTop = container.scrollHeight;
   }, [messages]);
 
-  const readyDocCount = useMemo(() => documents.filter((d) => d.status === "ready").length, [documents]);
+  const readyDocCount = useMemo(
+    () => documents.filter((d) => d.status === "ready").length,
+    [documents],
+  );
   readyDocCountRef.current = readyDocCount;
   const noDocs = documents.length === 0;
-  const allProcessing = documents.length > 0 && documents.every((d) => d.status === "processing");
-  const allFailed = documents.length > 0 && documents.every((d) => d.status === "failed");
+  const allProcessing =
+    documents.length > 0 && documents.every((d) => d.status === "processing");
+  const allFailed =
+    documents.length > 0 && documents.every((d) => d.status === "failed");
   const awaitingAnswer = messages.some(
-    (m) => m.kind === "answer" && (m.answer.phase === "pending" || m.answer.phase === "streaming"),
+    (m) =>
+      m.kind === "answer" &&
+      (m.answer.phase === "pending" || m.answer.phase === "streaming"),
   );
 
   // SDD §3.7.3 — thứ tự ưu tiên #1-5, điều kiện trên thắng điều kiện dưới.
@@ -150,14 +176,19 @@ function ChatPageInner() {
   function updateAnswer(answerId: string, updater: (a: AnswerVM) => AnswerVM) {
     setMessages((current) =>
       current.map((m) =>
-        m.kind === "answer" && m.answer.id === answerId ? { kind: "answer", answer: updater(m.answer) } : m,
+        m.kind === "answer" && m.answer.id === answerId
+          ? { kind: "answer", answer: updater(m.answer) }
+          : m,
       ),
     );
   }
 
   async function ensureConversationId(): Promise<string> {
     if (conversationIdRef.current) return conversationIdRef.current;
-    const { conversation_id } = await apiFetch<{ conversation_id: string }>("/conversations", { method: "POST" });
+    const { conversation_id } = await apiFetch<{ conversation_id: string }>(
+      "/conversations",
+      { method: "POST" },
+    );
     conversationIdRef.current = conversation_id;
     return conversation_id;
   }
@@ -169,7 +200,11 @@ function ChatPageInner() {
     } catch (err) {
       const code = err instanceof ApiError ? err.body.code : "ANSWER_NETWORK";
       track("answer_failed", { error_code: code });
-      updateAnswer(answerId, (a) => ({ ...a, phase: "failed", errorCode: code }));
+      updateAnswer(answerId, (a) => ({
+        ...a,
+        phase: "failed",
+        errorCode: code,
+      }));
       return;
     }
 
@@ -180,7 +215,11 @@ function ChatPageInner() {
           break;
         case "delta":
           hasDelta = true;
-          updateAnswer(answerId, (a) => ({ ...a, phase: "streaming", markdown: a.markdown + event.text }));
+          updateAnswer(answerId, (a) => ({
+            ...a,
+            phase: "streaming",
+            markdown: a.markdown + event.text,
+          }));
           break;
         case "citations":
           updateAnswer(answerId, (a) => ({
@@ -212,7 +251,10 @@ function ChatPageInner() {
           // NE-07: interceptor toàn cục (shared/api/client.ts → setUnauthorizedHandler)
           // đã lưu nháp và đặt lại phiên; App.tsx tự điều hướng /login khi user=null,
           // nên ở đây chỉ cần tránh ghi nhận `answer_failed` trùng cho trường hợp này.
-          const phase = hasDelta && event.code === "ANSWER_INTERRUPTED" ? "incomplete" : "failed";
+          const phase =
+            hasDelta && event.code === "ANSWER_INTERRUPTED"
+              ? "incomplete"
+              : "failed";
           if (event.code !== "SESSION_EXPIRED") {
             track("answer_failed", { error_code: event.code });
           }
@@ -241,7 +283,10 @@ function ChatPageInner() {
     setMessages((current) => [
       ...current,
       { kind: "user", id: userId, text: trimmed },
-      { kind: "answer", answer: { id: answerId, phase: "pending", markdown: "", citations: [] } },
+      {
+        kind: "answer",
+        answer: { id: answerId, phase: "pending", markdown: "", citations: [] },
+      },
     ]);
     setDraft("");
     clearDraft();
@@ -277,14 +322,23 @@ function ChatPageInner() {
   return (
     <section aria-label="Hỏi đáp" className="chat-page">
       <h2>Hỏi về tài liệu</h2>
-      <div aria-live="polite" className="sr-only" data-testid="answer-announcer">
+      <div
+        aria-live="polite"
+        className="sr-only"
+        data-testid="answer-announcer"
+      >
         {liveAnnouncement}
       </div>
 
       {documentsLoading ? (
         <Skeleton height={20} width={180} data-testid="chat-loading-skeleton" />
       ) : (
-        <div ref={listRef} className="chat-message-list" aria-live="polite" data-testid="message-list">
+        <div
+          ref={listRef}
+          className="chat-message-list"
+          aria-live="polite"
+          data-testid="message-list"
+        >
           {noMessagesYet && (
             <p className="chat-typing-indicator" data-testid="chat-empty-hint">
               {uiText.answerPending}
@@ -292,7 +346,11 @@ function ChatPageInner() {
           )}
           {messages.map((message) =>
             message.kind === "user" ? (
-              <div key={message.id} className="chat-message--user" data-testid="user-message">
+              <div
+                key={message.id}
+                className="chat-message--user"
+                data-testid="user-message"
+              >
                 {message.text}
               </div>
             ) : (
@@ -301,7 +359,9 @@ function ChatPageInner() {
                 answer={message.answer}
                 readyDocCount={readyDocCount}
                 showPageNumbers={config.features.citation_page_numbers}
-                onRetry={() => retryAnswer(message.answer.id, message.answer.phase)}
+                onRetry={() =>
+                  retryAnswer(message.answer.id, message.answer.phase)
+                }
               />
             ),
           )}

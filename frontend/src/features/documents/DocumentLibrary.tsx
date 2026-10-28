@@ -1,9 +1,21 @@
 import { useEffect, useState } from "react";
 import { apiFetch, retryDocument, ApiError } from "@shared/api/client";
 import { useAppConfig } from "@shared/config";
-import { Badge, Banner, Button, EmptyState, Skeleton, useToast } from "@shared/ui";
+import {
+  Badge,
+  Banner,
+  Button,
+  EmptyState,
+  Skeleton,
+  useToast,
+} from "@shared/ui";
 import { track } from "@shared/analytics/client";
-import { messages, type ErrorCode, uiText, formatNumber } from "@shared/i18n/messages.vi";
+import {
+  messages,
+  type ErrorCode,
+  uiText,
+  formatNumber,
+} from "@shared/i18n/messages.vi";
 import "./documents.css";
 import { UploadDropzone } from "./UploadDropzone";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
@@ -40,15 +52,28 @@ function errorMessage(code?: string | null): string {
 export function DocumentLibrary({ online = true }: Props) {
   const { config } = useAppConfig();
   const { showToast } = useToast();
-  const { documents, loading, reload, upsertFromUpload, removeLocal } = useDocuments();
+  const { documents, loading, reload, upsertFromUpload, removeLocal } =
+    useDocuments();
   const used = documents.length;
 
-  const { items, rejected, duplicatePrompt, addFiles, cancelUpload, removeItem, retryFailedItem, resolveDuplicate, dismissRejected } =
-    useUploadQueue({
-      limits: { max_file_size_bytes: config.max_file_size_bytes, max_documents: config.max_documents },
-      usedCount: used,
-      onUploaded: (doc) => upsertFromUpload(doc),
-    });
+  const {
+    items,
+    rejected,
+    duplicatePrompt,
+    addFiles,
+    cancelUpload,
+    removeItem,
+    retryFailedItem,
+    resolveDuplicate,
+    dismissRejected,
+  } = useUploadQueue({
+    limits: {
+      max_file_size_bytes: config.max_file_size_bytes,
+      max_documents: config.max_documents,
+    },
+    usedCount: used,
+    onUploaded: (doc) => upsertFromUpload(doc),
+  });
 
   const [pendingDelete, setPendingDelete] = useState<DocumentVM | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -73,9 +98,14 @@ export function DocumentLibrary({ online = true }: Props) {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
-      await apiFetch<void>(`/documents/${pendingDelete.id}`, { method: "DELETE" });
+      await apiFetch<void>(`/documents/${pendingDelete.id}`, {
+        method: "DELETE",
+      });
       removeLocal(pendingDelete.id);
-      showToast({ title: uiText.deletedToast(pendingDelete.name), tone: "success" });
+      showToast({
+        title: uiText.deletedToast(pendingDelete.name),
+        tone: "success",
+      });
       setPendingDelete(null);
     } catch (error) {
       if (error instanceof ApiError && error.body.code === "DOC_NOT_FOUND") {
@@ -110,7 +140,11 @@ export function DocumentLibrary({ online = true }: Props) {
     <section aria-label="Thư viện tài liệu" className="documents-panel">
       <div className="documents-panel-header">
         <h2>Tài liệu của bạn</h2>
-        <Badge tone={atQuota ? "warning" : "neutral"} data-testid="doc-counter" aria-label={uiText.documentCounter(used, config.max_documents)}>
+        <Badge
+          tone={atQuota ? "warning" : "neutral"}
+          data-testid="doc-counter"
+          aria-label={uiText.documentCounter(used, config.max_documents)}
+        >
           {formatNumber(used)}/{formatNumber(config.max_documents)}
         </Badge>
       </div>
@@ -129,7 +163,11 @@ export function DocumentLibrary({ online = true }: Props) {
             {rejected.map((item) => (
               <li key={item.localId}>
                 {item.fileName}: {errorMessage(item.reasonCode)}{" "}
-                <button type="button" onClick={() => dismissRejected(item.localId)} aria-label="Đóng thông báo">
+                <button
+                  type="button"
+                  onClick={() => dismissRejected(item.localId)}
+                  aria-label="Đóng thông báo"
+                >
                   ×
                 </button>
               </li>
@@ -139,11 +177,21 @@ export function DocumentLibrary({ online = true }: Props) {
       )}
 
       {items.filter((item) => item.status !== "done").length > 0 && (
-        <ul className="document-list" data-testid="upload-queue" aria-live="polite">
+        <ul
+          className="document-list"
+          data-testid="upload-queue"
+          aria-live="polite"
+        >
           {items
             .filter((item) => item.status !== "done")
             .map((item) => (
-              <UploadQueueRow key={item.localId} item={item} onCancel={cancelUpload} onRetry={retryFailedItem} onRemove={removeItem} />
+              <UploadQueueRow
+                key={item.localId}
+                item={item}
+                onCancel={cancelUpload}
+                onRetry={retryFailedItem}
+                onRemove={removeItem}
+              />
             ))}
         </ul>
       )}
@@ -167,10 +215,18 @@ export function DocumentLibrary({ online = true }: Props) {
         <EmptyState
           data-testid="empty-state"
           title={variant === "ES-01" ? uiText.es01Title : uiText.es05Title}
-          description={variant === "ES-01" ? uiText.es01Description : uiText.es05Description}
+          description={
+            variant === "ES-01"
+              ? uiText.es01Description
+              : uiText.es05Description
+          }
         />
       ) : variant === "ES-02" ? (
-        <EmptyState data-testid="empty-state" title={uiText.es02Title} description={uiText.es02Description} />
+        <EmptyState
+          data-testid="empty-state"
+          title={uiText.es02Title}
+          description={uiText.es02Description}
+        />
       ) : variant === "ES-03" ? (
         <Banner tone="danger" data-testid="empty-state">
           <strong>{uiText.es03Title}</strong> — {uiText.es03Description}
@@ -184,23 +240,36 @@ export function DocumentLibrary({ online = true }: Props) {
                   <strong>{doc.name}</strong>
                 </span>
                 <small>
-                  <StatusBadge status={doc.status} errorCode={doc.errorCode} expiresAt={doc.expiresAt} />
-                  {doc.status === "ready" && doc.pageCount ? ` · ${formatNumber(doc.pageCount)} trang` : ""}
+                  <StatusBadge
+                    status={doc.status}
+                    errorCode={doc.errorCode}
+                    expiresAt={doc.expiresAt}
+                  />
+                  {doc.status === "ready" && doc.pageCount
+                    ? ` · ${formatNumber(doc.pageCount)} trang`
+                    : ""}
                 </small>
               </div>
               <div className="document-row__actions">
-                {doc.status === "failed" && doc.errorCode && RETRYABLE_ERRORS.has(doc.errorCode) && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    data-testid="doc-retry"
-                    disabled={retrying.has(doc.id)}
-                    onClick={() => void retry(doc)}
-                  >
-                    {uiText.retry}
-                  </Button>
-                )}
-                <Button type="button" variant="ghost" data-testid="doc-delete" onClick={() => setPendingDelete(doc)}>
+                {doc.status === "failed" &&
+                  doc.errorCode &&
+                  RETRYABLE_ERRORS.has(doc.errorCode) && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      data-testid="doc-retry"
+                      disabled={retrying.has(doc.id)}
+                      onClick={() => void retry(doc)}
+                    >
+                      {uiText.retry}
+                    </Button>
+                  )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  data-testid="doc-delete"
+                  onClick={() => setPendingDelete(doc)}
+                >
                   Xóa
                 </Button>
               </div>
@@ -232,30 +301,57 @@ function UploadQueueRow({
   onRemove: (localId: string) => void;
 }) {
   return (
-    <li className="upload-queue-row" data-testid="upload-queue-item" aria-live="polite">
+    <li
+      className="upload-queue-row"
+      data-testid="upload-queue-item"
+      aria-live="polite"
+    >
       <div className="upload-queue-row__top">
         <span className="upload-queue-row__name" title={item.file.name}>
           {item.file.name}
         </span>
         {item.status === "uploading" && (
-          <Button type="button" variant="ghost" onClick={() => onCancel(item.localId)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onCancel(item.localId)}
+          >
             {uiText.cancelUpload}
           </Button>
         )}
         {item.status === "failed" && (
           <>
-            <Button type="button" variant="secondary" onClick={() => onRetry(item.localId)}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => onRetry(item.localId)}
+            >
               {uiText.retry}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => onRemove(item.localId)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onRemove(item.localId)}
+            >
               Xóa
             </Button>
           </>
         )}
       </div>
       {item.status === "uploading" || item.status === "queued" ? (
-        <div className="upload-progress" role="progressbar" aria-valuenow={item.progress} aria-valuemin={0} aria-valuemax={100}>
-          <div className="upload-progress__bar" style={{ width: `${item.status === "queued" ? 0 : item.progress}%` }} />
+        <div
+          className="upload-progress"
+          role="progressbar"
+          aria-valuenow={item.progress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className="upload-progress__bar"
+            style={{
+              width: `${item.status === "queued" ? 0 : item.progress}%`,
+            }}
+          />
         </div>
       ) : (
         <StatusBadge status="failed" errorCode={item.errorCode} />

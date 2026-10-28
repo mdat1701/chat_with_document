@@ -15,7 +15,12 @@ type Props = {
  * `useUploadQueue`, gọi từ `DocumentLibrary`). Không tự gọi API, nên không
  * vi phạm ranh giới DR-04.
  */
-export function UploadDropzone({ disabled = false, disabledReason, hintText, onFilesSelected }: Props) {
+export function UploadDropzone({
+  disabled = false,
+  disabledReason,
+  hintText,
+  onFilesSelected,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const choose = () => {
     if (!disabled) inputRef.current?.click();
@@ -65,7 +70,11 @@ export function UploadDropzone({ disabled = false, disabledReason, hintText, onF
   );
 
   if (disabled && disabledReason) {
-    return <Tooltip content={disabledReason} data-testid="upload-dropzone-tooltip">{dropzone}</Tooltip>;
+    return (
+      <Tooltip content={disabledReason} data-testid="upload-dropzone-tooltip">
+        {dropzone}
+      </Tooltip>
+    );
   }
   return dropzone;
 }

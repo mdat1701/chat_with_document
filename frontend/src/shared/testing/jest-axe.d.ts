@@ -4,8 +4,14 @@
 // tồn tại thay vì khai báo module mới, và phần khai báo bên dưới sẽ bị bỏ
 // qua một cách âm thầm.
 declare module "jest-axe" {
-  export function axe(html: Element | string, options?: unknown): Promise<unknown>;
+  export function axe(
+    html: Element | string,
+    options?: unknown,
+  ): Promise<unknown>;
   export const toHaveNoViolations: {
-    toHaveNoViolations: (results: unknown) => { pass: boolean; message: () => string };
+    toHaveNoViolations: (results: unknown) => {
+      pass: boolean;
+      message: () => string;
+    };
   };
 }

@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { apiFetch } from "@shared/api/client";
 import { DEFAULT_APP_CONFIG, type AppConfig } from "./appConfig";
 
@@ -41,14 +48,22 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(() => ({ config, loading, usedFallback }), [config, loading, usedFallback]);
+  const value = useMemo(
+    () => ({ config, loading, usedFallback }),
+    [config, loading, usedFallback],
+  );
 
-  return <AppConfigContext.Provider value={value}>{children}</AppConfigContext.Provider>;
+  return (
+    <AppConfigContext.Provider value={value}>
+      {children}
+    </AppConfigContext.Provider>
+  );
 }
 
 /** Đọc cấu hình hệ thống (giới hạn tệp, số câu hỏi, …) — không hard-code. */
 export function useAppConfig() {
   const ctx = useContext(AppConfigContext);
-  if (!ctx) throw new Error("useAppConfig phải dùng bên trong <AppConfigProvider>");
+  if (!ctx)
+    throw new Error("useAppConfig phải dùng bên trong <AppConfigProvider>");
   return ctx;
 }
