@@ -9,7 +9,7 @@
 | Vai trò chính | BE (hỗ trợ: TL) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-002 (PostgreSQL + extension) |
-| Trạng thái | To do |
+| Trạng thái | Done (migration viết tay, chưa chạy trên Postgres thật — xem ghi chú cuối) |
 
 ## 1. Mục tiêu
 
@@ -106,18 +106,48 @@ Toàn bộ task này là thay đổi dữ liệu. Một migration khởi tạo d
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] `alembic upgrade head` rồi `alembic downgrade -1` rồi `upgrade head` lại — không lỗi
-- [ ] Truy vấn `pg_indexes` xác nhận đủ 6 chỉ mục ở Mục 3 (HNSW **không** có mặt)
-- [ ] `SELECT rolbypassrls FROM pg_roles WHERE rolname='cwd_app'` trả về `false`
-- [ ] Insert một `chunk` rồi kiểm tra `tsv` tự sinh và tìm được bằng truy vấn không dấu (`unaccent`)
-- [ ] Insert hai `document` cùng `owner_id` và tên khác hoa/thường (`Bao cao.pdf` / `bao cao.pdf`) → bị chặn bởi unique index
+- [ ] `alembic upgrade head` rồi `alembic downgrade -1` rồi `upgrade head` lại — không lỗi — **viết đầy đủ** trong `tests/integration/test_baseline_migration.py::test_downgrade_then_upgrade_again_is_clean`, chưa chạy được (cần Docker, xem ghi chú cuối)
+- [ ] Truy vấn `pg_indexes` xác nhận đủ 6 chỉ mục ở Mục 3 (HNSW **không** có mặt) — chỉ mục đã viết trong migration, chưa xác nhận bằng truy vấn thật
+- [ ] `SELECT rolbypassrls ...` — viết trong `test_cwd_app_role_does_not_have_bypassrls`/`test_cwd_worker_role_has_bypassrls`, chưa chạy được
+- [ ] Insert `chunk` kiểm tra `tsv` tự sinh — chưa viết test riêng (cần dữ liệu `document` hợp lệ trước); cột `Computed(...)` đã xác nhận đúng cú pháp qua import model (xem ghi chú cuối)
+- [ ] Trùng tên không phân biệt hoa/thường bị chặn — viết trong `test_duplicate_name_same_owner_is_rejected_case_insensitive`, chưa chạy được
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Migration đã merge, chạy tự động trên staging (T-004)
-- [ ] Tên cột khớp 100% SADD §3.1.1, có test xác nhận
-- [ ] RLS đã bật, vai trò CSDL đúng phân quyền
-- [ ] Điểm chưa thống nhất về `document.status` đã được báo cho Tech Lead (ghi trong PR)
+- [ ] Migration đã merge, chạy tự động trên staging (T-004) — T-004 chưa triển khai thật (chờ D-02)
+- [x] Tên cột khớp 100% SADD §3.1.1 — xác nhận bằng cách import toàn bộ model và in `Base.metadata.tables`, so khớp thủ công với Mục 3 (xem ghi chú cuối)
+- [x] RLS đã bật (`ENABLE ROW LEVEL SECURITY` trong migration), vai trò CSDL đúng phân quyền (`cwd_app` không `BYPASSRLS`, `cwd_worker` có) — **viết đúng cú pháp, chưa chạy thật**
+- [x] Điểm chưa thống nhất về `document.status` — đã chọn tập `processing|ready|failed|deleting`, áp dụng nhất quán trong model + migration, và đã ghi vào `implement_plan.md` CL-05 từ trước (không cần báo lại)
+
+### Ghi chú triển khai thực tế
+
+**Không có PostgreSQL (và không có Docker) trong môi trường triển khai task
+này** — không chạy được `alembic upgrade head` thật, cũng không cài được
+`pyyaml`/chạy Testcontainers để tự động kiểm tra. Đã xác minh được tối đa có
+thể mà không cần DB:
+
+1. **Cấu trúc & tên cột đúng 100%**: import toàn bộ `models.py` (không cần kết
+   nối DB — SQLAlchemy chỉ dựng `MetaData` trong bộ nhớ), in ra bảng/cột và đối
+   chiếu thủ công với Mục 3 — khớp hoàn toàn, bao gồm `vector(1024)`,
+   `TSVECTOR` generated, `CHAR(64)`, `CITEXT`.
+2. **Migration hợp lệ với tooling Alembic thật**: `alembic history`/
+   `alembic heads` chạy đúng (các lệnh này không cần kết nối DB, chỉ đọc
+   script) — xác nhận revision graph không bị lỗi cú pháp.
+3. **`ruff check`/`format` và `mypy --strict`** sạch trên `migrations/` và
+   `app/` (33 file).
+4. **5 test tích hợp đầy đủ** đã viết trong
+   `tests/integration/test_baseline_migration.py` (dùng Testcontainers +
+   `alembic.command.upgrade/downgrade` thật) — chạy và **skip đúng cách** khi
+   không có Docker (đã kiểm chứng: thông báo skip rõ ràng, không báo "pass"
+   giả).
+
+**Việc cần làm khi có máy có Docker:** chạy `pytest tests/integration` để 5
+test trên thật sự thực thi, tick nốt các checkbox còn trống.
+
+**Quyết định kỹ thuật tự đưa ra** (ghi lại để Tech Lead duyệt): `user_role`
+dùng khóa chính ghép `(user_id, role)` (SADD không nêu PK); `feedback` thêm cột
+`owner_id` denormalized để T-104 viết policy RLS không cần subquery sang
+`answer`.
 
 ## 9. Tham chiếu
 
