@@ -27,7 +27,7 @@
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
 | [T-001](T-001_monorepo-setup.md) | Monorepo & ranh giới module | — | TL | 1d | **Done** |
-| [T-002](T-002_local-dev-environment.md) | Môi trường dev cục bộ (Docker Compose) | — | OPS | 2d | To do |
+| [T-002](T-002_local-dev-environment.md) | Môi trường dev cục bộ (Docker Compose) | — | OPS | 2d | Done (cấu hình, chưa chạy Docker thật) |
 | [T-003](T-003_ci-pipeline.md) | CI pipeline | — | TL | 2d | To do |
 | [T-004](T-004_staging-skeleton.md) | Khung staging (D-02) | — | OPS | 2d | To do |
 | [T-005](T-005_database-baseline.md) | DB baseline & migration | — | BE | 2d | To do |

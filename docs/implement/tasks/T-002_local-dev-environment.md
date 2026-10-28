@@ -9,7 +9,7 @@
 | Vai trò chính | OPS (hỗ trợ: TL) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-001 |
-| Trạng thái | To do |
+| Trạng thái | Done (cấu hình) — chưa chạy được Docker thật, xem ghi chú cuối |
 
 ## 1. Mục tiêu
 
@@ -112,18 +112,35 @@ Chỉ tạo extension PostgreSQL (`vector`, `unaccent`, `citext`). Bảng và mi
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] `docker compose up --wait` trả về thành công trên máy sạch (chưa có volume cũ)
-- [ ] `scripts/smoke_infra.py` báo 5/5 dịch vụ OK
-- [ ] TEI embed câu tiếng Việt có dấu trả về đúng 1024 chiều
-- [ ] ClamAV phát hiện chuỗi thử EICAR là nhiễm
-- [ ] `make reset-db` xóa sạch dữ liệu và tạo lại extension thành công
+- [ ] `docker compose up --wait` trả về thành công trên máy sạch (chưa có volume cũ) — **chưa xác minh**: môi trường triển khai hiện tại không có Docker Engine
+- [x] `scripts/smoke_infra.py` — **logic** đã được xác minh bằng 9 test đơn vị giả lập (mock) phản hồi thật của Redis/ClamAV/TEI (`scripts/test_smoke_infra.py`, 9/9 pass); kết nối thật tới hạ tầng chưa chạy được
+- [ ] TEI embed câu tiếng Việt có dấu trả về đúng 1024 chiều — chưa xác minh với TEI thật (đã test logic phân tích phản hồi ở trên)
+- [ ] ClamAV phát hiện chuỗi thử EICAR là nhiễm — chưa xác minh với ClamAV thật (đã test logic phân tích phản hồi ở trên)
+- [ ] `make reset-db` xóa sạch dữ liệu và tạo lại extension thành công — chưa xác minh (cần Docker)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Một developer mới làm theo README chạy được toàn bộ hạ tầng trong ≤ 30 phút (tính cả thời gian tải image)
-- [ ] `.env.example` đầy đủ, không có bí mật thật trong repo
-- [ ] Makefile có `up/down/logs/reset-db`
-- [ ] Script smoke test được đưa vào CI ở T-003 (chạy ở chế độ tối thiểu)
+- [ ] Một developer mới làm theo README chạy được toàn bộ hạ tầng trong ≤ 30 phút — chưa xác minh được trên máy này
+- [x] `.env.example` đầy đủ, không có bí mật thật trong repo (chỉ mật khẩu local mặc định, không dùng ở staging/prod)
+- [x] Makefile có `up/down/logs/reset-db/smoke-infra`
+- [ ] Script smoke test được đưa vào CI ở T-003 (chạy ở chế độ tối thiểu) — để T-003 xử lý
+
+### Ghi chú triển khai thực tế
+
+Môi trường chạy task này (Windows, không cài Docker Desktop) không thể khởi động
+`docker compose`. Mọi file cấu hình (`infra/docker-compose.yml`,
+`infra/pg-init/01-extensions.sql`, `.env.example`, Makefile targets) đã được viết
+đúng theo đặc tả Mục 3 và đã được rà soát thủ công, nhưng **chưa được một lần
+`docker compose up` thật nào xác nhận**. Không cài được `pyyaml` để tự động kiểm
+tra cú pháp YAML (chưa có wheel cho Python 3.15 tại thời điểm này) — đã rà soát
+thủ công thay thế.
+
+Phần duy nhất kiểm thử được mà không cần Docker — **logic phân tích phản hồi**
+của `scripts/smoke_infra.py` (cách đọc PONG của Redis, FOUND của ClamAV, mảng
+1024 chiều của TEI) — đã viết test giả lập đầy đủ và chạy xanh 9/9.
+
+**Việc cần làm khi có máy có Docker:** chạy `make up`, `make smoke-infra`, xác
+nhận đủ 5/5 dịch vụ OK, rồi tick lại các checkbox còn trống ở trên.
 
 ## 9. Tham chiếu
 

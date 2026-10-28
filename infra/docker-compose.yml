@@ -1,0 +1,109 @@
+name: chat-with-document
+
+# Hạ tầng dữ liệu cục bộ (SADD §2.3, T-002). Chạy từ repo root:
+#   docker compose -f infra/docker-compose.yml up -d --wait
+# hoặc `make up` (xem Makefile gốc).
+#
+# Không chạy được trên máy không có Docker — xem ghi chú "Lệch so với
+# mô tả ban đầu" trong docs/implement/tasks/T-002_local-dev-environment.md
+# về cách xác minh cấu hình mà không cần Docker.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cwd}
+      POSTGRES_USER: ${POSTGRES_USER:-cwd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cwd_local_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./pg-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cwd} -d ${POSTGRES_DB:-cwd}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7.2
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-cwd_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-cwd_minio_local_only}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Tạo bucket riêng tư cwd-documents một lần rồi thoát (không phải
+  # dịch vụ dài hạn). `docker compose up --wait` không chờ job này vì
+  # nó không có healthcheck dài hạn — chạy xong là exit 0.
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-cwd_minio} ${MINIO_ROOT_PASSWORD:-cwd_minio_local_only} &&
+      mc mb --ignore-existing local/${S3_BUCKET:-cwd-documents} &&
+      mc version enable local/${S3_BUCKET:-cwd-documents} &&
+      mc anonymous set none local/${S3_BUCKET:-cwd-documents}
+      "
+
+  clamav:
+    image: clamav/clamav:stable
+    ports:
+      - "${CLAMAV_PORT:-3310}:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      # clamdcheck.sh chỉ trả 0 khi clamd đã tải xong chữ ký (freshclam) —
+      # không coi dịch vụ "khỏe" trước thời điểm đó (xem Mục 6 trong task).
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    command: ["--model-id", "BAAI/bge-m3"]
+    ports:
+      - "${TEI_PORT:-8080}:80"
+    volumes:
+      - tei_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 180s # lần đầu cần tải model (~2GB)
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:
+  clamav_data:
+  tei_data:
