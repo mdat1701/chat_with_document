@@ -93,7 +93,7 @@ indexedDB.databases()          // kỳ vọng: rỗng
 
 - [ ] Canary test tự động 0 kết quả ở mọi kênh — `tools/security/canary_scan.py` tồn tại (code đang được rà soát riêng trong cùng phiên), chưa chạy được end-to-end (cần staging)
 - [x] Bộ lọc log loại trường nhạy cảm — `core/logging.py::scrub()` đã có từ T-007, test `tests/unit/test_logging_scrub.py` xanh
-- [ ] Test allow-list analytics — logic đúng (`analytics/service.py`), nhưng **0 test tự động** (xem T-404)
+- [x] Test allow-list analytics — **đã thêm**: `tests/unit/test_analytics_service.py` (5 test, mới) xác nhận sự kiện lạ bị từ chối, thuộc tính lạ (kể cả thử nhét `question_text`) bị loại trước khi lưu, `user_id` luôn được hash một chiều chứ không lưu thô
 - [x] Rate limit trả đúng 429 — `check_rate_limit` (T-105), dùng trong `documents.py`/`conversations.py`
 - [x] Cookie phiên `HttpOnly; Secure; SameSite=Lax` — xác nhận trong `app/api/routers/auth.py` (cả 2 chỗ `set_cookie`)
 - [ ] Quét SCA/image — không chạy được (không có registry/scanner trong sandbox)
@@ -104,7 +104,7 @@ indexedDB.databases()          // kỳ vọng: rỗng
 - [ ] Gói bằng chứng G-04 — `docs/pilot/privacy_checklist.md`-tương-đương là `tools/security/privacy_checklist.md`, toàn bộ mục còn `[ ]` trống (trung thực, chưa chạy canary thật)
 - [ ] Biên bản ATTT — ngoài phạm vi code
 - [ ] D-06 thời hạn lưu metadata — chưa thấy quyết định ghi ở đâu trong phiên rà soát này
-- [ ] Test §7 tự động trong CI — một phần có (scrub, rate limit, cookie flags qua code), phần canary/SCA chưa
+- [ ] Test §7 tự động trong CI — phần lớn có ở mức unit (scrub + canary-style string assertion trong `test_logging_scrub.py::test_json_formatter_output_never_contains_blocked_field_values`, rate limit, cookie flags, allow-list analytics mới thêm); canary **end-to-end** thật (upload → hỏi → quét log/DB/Prometheus thật) và SCA vẫn cần staging, chưa chạy được trong sandbox này
 - [ ] Phát hiện High+ đã xử lý — chưa chạy quét nào để có phát hiện
 
 ### Ghi chú triển khai thực tế
@@ -113,8 +113,17 @@ Các kiểm soát kỹ thuật nền tảng (lọc log, rate limit, cookie flags
 RLS, security headers ở `main.py::security_headers`) đã có sẵn từ các task
 trước (T-007, T-104, T-105) và được xác nhận lại ở đây — T-503 về bản chất
 là **gói bằng chứng + canary scan**, chưa phải xây mới nhiều kiểm soát.
-Việc còn thiếu là chạy canary/SCA thật và tập hợp bằng chứng vào
-`docs/pilot/PILOT_GATE_EVIDENCE.md` — cả hai đều cần staging.
+
+**Đã thêm (phiên này):** `tests/unit/test_analytics_service.py` lấp đúng
+khoảng trống "0 test allow-list analytics" đã ghi trước đó — đây là lớp
+phòng thủ thứ hai cho P-03/AC-020.1 (song song với `scrub()` ở T-007).
+Kết hợp với `test_logging_scrub.py::test_json_formatter_output_never_
+contains_blocked_field_values` (đã có từ trước, dùng đúng kỹ thuật canary
+— nhét một chuỗi bí mật rồi khẳng định không xuất hiện ở đầu ra), hai lớp
+này chứng minh được P-03 **ở mức unit test** cho logger + analytics. Việc
+còn thiếu là canary **end-to-end thật** (upload PDF chứa chuỗi canary →
+hỏi → quét log/DB/Prometheus thật trên staging theo kịch bản §3) và quét
+SCA/image — cả hai đều cần hạ tầng staging không có trong sandbox này.
 
 ## 9. Tham chiếu
 

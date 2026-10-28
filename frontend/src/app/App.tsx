@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { LoginScreen, NoAccessScreen } from "@features/auth/AuthScreens";
 import { useAuth } from "@features/auth/auth";
-import { UploadDropzone } from "@features/documents/UploadDropzone";
 import { DocumentLibrary } from "@features/documents/DocumentLibrary";
 import { ChatPage } from "@features/chat/ChatPage";
-import { validateFiles } from "@shared/validation/files";
+import { AppConfigProvider } from "@shared/config";
+import { Drawer, OfflineBanner, ToastProvider, ToastRegion } from "@shared/ui";
+import { uiText } from "@shared/i18n/messages.vi";
+import { UserMenu } from "./UserMenu";
+import { useIsDesktop } from "./useIsDesktop";
 
 /**
  * Khung router tối thiểu (T-003, để CI build/test có gì để kiểm).
@@ -14,6 +17,17 @@ import { validateFiles } from "@shared/validation/files";
  * T-305-307 (hỏi đáp). Component dưới đây chỉ là placeholder.
  */
 export function App() {
+  return (
+    <AppConfigProvider>
+      <ToastProvider>
+        <AppRoutes />
+        <ToastRegion data-testid="toast-region" />
+      </ToastProvider>
+    </AppConfigProvider>
+  );
+}
+
+function AppRoutes() {
   const { user, loading, load } = useAuth();
   const [online, setOnline] = useState(navigator.onLine);
   useEffect(() => {
@@ -41,15 +55,7 @@ export function App() {
                 </section>
               </main>
             ) : user ? (
-              <main className="page">
-                <section className="card">
-                  {!online && <div role="alert" className="offline-banner">Bạn đang ngoại tuyến</div>}
-                  <h1 data-testid="route-placeholder">SCR-02 Thư viện tài liệu</h1>
-                  <UploadDropzone disabled={!online} onFilesSelected={(files) => validateFiles(files, { max_file_size_bytes: 20 * 1024 * 1024, max_documents: 50 }, 0)} />
-                  <DocumentLibrary />
-                  <ChatPage />
-                </section>
-              </main>
+              <MainScreen online={online} />
             ) : (
               <Navigate to="/login" replace />
             )
@@ -63,6 +69,66 @@ export function App() {
         />
       </Routes>
     </BrowserRouter>
+  );
+}
+
+/**
+ * SCR-02 (T-405 §5.4) — header + bố cục 2 cột ở `lg` (1024px) trở lên; dưới
+ * ngưỡng đó thư viện tài liệu chuyển sang ngăn trượt mở bằng nút "Tài liệu".
+ */
+function MainScreen({ online }: { online: boolean }) {
+  const isDesktop = useIsDesktop();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Mở ngăn rồi xoay ngang lên >=1024px: chuyển hẳn sang bố cục 2 cột nên
+  // nhánh ngăn trượt (và `drawerOpen`) không còn render — không kẹt "đang mở".
+  useEffect(() => {
+    if (isDesktop) setDrawerOpen(false);
+  }, [isDesktop]);
+
+  return (
+    <div className="app-shell">
+      <OfflineBanner offline={!online} message={uiText.offlineBannerMessage} />
+      <header className="app-header">
+        <h1 className="app-header__title" data-testid="route-placeholder">
+          SCR-02 Thư viện tài liệu
+        </h1>
+        <div className="app-header__actions">
+          {!isDesktop && (
+            <button
+              type="button"
+              className="ui-button ui-button--secondary"
+              data-testid="open-document-drawer"
+              onClick={() => setDrawerOpen(true)}
+            >
+              {uiText.openDocumentDrawer}
+            </button>
+          )}
+          <UserMenu />
+        </div>
+      </header>
+      <main className="app-main">
+        {isDesktop ? (
+          <div className="app-layout app-layout--two-col">
+            <DocumentLibrary online={online} />
+            <ChatPage />
+          </div>
+        ) : (
+          <div className="app-layout">
+            <ChatPage />
+            <Drawer
+              open={drawerOpen}
+              onOpenChange={setDrawerOpen}
+              title={uiText.documentDrawerTitle}
+              closeLabel={uiText.closeDocumentDrawer}
+              data-testid="document-drawer"
+            >
+              <DocumentLibrary online={online} />
+            </Drawer>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
 

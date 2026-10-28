@@ -10,7 +10,7 @@
 | Vai trò chính | FE (chính) + BE |
 | Ước lượng | 1 ngày công |
 | Phụ thuộc | T-202 (chunk giữ `page_start`/`page_end`), T-306 (CitationChip), **CL-02 / SDD DQ-07** chưa chốt |
-| Trạng thái | In progress (hàm định dạng xong, chưa nối feature flag, chưa test) |
+| Trạng thái | In progress (hàm định dạng + feature flag qua `useAppConfig()` + unit test đã xong; còn thiếu đối chiếu thủ công AC-015.2 và so khớp ảnh) |
 
 ## 1. Mục tiêu
 
@@ -96,29 +96,34 @@ Bổ sung khóa cấu hình `features.citation_page_numbers` (mặc định `tru
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Unit test `formatCitationPage` 4 nhánh — hàm tồn tại và đúng logic (đọc code: `null`→`null`, bằng nhau→`tr. N`, khác nhau→`tr. N–M`), nhưng **chưa có file test nào** cho `citations.ts`
-- [x] AC-015.1: chip hiển thị `tên · tr. 12` — `ChatPage.tsx` gọi `formatCitation(name, page_start, page_end)` đúng định dạng
-- [x] AC-015.3: `page_start = null` → chỉ tên, không có `undefined` — `formatCitationPage` trả `null` khi `start == null`, `formatCitation` fallback về `name` (không nối chuỗi `undefined`)
-- [ ] Tắt `features.citation_page_numbers` → ẩn số trang — **chưa nối**: backend `GET /config` đã trả `features.citation_page_numbers` (`app/api/routers/config.py`), nhưng FE không đọc `/config` ở đâu cả (chưa có `useAppConfig`, xem T-106) nên `formatCitation(..., enabled=true)` luôn dùng mặc định `true`, không có đường tắt
+- [x] Unit test `formatCitationPage` 4 nhánh — thêm `frontend/src/features/chat/citations.test.ts` (null, `start===end`, `end` thiếu, `start!==end` dùng en dash) + 3 ca cho `formatCitation` (gồm nhánh tắt flag)
+- [x] AC-015.1: chip hiển thị `tên · tr. 12` — `CitationChip.tsx` gọi `formatCitation(documentName, pageStart, pageEnd, showPageNumbers)`
+- [x] AC-015.3: `page_start = null` → chỉ tên, không có `undefined` — giữ nguyên logic cũ, có test xác nhận không chứa `"undefined"`/`"·"`
+- [x] Tắt `features.citation_page_numbers` → ẩn số trang — nối xong: `ChatPage.tsx` đọc `useAppConfig().config.features.citation_page_numbers`, truyền xuống `AnswerMessage`/`CitationChip` qua prop `showPageNumbers`; test `ChatPage.test.tsx` ("tắt citation_page_numbers") mock `GET /config` trả `features.citation_page_numbers=false` và xác nhận chip không chứa `"tr."`
 - [ ] AC-015.2 (đối chiếu thủ công PDF) — cần T-501/bộ câu hỏi chuẩn, chưa làm
 - [ ] Đối chiếu ảnh thiết kế — chưa làm
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-015.1/AC-015.3 có test tự động — logic đúng nhưng chưa có test file
-- [ ] Feature flag hai chiều không cần build lại — **chưa đạt**, xem trên (thiếu `useAppConfig`)
-- [ ] Chuỗi lấy từ `messages.vi.ts` — `"tr."` hard-code trong `citations.ts` thay vì i18n
-- [x] `citation_viewed` không chứa tên tệp — `track("citation_viewed", {citation_index: i+1})`
+- [x] AC-015.1/AC-015.3 có test tự động — `citations.test.ts`
+- [x] Feature flag hai chiều không cần build lại — đạt: `useAppConfig()` đọc `GET /config` một lần khi khởi động, không cần build lại FE để đổi giá trị `features.citation_page_numbers` phía server
+- [x] Chuỗi lấy từ `messages.vi.ts` — `"tr."` chuyển thành `uiText.citationPagePrefix`, `citations.ts::formatCitationPage` import từ đó
+- [x] `citation_viewed` không chứa tên tệp — `track("citation_viewed", {citation_index})` trong `CitationChip.tsx`
 - [x] Ghi chú `TODO(DQ-07)` tồn tại — có trong `citations.ts::formatCitationPage`
 - [ ] Khớp ảnh thiết kế — chưa đối chiếu
 
 ### Ghi chú triển khai thực tế
 
-Hàm định dạng (`formatCitationPage`/`formatCitation`) đúng logic và đã
-được dùng thật trong `ChatPage.tsx`. Thiếu: unit test riêng, i18n cho chuỗi
-"tr.", và quan trọng nhất — **feature flag `citation_page_numbers` tồn tại
-ở backend nhưng chưa có đường dẫn nào ở FE đọc `GET /config` để tắt/bật
-nó**, nên AC về tắt flag chưa thể kiểm chứng.
+Hoàn thiện nốt phần còn thiếu: `ChatPage.tsx` giờ đọc
+`useAppConfig().config.features.citation_page_numbers` và truyền xuống
+`CitationChip` qua prop `showPageNumbers` — khi backend đổi giá trị trong
+`GET /config` (ví dụ tắt flag để hoãn US-015 sau Pilot Gate), FE phản ánh
+đúng ngay lần tải trang kế tiếp mà không cần build lại. `citations.ts`
+không còn hard-code `"tr."`, lấy từ `uiText.citationPagePrefix` trong
+`messages.vi.ts`. Thêm `citations.test.ts` phủ đủ 4 nhánh của
+`formatCitationPage` và 3 nhánh của `formatCitation` (gồm cả khi tắt
+flag). Còn thiếu: đối chiếu thủ công PDF (AC-015.2, cần bộ câu hỏi chuẩn ở
+T-501) và so khớp ảnh thiết kế.
 
 ## 9. Tham chiếu
 

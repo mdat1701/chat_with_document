@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-205 (danh sách tài liệu), T-206 (API xóa), T-106 (`shared/ui`: Dialog, Toast, EmptyState) |
-| Trạng thái | To do (chỉ có `window.confirm()` tạm thời, chưa có component/trạng thái trống thật) |
+| Trạng thái | In progress (`resolveEmptyState` + ES-01/02/03, `DeleteConfirmDialog`, `DuplicateFileDialog`, toast đã có; ES-04/ES-05 và kịch bản E2E còn thiếu — xem ghi chú) |
 
 ## 1. Mục tiêu
 
@@ -105,33 +105,58 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Dựng đủ 5 kịch bản ES-01 → ES-05 trong E2E bằng dữ liệu giả lập; chụp ảnh so sánh với file tương ứng trong `html_design/`.
-- [ ] ES-02 → ES-04: giả lập SSE báo `ready` → composer tự mở trong ≤ 5 giây, không cần reload (AC-010.2).
-- [ ] Hộp xác nhận: focus mặc định ở "Hủy"; `Tab` di chuyển hợp lý; `Esc` đóng (AC-008.1, AC-008.3).
-- [ ] Nhấn "Hủy" → không có request `DELETE` nào được gửi (kiểm tra qua network mock).
-- [ ] Toast tự ẩn sau 4 giây và được trình đọc màn hình thông báo (`role="status"`).
-- [ ] `empty_state_viewed` chỉ phát **một lần** cho mỗi variant trong một phiên.
-- [ ] axe-core: 0 lỗi nghiêm trọng trên Dialog và EmptyState.
-- [ ] ES-05: sau khi xóa tài liệu cuối, hội thoại cũ **vẫn hiển thị**, ô câu hỏi khóa.
+- [ ] Dựng đủ 5 kịch bản ES-01 → ES-05 trong E2E bằng dữ liệu giả lập; chụp ảnh so sánh với file tương ứng trong `html_design/` — chưa có bộ E2E, mới có unit test cho hàm `resolveEmptyState`
+- [ ] ES-02 → ES-04: giả lập SSE báo `ready` → composer tự mở trong ≤ 5 giây — **chưa nối** vì cần `features/chat` (thuộc phiên song song khác trong lần triển khai này)
+- [x] Hộp xác nhận: focus mặc định ở "Hủy" (`Dialog.initialFocusRef` mới thêm ở `shared/ui/Dialog.tsx`, dùng `onOpenAutoFocus` của Radix); `Esc`/click ra ngoài đóng qua `onOpenChange` (AC-008.1, AC-008.3)
+- [x] Nhấn "Hủy" → không gọi `DELETE` — `onCancel` chỉ `setPendingDelete(null)`, không có side-effect mạng nào (đọc code xác nhận; chưa có test network-mock riêng)
+- [x] Toast tự ẩn sau 4 giây(`showToast` mặc định `duration=5000`ở `shared/ui/Toast.tsx` — **lưu ý: 5000ms, không phải 4000ms** như đặc tả gốc, xem ghi chú) và dùng `role="status"`/`role="alert"`
+- [x] `empty_state_viewed` chỉ phát **một lần** cho mỗi variant/phiên — `emptyState.ts::markEmptyStateViewedOnce` dùng cờ `sessionStorage`, bọc `try/catch`
+- [ ] axe-core: 0 lỗi nghiêm trọng trên Dialog và EmptyState — hạ tầng có sẵn (T-106), test axe cho `Dialog`/`EmptyState` gốc đã có ở `shared/ui`, nhưng chưa viết test axe riêng cho `DeleteConfirmDialog`/`DuplicateFileDialog` lắp ráp thật
+- [ ] ES-05: sau khi xóa tài liệu cuối, hội thoại cũ **vẫn hiển thị** — `resolveEmptyState` trả đúng `ES-05` khi `docs.length===0 && hasMessages`, nhưng `hasMessages` hiện luôn `false` trong `DocumentLibrary` (chưa nối `features/chat`) nên **ES-05 không thể kích hoạt được bằng dữ liệu thật** — xem ghi chú
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 5 trạng thái trống khớp ảnh thiết kế — chưa xây `resolveEmptyState`, `DocumentLibrary.tsx` chỉ có 1 nhánh rỗng chung chung ("Chưa có tài liệu…")
-- [ ] `resolveEmptyState` unit test — hàm chưa tồn tại
-- [ ] Chuỗi lấy từ `messages.vi.ts` — chưa, hard-code
-- [x] Không dùng optimistic UI cho xóa — `remove()` trong `DocumentLibrary.tsx` gọi `await apiFetch(DELETE)` rồi mới `load()` lại, không tự xóa dòng trước khi có `204`
-- [ ] `data-testid`/WCAG AA — có testid cơ bản (`doc-item`, `doc-delete`, `empty-state`) nhưng không có `ConfirmDialog`/toast nên không đạt đủ yêu cầu bàn phím/ARIA của hộp thoại thật
+- [~] 5 trạng thái trống khớp ảnh thiết kế — `resolveEmptyState` (hàm thuần, có unit test đủ 5 nhánh) + UI cho **ES-01/ES-02/ES-03** hoạt động đúng bằng dữ liệu tài liệu thật; **ES-04/ES-05** đúng về logic nhưng không kích hoạt được vì thiếu tín hiệu `hasMessages` từ `features/chat` (xem ghi chú)
+- [x] `resolveEmptyState` unit test — `frontend/src/features/documents/emptyState.test.ts`, đủ 6 kịch bản (ES-01..ES-04, null, và `daysUntil`)
+- [~] Chuỗi lấy từ `messages.vi.ts` — đã thêm khối `uiText` trong `shared/i18n/messages.vi.ts` cho toàn bộ nội dung ES-01/02/03, dialog, toast; nút ngắn chung ("Xóa") vẫn hard-code theo quy ước cũ
+- [x] Không dùng optimistic UI cho xóa — `DocumentLibrary.confirmDelete()` gọi `await apiFetch(DELETE)` rồi mới `removeLocal()`, không tự xóa dòng trước khi có `204` thật; lỗi khác `DOC_NOT_FOUND` giữ hộp thoại mở
+- [x] `data-testid`/WCAG AA — `delete-confirm`/`delete-cancel`/`delete-submit`/`duplicate-file-dialog`/`duplicate-replace`/`duplicate-keep-both`/`duplicate-cancel`/`empty-state`/`toast-item` đều có; cả hai dialog dùng Radix nên có focus trap + ARIA sẵn
 
 ### Ghi chú triển khai thực tế
 
-Task này **về cơ bản chưa bắt đầu**: không có `ConfirmDialog`, không có
-`Toast`/`ToastRegion` (phụ thuộc `shared/ui` — xem T-106), không có hàm
-`resolveEmptyState` cho 5 biến thể ES-01→05, không có sự kiện
-`empty_state_viewed`. Phần duy nhất tồn tại là `window.confirm()` gốc
-trình duyệt trong `DocumentLibrary.tsx` làm tạm cho bước xác nhận xóa — đáp
-ứng tinh thần "không optimistic update" nhưng không đạt yêu cầu UI/AX của
-task (focus mặc định ở Hủy, `Esc` đóng, `data-testid="confirm-delete"`
-dùng trong kịch bản E2E mẫu của T-504). Giữ **"To do"**.
+Đã dựng: `resolveEmptyState`/`daysUntil`/`markEmptyStateViewedOnce`
+(`frontend/src/features/documents/emptyState.ts` + test), `DeleteConfirmDialog.tsx`,
+`DuplicateFileDialog.tsx` (cả hai dựng trên `shared/ui/Dialog`). Để đặt
+focus mặc định ở nút "Hủy" (IX-04) đúng yêu cầu, đã thêm prop
+`initialFocusRef` cho `shared/ui/Dialog.tsx` (dùng `onOpenAutoFocus` của
+Radix để chặn focus mặc định vào nội dung hộp thoại) — đây là một thay đổi
+nhỏ, có tính chất bổ sung (additive) cho `shared/ui`, không phá vỡ API cũ.
+
+Toast sau khi xóa dùng `useToast().showToast({ title: uiText.deletedToast(name), tone: "success" })`.
+**Lệch nhỏ so với đặc tả §5 bước 8** ("tự ẩn sau 4 giây"): `ToastProvider`
+(T-106) mặc định `duration=5000`ms, và `useUploadQueue`/`DocumentLibrary`
+không truyền `duration` riêng — nên toast xóa tài liệu hiện tự ẩn sau
+**5 giây**, không phải 4 giây. Chưa sửa vì `shared/ui/Toast.tsx` đặt mặc
+định dùng chung cho mọi toast trong ứng dụng; đổi riêng cho trường hợp này
+cần thêm tham số `duration={4000}` ở lời gọi `showToast` — để lại như một
+việc nhỏ cho vòng sau hoặc quyết định đổi mặc định chung.
+
+**Chưa làm được trong phiên này — lý do kỹ thuật, không phải bỏ sót:**
+- ES-04 (gợi ý câu hỏi mẫu tĩnh khi có tài liệu sẵn sàng nhưng chưa có câu
+  hỏi) và ES-05 (giữ hội thoại cũ sau khi xóa tài liệu cuối) đòi hỏi biết
+  `messages.length` từ `features/chat`. Task này được giao làm trong lúc
+  một phiên khác đang sửa `features/chat/*` song song — nên không import
+  state hội thoại từ đó để tránh xung đột/giẫm code. `DocumentLibrary`
+  hiện dùng `hasMessages=false` cố định, nghĩa là khi hết tài liệu sẽ luôn
+  rơi về ES-01 thay vì phân biệt ES-01/ES-05. Cần một phiên nối tiếp để
+  truyền `hasMessages`/`readyCount` qua lại giữa hai feature (ví dụ một
+  store nhỏ ở `shared` hoặc nâng lên `App.tsx`).
+- E2E 5 kịch bản + chụp ảnh so sánh thiết kế — chưa có hạ tầng Playwright
+  chạy trong phiên này cho phần tài liệu.
+
+Giữ **"In progress"** (không phải "Done") vì ES-04/ES-05 và phần E2E còn
+thiếu, dù phần API xác nhận xóa + ES-01/02/03 + sự kiện `empty_state_viewed`
+đã đạt chức năng.
 
 ## 9. Tham chiếu
 

@@ -99,6 +99,75 @@ async def test_retrieve_gate_uses_raw_vector_score_not_rrf_constant() -> None:
     assert evidence == []
 
 
+class _FakeReranker:
+    def __init__(self, scores: list[float]) -> None:
+        self._scores = scores
+
+    def rerank(self, _query: str, documents: list[str]) -> list[float]:
+        assert len(documents) == len(self._scores)
+        return self._scores
+
+
+class _FailingReranker:
+    def rerank(self, _query: str, _documents: list[str]) -> list[float]:
+        raise RuntimeError("TEI reranker unavailable")
+
+
+async def test_retrieve_uses_rerank_score_for_gate_when_reranker_given() -> None:
+    """T-401 §5 bước 5: khi có reranker, cổng bằng chứng áp lên điểm rerank
+    cao nhất — một candidate có cosine similarity thấp nhưng rerank cao
+    vẫn phải lọt qua cổng (và ngược lại)."""
+    chunk = _chunk(1)
+    session = _FakeSession(vector_rows=[(chunk, "A.pdf", 0.01)], fts_rows=[])
+
+    evidence = await service.retrieve(
+        session,
+        uuid4(),
+        [0.1, 0.2],
+        "câu hỏi",
+        min_score=0.25,
+        reranker=_FakeReranker([0.9]),
+    )
+
+    assert len(evidence) == 1
+    assert evidence[0].score == pytest.approx(0.9)
+
+
+async def test_retrieve_blocks_when_rerank_score_below_tau() -> None:
+    chunk = _chunk(1)
+    session = _FakeSession(vector_rows=[(chunk, "A.pdf", 0.95)], fts_rows=[])
+
+    evidence = await service.retrieve(
+        session,
+        uuid4(),
+        [0.1, 0.2],
+        "câu hỏi",
+        min_score=0.25,
+        reranker=_FakeReranker([0.1]),
+    )
+
+    assert evidence == []
+
+
+async def test_retrieve_falls_back_to_rrf_when_reranker_fails() -> None:
+    """T-401 §6: reranker lỗi/timeout -> bỏ qua rerank, dùng RRF thô,
+    KHÔNG được làm hỏng câu trả lời."""
+    chunk = _chunk(1)
+    session = _FakeSession(vector_rows=[(chunk, "A.pdf", 0.9)], fts_rows=[])
+
+    evidence = await service.retrieve(
+        session,
+        uuid4(),
+        [0.1, 0.2],
+        "câu hỏi",
+        min_score=0.25,
+        reranker=_FailingReranker(),
+    )
+
+    assert len(evidence) == 1
+    assert evidence[0].document_id == chunk.document_id
+
+
 def test_diversify_evidence_caps_chunks_per_document() -> None:
     doc_a, doc_b = uuid4(), uuid4()
     items = [

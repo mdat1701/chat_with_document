@@ -1,0 +1,81 @@
+/* features/documents — kiểu dáng riêng, dùng design token từ shared/tokens
+   (T-109/T-205/T-208). Không mã màu cố định (trừ khi kế thừa từ CSS cũ). */
+
+.ui-upload-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  cursor: pointer;
+}
+.ui-upload-dropzone[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.ui-upload-dropzone:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.documents-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.upload-queue-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.upload-queue-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.upload-queue-row__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+.upload-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+.upload-progress__bar {
+  height: 100%;
+  background: var(--color-info);
+  transition: width 120ms ease-out;
+}
+
+.document-row__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  display: block;
+}
+.document-row__main {
+  min-width: 0;
+  flex: 1;
+}
+.document-row__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.es04-suggestions {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

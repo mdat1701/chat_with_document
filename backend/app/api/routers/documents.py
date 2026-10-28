@@ -21,6 +21,7 @@ from app.api.deps import CurrentUser, get_current_user, get_db_session
 from app.core.config import get_settings
 from app.core.errors import DomainError
 from app.core.metrics import sse_connections
+from app.core.models import AuditLog
 from app.core.ratelimit import check_rate_limit
 from app.core.redis_client import get_redis
 from app.modules.analytics.service import record_event
@@ -305,6 +306,16 @@ async def delete_document(
     blob_key = await delete_document_use_case(session, document_id)
     if blob_key:
         (Path(get_settings().blob_dir) / blob_key).unlink(missing_ok=True)
+    session.add(
+        AuditLog(
+            ts=datetime.now(UTC),
+            actor_id=UUID(current_user.id),
+            action="document_deleted",
+            target_type="document",
+            target_id=str(document_id),
+            outcome="ok",
+        )
+    )
     await record_event(
         session, "document_deleted", user_id=UUID(current_user.id), props={"trigger": "user"}
     )

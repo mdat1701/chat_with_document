@@ -18,6 +18,7 @@ from app.modules.qa.prompt import PROMPT_VERSION, SYSTEM_PROMPT, build_prompt
 from app.modules.retrieval.service import Evidence, diversify_evidence, retrieve
 from app.ports.embedding_port import EmbeddingPort
 from app.ports.llm_port import LLMPort, LLMRequest
+from app.ports.reranker_port import RerankerPort
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ async def stream_answer(
     *,
     llm: LLMPort | None = None,
     document_ids: list[UUID] | None = None,
+    reranker: RerankerPort | None = None,
 ) -> AsyncIterator[tuple[str, object]]:
     question = question.strip()
     settings = get_settings()
@@ -86,6 +88,7 @@ async def stream_answer(
         top_k=settings.rerank_top_in,
         min_score=settings.retrieval_tau,
         document_ids=document_ids,
+        reranker=reranker,
     )
     evidence = diversify_evidence(
         evidence, max_chunks_per_doc=settings.rerank_max_chunks_per_doc,

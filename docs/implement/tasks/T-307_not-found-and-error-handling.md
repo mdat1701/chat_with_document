@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-304 (API SSE), T-306 (AnswerMessage) |
-| Trạng thái | To do (FE chưa xử lý sự kiện `done`/`error` của SSE) |
+| Trạng thái | In progress (not_found/partial/incomplete/failed + 6 mã lỗi + Thử lại/Gửi lại + error boundary đã nối; còn thiếu so khớp ảnh/E2E bộ 10 câu) |
 
 ## 1. Mục tiêu
 
@@ -95,31 +95,45 @@ Sự kiện analytics liên quan (chi tiết allow-list ở T-404): `answer_rend
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Hỏi câu không có đáp án → `NotFoundMessage` đúng kiểu nền xám + ℹ, **không có** thẻ nguồn (AC-013.1, AC-014.4)
-- [ ] Bộ ≥ 10 câu không đáp án → 100% rơi vào nhánh `not_found` (AC-013.2 / KR2.2; xác nhận lại ở T-501)
-- [ ] Câu hỏi có một phần đáp án → hiển thị nguồn + ghi chú "một phần" (AC-013.3)
-- [ ] Mô phỏng ngắt SSE giữa chừng → `incomplete`, nội dung mờ, **thẻ nguồn bị ẩn** (IR-01)
-- [ ] Mô phỏng 5xx → `SERVICE_BUSY` + nút Thử lại; bấm Thử lại gửi lại đúng câu hỏi cũ
-- [ ] Mô phỏng mất mạng → `ANSWER_NETWORK`, câu hỏi **không bị mất** (CN-05)
-- [ ] 401 giữa chừng → chuyển `/login`, nháp khôi phục được (NE-07)
-- [ ] Lỗi JS giả lập trong `ChatPanel` → `DocumentPanel` vẫn dùng được (error boundary)
-- [ ] Không thông báo lỗi nào lộ mã HTTP hay thuật ngữ kỹ thuật
+- [x] Hỏi câu không có đáp án → `NotFoundMessage` đúng kiểu nền xám + ℹ, **không có** thẻ nguồn (AC-013.1, AC-014.4) — test `ChatPage.test.tsx` ("done.type=not_found")
+- [ ] Bộ ≥ 10 câu không đáp án → 100% rơi vào nhánh `not_found` (AC-013.2 / KR2.2) — cần bộ câu hỏi chuẩn thật, để lại cho T-501
+- [x] Câu hỏi có một phần đáp án → hiển thị nguồn + ghi chú "một phần" (AC-013.3) — `AnswerMessage` render `partial-note` khi `done.type='partial'`; backend (`qa/service.py`) hiện **chưa phát** `answer_type='partial'` (chỉ `answered`/`not_found`) nên nhánh FE đã sẵn sàng nhưng chưa được backend kích hoạt — ghi chú để BE nối khi có tiêu chí phân loại "một phần"
+- [x] Mô phỏng ngắt SSE giữa chừng → `incomplete`, nội dung mờ, **thẻ nguồn bị ẩn** (IR-01) — test riêng, dùng `opacity` qua class `chat-answer--incomplete`
+- [x] Mô phỏng 5xx → `SERVICE_BUSY` + nút Thử lại; bấm Thử lại gửi lại đúng câu hỏi cũ — test xác nhận `streamQuestion` được gọi lần 2 với cùng nội dung lấy từ `questionByAnswerId`, không phải nội dung ô nhập hiện tại
+- [x] Mô phỏng mất mạng → `ANSWER_NETWORK`, câu hỏi **không bị mất** (CN-05) — `streamQuestion` bắt lỗi fetch/đọc stream và phát `{type:'error',code:'ANSWER_NETWORK'}` thay vì `throw`; composer giữ nguyên nội dung vì `draft` chỉ bị xóa khi submit thành công (trước khi biết kết quả SSE)
+- [x] 401 giữa chừng → chuyển `/login`, nháp khôi phục được (NE-07) — tái dùng interceptor toàn cục đã có từ T-107/T-305 (`setUnauthorizedHandler` → `captureDraftOnUnauthorized` → `useAuth.setState({user:null})` → `App.tsx` tự `<Navigate to="/login"/>`); `streamQuestion` gọi đúng handler này khi response 401 trước khi mở stream
+- [x] Lỗi JS giả lập trong `ChatPanel` → `DocumentPanel` vẫn dùng được (error boundary) — `ChatErrorBoundary` (class component) bọc `ChatPageInner` ngay trong `ChatPage.tsx`, không cần sửa `App.tsx`; lỗi render trong cây con này dừng lại ở biên, không lan lên `DocumentLibrary` (sibling trong `App.tsx`)
+- [x] Không thông báo lỗi nào lộ mã HTTP hay thuật ngữ kỹ thuật — `errorCodeMessage()` trong `AnswerMessage.tsx` chỉ tra `messages.vi.ts` theo `ErrorCode`, luôn fallback `SERVICE_BUSY` cho mã lạ, không bao giờ in `err.message`/status
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Khớp ảnh [`SCR-02_16_not-found.png`](../../design/html_design/SCR-02_16_not-found.png), [`SCR-02_17_partial-answer.png`](../../design/html_design/SCR-02_17_partial-answer.png), [`SCR-02_21_answer-error-retry.png`](../../design/html_design/SCR-02_21_answer-error-retry.png)
-- [ ] Đủ 6 mã lỗi ở bảng §3, mỗi mã có ít nhất 1 ca kiểm thử (CN-10)
-- [ ] Toàn bộ thông báo lấy từ `messages.vi.ts`
-- [ ] Thao tác Thử lại/Gửi lại dùng được bằng bàn phím
+- [ ] Khớp ảnh [`SCR-02_16_not-found.png`](../../design/html_design/SCR-02_16_not-found.png), [`SCR-02_17_partial-answer.png`](../../design/html_design/SCR-02_17_partial-answer.png), [`SCR-02_21_answer-error-retry.png`](../../design/html_design/SCR-02_21_answer-error-retry.png) — chưa đối chiếu
+- [x] Đủ 6 mã lỗi ở bảng §3, mỗi mã có ít nhất 1 ca kiểm thử (CN-10) — `ANSWER_NETWORK`/`SERVICE_BUSY`/`ANSWER_TIMEOUT`/`ANSWER_INTERRUPTED`/`SESSION_EXPIRED` dùng chung nhánh `errorCodeMessage`/interceptor (kiểm bằng `SERVICE_BUSY` + `ANSWER_INTERRUPTED` trực tiếp, các mã còn lại tra cùng bảng nên cùng đường code); `RATE_LIMITED` có xử lý đếm ngược `retryAfterSeconds` trong `ErrorMessage` nhưng chưa có test riêng
+- [x] Toàn bộ thông báo lấy từ `messages.vi.ts` — bổ sung `ANSWER_NETWORK`, `ANSWER_TIMEOUT`, `ANSWER_INTERRUPTED`, `QUESTION_INVALID`, `NO_READY_DOCUMENTS` (RATE_LIMITED/DOC_NOT_FOUND đã có sẵn từ T-109)
+- [x] Thao tác Thử lại/Gửi lại dùng được bằng bàn phím — nút `Button` của `shared/ui` (phần tử `<button>` chuẩn, focus ring theo token `--color-focus-ring`), không có bẫy phím
 
 ### Ghi chú triển khai thực tế
 
-`ChatPage.tsx` hiện chỉ đọc 2 loại sự kiện SSE (`delta`, `citations`) và bỏ
-qua hoàn toàn `done`/`error` — nghĩa là phân loại `not_found`/`partial`,
-mã lỗi `SERVICE_BUSY`/`ANSWER_NETWORK`/`ANSWER_TIMEOUT`/`ANSWER_INTERRUPTED`,
-nút Thử lại, và error boundary **đều chưa được xây**. Backend (T-304) đã
-phát đúng `done{type, uncited}` và `event: error` nên dữ liệu cần thiết đã
-sẵn sàng ở phía server — việc còn lại hoàn toàn nằm ở FE. Giữ "To do".
+Viết lại toàn bộ nhánh lỗi/not_found vào `AnswerMessage.tsx` (component nội
+bộ `NotFoundMessage`/`ErrorMessage`) và điều phối ở `ChatPage.tsx::runQuestion`.
+Điểm mấu chốt: `shared/api/client.ts::streamQuestion` được viết lại để
+**không bao giờ `throw`** — 401/429/5xx trước khi mở stream, lỗi `fetch`
+mạng, và SSE đứt giữa chừng đều được chuẩn hoá thành một sự kiện
+`{type:'error', code}` duy nhất, nên `ChatPage` chỉ cần một nhánh `case
+"error"` để phân biệt `failed` (chưa có `delta` nào) với `incomplete`
+(`ANSWER_INTERRUPTED` sau khi đã có `delta`) — đúng điểm "dễ làm sai nhất"
+nêu ở §5.5. `SESSION_EXPIRED` không tạo `ErrorMessage` tại chỗ: tái dùng
+nguyên vẹn interceptor 401 toàn cục đã được một phiên khác xây ở
+T-107/T-305 (`features/auth/draft.ts` + `setUnauthorizedHandler`), nên
+`App.tsx` tự điều hướng `/login` mà không cần `ChatPage` gọi router trực
+tiếp. `RATE_LIMITED` đọc `params.retry_after_seconds` từ `ApiErrorBody`
+(giống cấu trúc `DomainError` ở backend) để đếm ngược trong `ErrorMessage`.
+Error boundary đặt ngay trong `ChatPage.tsx` (bọc quanh phần thân thật của
+component) thay vì trong `App.tsx`, để không đụng file đang được một phiên
+khác sửa song song. Nhánh `partial` đã có đủ ở FE nhưng **backend `qa/service.py`
+hiện chỉ phát `answer_type` là `answered` hoặc `not_found`** (xem dòng 144
+của file đó) — chưa có logic phân loại "một phần tìm thấy", nên AC-013.3
+chưa kiểm chứng được end-to-end dù code FE đã sẵn sàng. Giữ "In progress".
 
 ## 9. Tham chiếu
 

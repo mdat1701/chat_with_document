@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (design system, `shared/api`), T-204 (SSE), T-108 (upload API) |
-| Trạng thái | In progress (danh sách + xóa cơ bản chạy được, chưa realtime/thiếu trạng thái trực quan) |
+| Trạng thái | In progress (realtime SSE, icon/màu theo trạng thái, bộ đếm, skeleton, nhãn hết hạn đã có — xem ghi chú về khoảng trống hợp đồng API) |
 
 ## 1. Mục tiêu
 
@@ -121,43 +121,58 @@ Trường hợp biên:
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Hiển thị đủ 5 trạng thái, mỗi trạng thái có icon và chữ — hiện chỉ hiện chữ trạng thái thô (`doc.status`), không có icon/màu theo trạng thái
-- [ ] 50 tài liệu render ≤ 100ms — chưa đo
-- [ ] Nhãn hết hạn tại mốc 7 ngày — chưa có logic này trong `DocumentLibrary.tsx`
-- [ ] axe-core — chưa cài (xem T-106)
-- [ ] Skeleton khi tải lần đầu — chưa có, chỉ render rỗng rồi danh sách
-- [ ] Bộ đếm `used/max` — chưa có UI đếm số tài liệu/hạn mức
-- [ ] Responsive 900px — chưa kiểm tra
+- [x] Hiển thị đủ 5 trạng thái, mỗi trạng thái có icon và chữ — `StatusBadge.tsx` render icon + chữ + `aria-label` đầy đủ cho `uploading`/`processing`/`ready`/`expiring` (dẫn xuất)/`failed`
+- [ ] 50 tài liệu render ≤ 100ms — chưa đo bằng công cụ (không có `document.list` test lớn trong CI); danh sách vẫn là `<ul>` thường, chưa cần virtualization ở quy mô hiện tại
+- [x] Nhãn hết hạn tại mốc 7 ngày — `emptyState.ts::daysUntil` + `StatusBadge` hiện "Sẽ bị xóa sau N ngày"/"Sẽ bị xóa hôm nay" khi `0 <= daysLeft <= 7` — **nhưng phụ thuộc `expiresAt` mà `GET /documents` thật chưa trả về** (xem ghi chú khoảng trống hợp đồng bên dưới), nên trong thực tế nhãn này chưa bao giờ hiện được với dữ liệu thật
+- [ ] axe-core — hạ tầng có sẵn (T-106) nhưng chưa viết test axe riêng cho `DocumentLibrary`
+- [x] Skeleton khi tải lần đầu — `Skeleton` (shared/ui) hiện khi `loading===true`, không hiện lại khi refetch nền (SSE không đổi `loading`)
+- [x] Bộ đếm `used/max` — `Badge` `data-testid="doc-counter"` hiện `used/max`, đổi tone `warning` khi `used >= max`
+- [ ] Responsive 900px (ngăn trượt) — chưa làm ở task này, để lại cho T-405 như ghi chú gốc của task
 
 ## 8. Định nghĩa Hoàn thành
 
 - [ ] Khớp ảnh thiết kế — chưa đối chiếu
-- [ ] Chuỗi hiển thị lấy từ `messages.vi.ts` — chưa, hard-code trong JSX
-- [x] Component là presentational, không gọi API trực tiếp bằng `fetch` thô — gọi qua `apiFetch` của `shared/api` (đúng DR-04), nhưng gọi trực tiếp trong component thay vì qua TanStack Query/hook riêng (DR-03 "component con thuần" chưa tách)
-- [x] Không lưu tên tệp/nội dung vào Web Storage — xác nhận bằng đọc code
-- [x] Có `data-testid` cho `doc-item`/`doc-delete`/`empty-state`; dùng được bàn phím vì là phần tử `<button>`/`<ul>` chuẩn
+- [~] Chuỗi hiển thị lấy từ `messages.vi.ts` — `uiText`/`messages` đã dùng cho trạng thái/bộ đếm/dialog; một vài nhãn nút ngắn ("Xóa") vẫn hard-code theo quy ước đã có ở các feature khác
+- [x] Realtime qua SSE — `shared/api/client.ts::subscribeDocumentEvents()` (mới) mở `EventSource` tới `GET /api/v1/documents/events`, `useDocuments.ts` hợp nhất sự kiện `status` vào state cục bộ theo `id`; nếu `id` lạ thì `reload()` toàn bộ. Tách đúng ranh giới DR-04 (chỉ `shared/api` được dựng `EventSource`)
+- [x] Không lưu tên tệp/nội dung vào Web Storage — xác nhận bằng đọc code (chỉ `sessionStorage` lưu cờ boolean đã-xem `empty_state_viewed`, không có nội dung tài liệu)
+- [x] Có `data-testid` cho `doc-item`/`doc-delete`/`doc-retry`/`doc-counter`/`doc-list`/`empty-state`; dùng được bàn phím vì là phần tử `<button>`/`<ul>` chuẩn
 
 ### Ghi chú triển khai thực tế
 
-`DocumentLibrary.tsx` là bản tối thiểu: tải danh sách một lần khi mount
-(`GET /documents`), hiện trạng thái text thô, xóa bằng `window.confirm()`
-gốc trình duyệt rồi gọi lại `DELETE /documents/{id}`. Thiếu so với đặc tả:
-icon/màu theo trạng thái, đếm `used/max`, skeleton, nhãn sắp hết hạn,
-responsive, và **không tự cập nhật qua SSE** (T-204 đã có backend nhưng
-chưa có `sseClient` ở FE — xem ghi chú T-106/T-204).
+Phiên này tách `DocumentLibrary.tsx` cũ (một khối gọi `apiFetch` trực
+tiếp) thành: `useDocuments.ts` (tải `GET /documents` + hợp nhất SSE),
+`useUploadQueue.ts` (hàng đợi tải lên, xem T-109), `StatusBadge.tsx` (icon
++ chữ + nhãn hết hạn dẫn xuất), `DeleteConfirmDialog.tsx`/`DuplicateFileDialog.tsx`
+(xem T-208), và `emptyState.ts` (hàm thuần `resolveEmptyState`/`daysUntil`).
+`DocumentLibrary.tsx` giờ là container (`DocumentPanel`) lắp ráp các phần
+này, thêm `DocumentCounter` (Badge `used/max`) và skeleton khi tải lần đầu.
 
-**Lệch hợp đồng API đáng chú ý:** task này (bảng thuộc tính) tham chiếu
-API-03 trả `{items, used, max}`, nhưng `GET /api/v1/documents` thật
-(`app/api/routers/documents.py::list_documents`) trả thẳng một **mảng**
-`list[dict]`, không bọc trong `{items, used, max}`. FE hiện khớp đúng với
-backend thật (`apiFetch<DocumentItem[]>`), nhưng khác với hợp đồng SADD đã
-mô tả — cần quyết định giữ nguyên dạng mảng (sửa tài liệu SADD) hay đổi
-backend để bọc `{items, used, max}` (phục vụ bộ đếm hạn mức ở UI).
+**Chưa dùng TanStack Query như gợi ý §5 bước 1** mặc dù `@tanstack/react-query`
+đã có trong `package.json` — vì chưa có `QueryClientProvider` nào được dựng
+ở `App.tsx` trong toàn bộ codebase hiện tại, và việc thêm nó sẽ chạm vào
+`App.tsx` nhiều hơn mức "tối thiểu, chỉ thêm" mà phiên này được yêu cầu giữ
+(có một phiên khác đang sửa `App.tsx` cho `session_started`). Thay vào đó
+dùng `useState`/`useEffect` thuần — đáp ứng chức năng (tải + SSE + cache
+RAM, không `localStorage`) nhưng không có caching/dedupe nâng cao của
+React Query. Ghi lại như nợ kỹ thuật cho vòng sau.
 
-**`window.confirm()` thay cho hộp thoại xác nhận riêng (T-208)** — nghĩa là
-kịch bản E2E mẫu ở T-504 dùng `page.getByTestId('confirm-delete')` **sẽ
-không tìm thấy phần tử nào** vì không có dialog DOM thật, chỉ có hộp thoại
-gốc trình duyệt. Đây là điểm cần đồng bộ khi làm T-208.
+**Khoảng trống hợp đồng API vẫn còn (chưa đổi vì backend là read-only
+trong phiên này):** `GET /api/v1/documents`
+(`backend/app/api/routers/documents.py::list_documents`) trả mảng các
+trường `id/name/size_bytes/page_count/status/error_code`, **không có
+`uploaded_at`/`expires_at`**. `ExpiryBadge`/nhãn hết hạn đã được lập trình
+đúng đặc tả (`daysUntil` + ngưỡng 7 ngày) và có unit test, nhưng với dữ
+liệu thật từ `list_documents`, `expiresAt` luôn `undefined` nên nhãn không
+bao giờ hiện — cần một thay đổi backend (ngoài phạm vi vì backend là
+read-only ở phiên này) để `list_documents` trả thêm hai trường đó, giống
+response của `POST /documents`.
+
+**Liên kết sang `ChatPanel` (T-205 §5 bước 8, khóa composer theo
+`readyCount`) chưa nối** — `features/chat/*` thuộc một phiên làm việc song
+song khác trong lần triển khai này nên không chạm vào; `DocumentLibrary`
+dùng `hasMessages=false` cố định cho mục đích suy ra ES-04/ES-05 nội bộ
+của chính nó. ES-01/ES-02/ES-03 (chỉ phụ thuộc trạng thái tài liệu, không
+phụ thuộc hội thoại) vẫn đúng và đã nối `empty_state_viewed`.
 
 ## 9. Tham chiếu
 

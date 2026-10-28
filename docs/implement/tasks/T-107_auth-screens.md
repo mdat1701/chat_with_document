@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-101 (luồng OIDC), T-102 (API-01), T-106 (nền tảng FE) |
-| Trạng thái | In progress (3 màn hình + route guard chạy được, thiếu AC-001.3 và i18n) |
+| Trạng thái | In progress (3 màn hình + route guard + AC-001.3 (giữ bản nháp) + i18n + `session_started` đã nối trong phiên này; còn thiếu axe-core/so khớp ảnh thiết kế/E2E) |
 
 ## 1. Mục tiêu
 
@@ -89,44 +89,84 @@ type SessionState =
 - [x] Vào `/` khi chưa đăng nhập → chuyển `/login?returnTo=%2F` (AC-001.4) — route guard trong `App.tsx` dùng `useAuth()`, xác nhận bằng đọc code (link `/auth/login?return_to=...` được dựng động từ `window.location.pathname`)
 - [ ] Đăng nhập thành công → quay về đúng `returnTo`, hiển thị màn hình chính (AC-001.1) — phần redirect sau login nằm ở backend OIDC callback (T-101), chưa có test FE xác nhận round-trip
 - [x] `GET /me` trả 403/401 → hiện SCR-03/`/login`, không thấy danh sách tài liệu nào (AC-001.2) — `useAuth.load()` set `user: null` khi `apiFetch` ném lỗi, route guard chuyển hướng
-- [ ] Giả lập 401 khi composer đang có chữ → sau khi đăng nhập lại, nội dung được khôi phục nguyên vẹn (AC-001.3) — **chưa triển khai**: `shared/api/client.ts` không có interceptor 401 toàn cục, không lưu bản nháp vào `sessionStorage`
-- [ ] Chế độ ẩn danh chặn `sessionStorage` → không áp dụng được vì tính năng giữ bản nháp chưa có
+- [x] Giả lập 401 khi composer đang có chữ → sau khi đăng nhập lại, nội dung được khôi phục nguyên vẹn (AC-001.3) — `setUnauthorizedHandler()` trong `shared/api/client.ts` gọi `captureDraftOnUnauthorized()` (`features/auth/draft.ts`) trên mọi 401 (`apiFetch` và `streamQuestion`); `ChatPage` đăng ký nội dung composer hiện tại qua `registerComposerSource()` và khôi phục bằng `restoreDraft()` lúc mount. Xác nhận bằng unit test (`draft.test.ts`, 9 test) — chưa có E2E trình duyệt thật cho round-trip UI đầy đủ
+- [x] Chế độ ẩn danh chặn `sessionStorage` → `saveDraft`/`restoreDraft`/`clearDraft` bọc `try/catch`, không ném lỗi khi storage bị chặn — test giả lập bằng cách mock `sessionStorage.prototype` ném `DOMException`
 - [ ] Đăng xuất → cache Query trống — chưa có TanStack Query nào được dùng thật (xem ghi chú T-106)
 - [ ] axe-core trên SCR-01, SCR-03, SCR-07 — axe-core chưa được cài (xem T-106)
 - [ ] Giao diện khớp ảnh thiết kế ở 1280px và 1024px — chưa đối chiếu bằng mắt/test ảnh
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 4 AC của US-001 đạt ở phía giao diện — 3/4 (AC-001.1, 1.2, 1.4) có cơ sở code thật; AC-001.3 (giữ bản nháp khi phiên hết hạn) **chưa làm**
-- [ ] Toàn bộ chuỗi lấy từ `messages.vi.ts`, không hard-code — **chưa đúng**: `AuthScreens.tsx` hard-code chuỗi tiếng Việt trực tiếp trong JSX, không import `messages.vi.ts`
+- [x] 4 AC của US-001 đạt ở phía giao diện — AC-001.3 (giữ bản nháp khi phiên hết hạn) nay có `features/auth/draft.ts` + interceptor 401 toàn cục trong `shared/api/client.ts`
+- [x] Toàn bộ chuỗi lấy từ `messages.vi.ts`, không hard-code — `AuthScreens.tsx` nay import `messages`/`authMessages` từ `shared/i18n/messages.vi.ts`, không còn chuỗi hard-code trong JSX
 - [x] SCR-03 không tiết lộ bất kỳ thông tin hệ thống nào ngoài thông báo chuẩn — xác nhận bằng đọc `NoAccessScreen`
-- [ ] Sự kiện `session_started` phát đúng một lần mỗi phiên — `shared/analytics/client.ts` (`track()`/`flush()`) đã có hạ tầng gửi sự kiện nhưng **không có lời gọi `track("session_started")`** ở đâu trong code
+- [x] Sự kiện `session_started` phát đúng một lần mỗi phiên — `features/auth/auth.ts` gọi `track("session_started", { is_first_session })` ngay sau `GET /me` thành công, khử trùng lặp bằng cờ `cwd_session_started` trong `sessionStorage` (bọc try/catch)
 
 ### Ghi chú triển khai thực tế
 
-**Đã có và chạy được:** `LoginScreen`, `NoAccessScreen` (component thật,
-không phải placeholder), route guard trong `App.tsx` dựa trên
-`useAuth()` (Zustand store gọi thật `GET /me` qua `apiFetch`), đường dẫn
-`returnTo` được dựng động theo `window.location.pathname`.
+**Đã có và chạy được (phiên trước):** `LoginScreen`, `NoAccessScreen`
+(component thật, không phải placeholder), route guard trong `App.tsx` dựa
+trên `useAuth()` (Zustand store gọi thật `GET /me` qua `apiFetch`), đường
+dẫn `returnTo` được dựng động theo `window.location.pathname`.
 
-**Lệch so với mô tả ban đầu / còn thiếu:**
-1. **AC-001.3 (giữ bản nháp câu hỏi khi phiên hết hạn) chưa làm** — đây là
-   tiêu chí nghiệm thu rõ ràng của US-001, không phải việc phụ. Cần thêm một
-   interceptor 401 toàn cục trong `shared/api/client.ts` (lưu nháp vào
-   `sessionStorage` trước khi điều hướng `/login`) và khôi phục lại sau khi
-   đăng nhập lại.
-2. Chuỗi hiển thị hard-code trực tiếp trong `AuthScreens.tsx` thay vì lấy từ
-   `shared/i18n/messages.vi.ts` — vi phạm DoD của chính task này (và của
-   T-106).
-3. `session_started` chưa được phát — hạ tầng `track()` đã có (dùng chung
-   với T-404) nhưng chưa có lời gọi nào cho sự kiện này.
-4. axe-core, so khớp ảnh thiết kế, E2E cho AC-001.2/AC-001.4 chưa thực hiện
-   được trong môi trường này (không có trình duyệt thật để chạy Playwright/
-   axe — xem ghi chú T-504).
+**Đã sửa trong phiên này (3 khoảng trống còn lại của T-107):**
 
-Giữ trạng thái **"In progress"**: phần khung đăng nhập/route guard dùng
-được, nhưng một tiêu chí nghiệm thu (AC-001.3) và một hạng mục DoD (i18n)
-chưa đạt.
+1. **AC-001.3 — giữ bản nháp câu hỏi khi phiên hết hạn.** Thêm
+   `features/auth/draft.ts` (`saveDraft`/`restoreDraft`/`clearDraft`, khóa
+   `cwd_draft_question`, mọi truy cập `sessionStorage` bọc `try/catch` —
+   chế độ ẩn danh không làm crash). `shared/api/client.ts` thêm
+   `setUnauthorizedHandler()` — một điểm đăng ký handler chung thay vì
+   `shared/api` import ngược `features/auth` (vi phạm DR-02); `apiFetch` và
+   `streamQuestion` đều gọi handler này trên mọi phản hồi 401.
+   `features/auth/auth.ts` đăng ký handler đó lúc khởi động module: lưu
+   nháp (qua `captureDraftOnUnauthorized()`) rồi đặt `user: null` để route
+   guard tự chuyển `/login`. Vì composer thật (`features/chat/ChatPage.tsx`)
+   dùng `useState` cục bộ chứ chưa có store dùng chung, `ChatPage` tự đăng
+   ký "nguồn đọc nội dung hiện tại" qua `registerComposerSource()` (tương tự
+   cách `setCsrfToken` tách rời `shared/api` khỏi state cụ thể) — tránh
+   `shared/api`/`features/auth` phụ thuộc ngược vào `features/chat`.
+   `ChatPage` khôi phục nháp lúc mount (`restoreDraft()`), xóa ngay sau khi
+   đọc và xóa lại sau khi gửi câu hỏi thành công. `LoginScreen` hiện thêm
+   banner `SESSION_EXPIRED` (+ câu trấn an "đã được giữ lại" nếu còn nháp)
+   khi trình duyệt từng có phiên hợp lệ trước đó trong tab
+   (`hasPriorSessionInBrowser()`, dựa trên cờ `cwd_session_started`).
+   9 unit test mới trong `features/auth/draft.test.ts`, gồm cả trường hợp
+   `sessionStorage` ném lỗi (mock `DOMException` trên prototype).
+2. **i18n.** `AuthScreens.tsx` không còn chuỗi hard-code: thêm
+   `authMessages` vào `shared/i18n/messages.vi.ts` (tách khỏi `messages`
+   vốn chỉ dành cho mã lỗi SDD §3.4.3, để không làm phình `ErrorCode`), và
+   `LoginScreen`/`NoAccessScreen` import từ đó. Đồng thời thay `<a>`/
+   `<button>` thô bằng `Button` và banner thô bằng `Banner` của
+   `shared/ui` (T-106) — giảm khoảng cách design-system mà không đổi hành
+   vi: nút đăng nhập vẫn điều hướng toàn trang bằng
+   `window.location.assign` (không qua `fetch`, giữ đúng ghi chú §3 vì
+   luồng OIDC cần redirect trình duyệt thật), chỉ chuyển từ thẻ `<a>` sang
+   `onClick` trên `Button`.
+3. **`session_started`.** `features/auth/auth.ts::useAuth.load()` gọi
+   `track("session_started", { is_first_session })` ngay sau khi `GET /me`
+   trả 200 lần đầu, khử trùng lặp bằng cờ `cwd_session_started` trong
+   `sessionStorage` (không phát lại khi `load()` bị gọi lại, ví dụ
+   StrictMode/remount). **`is_first_session`:** codebase hiện chưa có tín
+   hiệu rõ ràng phân biệt "vừa hoàn tất đăng nhập OIDC" với "tải lại trang
+   đã có cookie sẵn" ở phía FE, vì redirect sau khi đăng nhập do backend
+   OIDC callback xử lý (T-101) chứ không đi qua một route FE riêng. Chọn
+   dùng tín hiệu sẵn có gần nhất — `document.referrer` chứa `/auth/login`
+   — coi đó là phiên vừa đăng nhập (`is_first_session: true`); mọi lần tải
+   trang khác (đã có cookie, không tới từ bước đăng nhập) là
+   `is_first_session: false`. Đây là xấp xỉ hợp lý trong phạm vi FE hiện
+   tại, không hoàn hảo (ví dụ mất referrer khi trình duyệt chặn Referrer
+   Policy nghiêm ngặt) — nếu cần chính xác tuyệt đối, nên đổi sang một cờ
+   do backend OIDC callback set (ngoài phạm vi T-107, chạm vào T-101/BE).
+
+**Còn thiếu (không đổi so với trước, ngoài phạm vi phiên này):** axe-core,
+so khớp ảnh thiết kế ở 1280px/1024px, E2E cho AC-001.1/1.2/1.4 — không có
+trình duyệt thật để chạy Playwright/axe trong môi trường này (xem ghi chú
+T-504). Round-trip AC-001.3 mới được xác nhận bằng unit test, chưa bằng
+E2E trình duyệt thật.
+
+Giữ trạng thái **"In progress"**: các khoảng trống AC-001.3/i18n/
+`session_started` đã đóng, nhưng DoD về axe-core/so khớp ảnh thiết kế/E2E
+vẫn chưa đạt.
 
 ## 9. Tham chiếu
 

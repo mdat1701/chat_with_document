@@ -1,12 +1,21 @@
 import { useRef, type DragEvent, type KeyboardEvent } from "react";
-import { uploadFile } from "@shared/api/client";
+import { Tooltip } from "@shared/ui";
 
 type Props = {
   disabled?: boolean;
+  /** Lý do vô hiệu hóa — bắt buộc có khi `disabled` (SDD §2.5: nút disabled luôn có tooltip). */
+  disabledReason?: string;
+  hintText: string;
   onFilesSelected: (files: File[]) => void;
 };
 
-export function UploadDropzone({ disabled = false, onFilesSelected }: Props) {
+/**
+ * Vùng kéo-thả/chọn tệp (T-109 §5.1) — thuần phía UI: chỉ gom danh sách
+ * `File` và giao lại cho `onFilesSelected` (hàng đợi tải lên thật nằm ở
+ * `useUploadQueue`, gọi từ `DocumentLibrary`). Không tự gọi API, nên không
+ * vi phạm ranh giới DR-04.
+ */
+export function UploadDropzone({ disabled = false, disabledReason, hintText, onFilesSelected }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const choose = () => {
     if (!disabled) inputRef.current?.click();
@@ -20,26 +29,25 @@ export function UploadDropzone({ disabled = false, onFilesSelected }: Props) {
   const drop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (!disabled) {
-      const files = Array.from(event.dataTransfer.files);
-      onFilesSelected(files);
-      void Promise.all(files.map((file) => uploadFile(file)));
+      onFilesSelected(Array.from(event.dataTransfer.files));
     }
   };
-  return (
+
+  const dropzone = (
     <div
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
       aria-label="Chọn tệp PDF để tải lên"
       data-testid="upload-dropzone"
+      className="ui-upload-dropzone"
       onClick={choose}
       onKeyDown={keyDown}
       onDragOver={(event) => event.preventDefault()}
       onDrop={drop}
-      style={{ border: "2px dashed #b8c5d9", borderRadius: 12, padding: 28 }}
     >
       <strong>Tải tài liệu PDF</strong>
-      <p>PDF có văn bản · tối đa 20 MB mỗi tệp</p>
+      <p>{hintText}</p>
       <input
         ref={inputRef}
         hidden
@@ -47,13 +55,17 @@ export function UploadDropzone({ disabled = false, onFilesSelected }: Props) {
         multiple
         data-testid="upload-dropzone-input"
         accept="application/pdf,.pdf"
+        disabled={disabled}
         onChange={(event) => {
-          const files = Array.from(event.target.files ?? []);
-          onFilesSelected(files);
-          void Promise.all(files.map((file) => uploadFile(file)));
+          onFilesSelected(Array.from(event.target.files ?? []));
           event.target.value = "";
         }}
       />
     </div>
   );
+
+  if (disabled && disabledReason) {
+    return <Tooltip content={disabledReason} data-testid="upload-dropzone-tooltip">{dropzone}</Tooltip>;
+  }
+  return dropzone;
 }

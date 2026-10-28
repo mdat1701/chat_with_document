@@ -14,7 +14,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.tei_embedding import TeiEmbeddingAdapter
-from app.api.deps import CurrentUser, get_current_user, get_db_session, get_llm_port
+from app.api.deps import (
+    CurrentUser,
+    get_current_user,
+    get_db_session,
+    get_llm_port,
+    get_reranker_port,
+)
 from app.core.config import get_settings
 from app.core.errors import DomainError
 from app.core.ratelimit import check_rate_limit
@@ -24,6 +30,7 @@ from app.modules.documents.models import Document
 from app.modules.qa.models import Answer
 from app.modules.qa.service import stream_answer
 from app.ports.llm_port import LLMError, LLMPort
+from app.ports.reranker_port import RerankerPort
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -54,6 +61,7 @@ async def ask_question(
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
     llm: LLMPort = Depends(get_llm_port),
+    reranker: RerankerPort | None = Depends(get_reranker_port),
 ) -> StreamingResponse:
     question = payload.text.strip()
     if not question or len(question) > get_settings().max_question_length:
@@ -83,7 +91,12 @@ async def ask_question(
         try:
             complete: dict[str, object] | None = None
             async for event, value in stream_answer(
-                session, UUID(current_user.id), question, TeiEmbeddingAdapter(), llm=llm
+                session,
+                UUID(current_user.id),
+                question,
+                TeiEmbeddingAdapter(),
+                llm=llm,
+                reranker=reranker,
             ):
                 if await request.is_disconnected():
                     return

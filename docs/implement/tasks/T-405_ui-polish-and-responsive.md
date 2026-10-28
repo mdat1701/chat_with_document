@@ -10,7 +10,7 @@
 | Vai trò chính | FE (chính) + QA |
 | Ước lượng | 3 ngày công |
 | Phụ thuộc | T-205 (thư viện tài liệu), T-305 (`Composer`), T-306 (`AnswerMessage`) |
-| Trạng thái | To do (chưa bắt đầu — phụ thuộc `shared/ui` của T-106) |
+| Trạng thái | In progress (xem "Ghi chú triển khai thực tế" — còn thiếu kiểm thử đa trình duyệt thật, đối chiếu ảnh thiết kế bằng mắt, và phím tắt `Ctrl+Shift+O`/mũi tên) |
 
 ## 1. Mục tiêu
 
@@ -72,33 +72,85 @@ Không có thay đổi CSDL. Chỉ dùng `localStorage` cho **tùy chọn giao d
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] **ER-09:** nhập 2.001 ký tự → bộ đếm đỏ, nút Gửi khóa; xóa còn 1.999 → mở lại
-- [ ] **NE-03:** ngắt mạng (DevTools offline) khi đang soạn dở → banner hiện, nút Gửi khóa, nội dung **không mất**; bật lại mạng → gửi được ngay
-- [ ] **AC-009.3:** ở 900px, nhấn "Tài liệu" → ngăn trượt mở; `Esc` và nhấn scrim đều đóng được
-- [ ] **IR-01:** trong lúc streaming, DOM **không** chứa `CitationList`; sau `done` thì xuất hiện
-- [ ] Toàn bộ 7 trạng thái `Composer` ở §3 có ca kiểm thử riêng, đúng thứ tự ưu tiên
-- [ ] axe-core chạy trên SCR-01, SCR-02, SCR-03, SCR-07 → 0 lỗi mức `serious`/`critical`
-- [ ] Zoom 200% ở 1280px và chiều rộng 360px → không có thanh cuộn ngang
-- [ ] Điều hướng toàn bộ luồng chính **chỉ bằng bàn phím** (Tab/Enter/Esc) không bị kẹt focus
-- [ ] Đối chiếu ảnh: [`SCR-02_22_offline-banner.png`](../../design/html_design/SCR-02_22_offline-banner.png), [`SCR-02_25_question-too-long.png`](../../design/html_design/SCR-02_25_question-too-long.png), [`SCR-02_26_tablet-drawer.png`](../../design/html_design/SCR-02_26_tablet-drawer.png), [`SCR-02_23_user-menu.png`](../../design/html_design/SCR-02_23_user-menu.png), [`SCR-02_24_streaming.png`](../../design/html_design/SCR-02_24_streaming.png)
+- [x] **ER-09:** nhập 2.001 ký tự → bộ đếm đỏ, nút Gửi khóa; xóa còn 1.999 → mở lại (đã có từ T-305, kiểm bằng `ChatPage.test.tsx`; phiên này thêm `aria-invalid` cho textarea)
+- [x] **NE-03:** ngắt mạng khi đang soạn dở → banner hiện (`OfflineBanner`, sticky, `role="status"`), nút Gửi khóa (`disabledReason="offline"`), `UploadDropzone` khóa; nội dung **không mất** (state React của `ChatPageInner` không unmount khi offline — đã kiểm bằng đọc code, chưa có test tự động riêng cho kịch bản DevTools offline thật)
+- [x] **AC-009.3:** dưới 1024px, nhấn "Tài liệu" → `Drawer` (Radix Dialog neo trái) mở; `Esc` và nhấn scrim đều đóng được (hành vi chuẩn của Radix, có smoke test `Drawer.test.tsx`); **chưa** kiểm bằng trình duyệt thật ở đúng 900px (chỉ kiểm bằng đọc CSS/logic `useIsDesktop`)
+- [x] **IR-01:** trong lúc streaming, DOM **không** chứa `CitationList`; sau `done` thì xuất hiện (đã đúng từ T-306 nhờ thứ tự SSE, xác nhận lại trong phiên này)
+- [x] Toàn bộ 7 trạng thái `Composer` ở §3 đối chiếu lại với bảng ưu tiên — khớp hoàn toàn (tooltip Việt hoá đúng từng dòng), có ca kiểm thử trong `ChatPage.test.tsx`
+- [x] axe-core chạy trên các component mới (`OfflineBanner`, `Drawer`) + toàn bộ `shared/ui` hiện có → 0 lỗi mức `serious`/`critical` trong các test đã chạy; **chưa** chạy axe-core trên toàn trang SCR-01/02/03/07 thực sự (không có browser thật trong sandbox này, chỉ chạy `jest-axe` trên cây DOM từng component)
+- [ ] Zoom 200% ở 1280px và chiều rộng 360px — **không thể xác minh bằng trình duyệt thật** trong sandbox này; chỉ xác minh được qua đọc CSS: không có `width` cố định lớn hơn viewport trong `chat.css`/`documents.css`/`ui.css`, `body { min-width: 320px }`, không phát hiện phần tử có khả năng gây tràn ngang ở 360px
+- [ ] Điều hướng toàn bộ luồng chính chỉ bằng bàn phím — xác minh được cho `Dialog`/`Drawer`/`Tooltip`/`UserMenu` (đều dùng Radix UI, có bẫy focus + `Esc` sẵn có); **chưa** chạy kiểm thử thủ công Tab-qua-toàn-trang bằng trình duyệt thật
+- [ ] Đối chiếu ảnh: [`SCR-02_22_offline-banner.png`](../../design/html_design/SCR-02_22_offline-banner.png), [`SCR-02_25_question-too-long.png`](../../design/html_design/SCR-02_25_question-too-long.png), [`SCR-02_26_tablet-drawer.png`](../../design/html_design/SCR-02_26_tablet-drawer.png), [`SCR-02_23_user-menu.png`](../../design/html_design/SCR-02_23_user-menu.png), [`SCR-02_24_streaming.png`](../../design/html_design/SCR-02_24_streaming.png) — **chưa đối chiếu bằng mắt** (không có trình duyệt/renderer ảnh trong sandbox này)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 5 ảnh thiết kế ở trên khớp với bản chạy thật tại 1280px (và 900px cho ngăn trượt)
-- [ ] axe-core sạch lỗi nghiêm trọng, chạy tự động trong CI
-- [ ] Mọi phần tử tương tác có `data-testid` và dùng được bằng bàn phím
-- [ ] Không còn mã màu cố định trong component (lint kiểm tra token)
-- [ ] Menu người dùng **không** còn mục post-MVP (Báo cáo tuần / Chấm điểm / Quản lý quyền)
-- [ ] Chạy đúng trên Chrome, Edge, Firefox (2 phiên bản mới nhất)
+- [ ] 5 ảnh thiết kế ở trên khớp với bản chạy thật tại 1280px (và 900px cho ngăn trượt) — **chưa làm được**, cần máy có trình duyệt
+- [x] axe-core sạch lỗi nghiêm trọng cho các component mới/đã sửa (chạy trong `npm test`, không phải CI riêng — CI hiện tại đã gọi `npm test` nên coi như "chạy trong CI" theo nghĩa rộng, nhưng **chưa** có bước axe quét toàn trang)
+- [x] Mọi phần tử tương tác mới (`OfflineBanner`, nút "Tài liệu", `Drawer`, `UserMenu` và các mục trong đó) có `data-testid` và dùng được bằng bàn phím (Radix UI lo phần focus/Esc)
+- [x] Không còn mã màu cố định (hex) trong `features/*` và `shared/ui` — đã rà soát bằng `grep -rn "#[0-9a-fA-F]{3,6}"` loại trừ `global.css`, không còn kết quả; token `--color-skeleton-highlight` và `--color-overlay` được thêm vào `global.css` để thay cho các hex còn sót trong `ui.css`
+- [x] Menu người dùng (`UserMenu`) chỉ gồm email tài khoản (nhãn), "Trợ giúp", "Đăng xuất" — không có mục post-MVP
+- [ ] Chạy đúng trên Chrome, Edge, Firefox (2 phiên bản mới nhất) — **không thể kiểm chứng**, sandbox này không có trình duyệt thật để chạy cross-browser
 
 ### Ghi chú triển khai thực tế
 
-Không tìm thấy bằng chứng triển khai nào trong `App.tsx`/`ChatPage.tsx`/
-`UploadDropzone.tsx` cho: bộ đếm ký tự ER-09, khóa composer khi mất mạng
-(`ChatPage` không đọc `navigator.onLine` — chỉ `UploadDropzone` có), ngăn
-trượt responsive 900px, ẩn `CitationList` khi streaming (thực ra đã đúng
-nhờ thứ tự SSE, xem T-306), axe-core, menu người dùng. Task này phụ thuộc
-trực tiếp vào `shared/ui` (T-106) chưa tồn tại nên giữ nguyên "To do".
+Đọc lại code trước khi làm cho thấy phần lớn §5 bước 1–2 (con trỏ streaming,
+ẩn `CitationList` khi `streaming`, bộ đếm ký tự, 7 trạng thái `Composer` theo
+đúng thứ tự ưu tiên SDD §3.7.3 với tooltip Việt hoá khớp từng dòng) **đã được
+làm đúng** trong các phiên T-305/T-306 trước đó — không phải "chưa bắt đầu"
+như ghi chú cũ của task này nói. Phiên này bổ sung phần còn thiếu thật sự:
+
+- `shared/ui/OfflineBanner.tsx` — banner `position: sticky` (không dùng
+  `fixed` tuyệt đối để tránh che nội dung phía dưới mà không có đệm bù),
+  `role="status"`, thay cho `<div className="offline-banner">` ad-hoc cũ
+  trong `App.tsx`.
+- `shared/ui/Drawer.tsx` — bọc `@radix-ui/react-dialog` neo trái (bẫy focus,
+  `Esc`, scrim-close có sẵn từ Radix), dùng cho thư viện tài liệu dưới
+  1024px (AC-009.3).
+- `app/useIsDesktop.ts` — hook `matchMedia('(min-width: 1024px)')` quyết
+  định bố cục 2 cột (`app-layout--two-col`) hay ngăn trượt; khi xoay ngang
+  qua lại ngưỡng 1024px, nhánh ngăn trượt bị gỡ hẳn khỏi cây React (không
+  chỉ ẩn CSS) nên không có chuyện kẹt trạng thái "đang mở" nêu ở §6.
+- `app/UserMenu.tsx` — dùng `@radix-ui/react-dropdown-menu` (đã có sẵn
+  trong `package.json`, không thêm phụ thuộc mới); 3 mục: email (nhãn,
+  `DropdownMenu.Label`), "Trợ giúp" (hiện tạm mở `mailto:` placeholder vì
+  chưa có trang trợ giúp thật — cần thay bằng đường dẫn thật khi có), "Đăng
+  xuất" (gọi `logout()` sẵn có trong `shared/api/client.ts`, giữ nguyên quy
+  ước xóa draft trước khi điều hướng).
+- `shared/tokens/global.css` — thêm token `--color-skeleton-highlight`,
+  `--color-overlay`, và 4 biến `--breakpoint-*` (tài liệu hoá điểm ngắt SDD
+  §3.8.1); thay toàn bộ hex-literal còn sót trong `.card`/`.button`/
+  `.document-row`/skeleton shimmer bằng `var(--...)`. `grep` xác nhận
+  `features/*` và `shared/ui` (ngoài `global.css`) không còn hex-literal.
+- `Composer.tsx` — thêm `aria-invalid` vào textarea khi vượt quá
+  `max_question_length` (trước đó chỉ đổi màu bộ đếm, chưa gắn ARIA).
+- Test mới: `OfflineBanner.test.tsx`, `Drawer.test.tsx` (mỗi file có 1 ca
+  axe-core qua `expectNoA11yViolations`, theo đúng khuôn mẫu các test
+  `shared/ui` khác).
+
+**Chưa làm / không thể làm trong phiên này (nêu rõ để không báo cáo khống):**
+
+1. **Phím tắt** `Ctrl+Shift+O` (cuộc trò chuyện mới) và điều hướng mũi tên
+   trong danh sách tài liệu — **chưa cài đặt**, đúng như mục "ưu tiên thấp"
+   trong chỉ dẫn của task. `/` để focus ô câu hỏi, `Enter`/`Shift+Enter`,
+   `Esc` đóng hộp thoại (qua Radix) đã có sẵn.
+2. **Kiểm thử đa trình duyệt** (Chrome/Edge/Firefox) và **đối chiếu 5 ảnh
+   thiết kế bằng mắt** — không thể thực hiện trong sandbox này (không có
+   trình duyệt thật/headless browser để chụp màn hình so sánh). Đây là lý
+   do chính khiến Định nghĩa Hoàn thành (§8) chưa đạt 100%.
+3. **Zoom 200%** và axe-core quét toàn trang (SCR-01/02/03/07) — chỉ kiểm
+   chứng được gián tiếp qua đọc CSS và chạy axe-core ở mức component
+   (`jest-axe`/`vitest`), không phải trên trang đã render đầy đủ trong
+   trình duyệt.
+4. `DocumentLibrary`'s `hasMessages` vẫn hard-code `false` (ghi chú cũ từ
+   T-205) — ngoài phạm vi T-405, không đụng tới.
+5. Không chạy backend thật để kiểm `NE-03` kịch bản "API vẫn lỗi dù
+   `navigator.onLine` báo online" — logic hiện tại (banner chỉ dựa vào sự
+   kiện `online`/`offline`, lỗi API dùng `ErrorCode` riêng ở `AnswerMessage`)
+   đã đúng theo thiết kế nhưng chưa có test tích hợp riêng cho trường hợp
+   biên này.
+
+Do còn các khoảng trống trên (đặc biệt là không thể kiểm thử trình duyệt
+thật), trạng thái giữ ở **"In progress"**, không đánh dấu "Done".
 
 ## 9. Tham chiếu
 

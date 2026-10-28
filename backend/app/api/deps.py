@@ -24,6 +24,7 @@ from app.core.redis_client import get_redis
 from app.modules.identity import repository, sessions
 from app.ports.llm_port import LLMPort
 from app.ports.oidc_port import OIDCPort
+from app.ports.reranker_port import RerankerPort
 
 
 class CurrentUser(BaseModel):
@@ -76,6 +77,19 @@ def get_llm_port() -> LLMPort:
     if settings.llm_provider == "fake":
         return FakeLLM()
     return OpenAICompatibleLLM()
+
+
+def get_reranker_port() -> RerankerPort | None:
+    """Adapter rerank cross-encoder (T-401). Trả `None` ở môi trường dev/
+    test (`settings.llm_provider == "fake"`, cùng cờ dùng cho `FakeLLM`) —
+    `retrieval.retrieve()` tự quay về xếp hạng RRF khi không có reranker
+    (T-401 §6, không coi là lỗi). Test ghi đè qua
+    `app.dependency_overrides[get_reranker_port]`."""
+    if get_settings().llm_provider == "fake":
+        return None
+    from app.adapters.tei_reranker import TeiRerankerAdapter
+
+    return TeiRerankerAdapter()
 
 
 async def get_current_user(

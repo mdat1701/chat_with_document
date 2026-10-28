@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-005 (schema `document`), T-102 (phiên + CSRF), T-104 (RLS), T-105 (cấu hình + rate limit), T-006 (hàng đợi Celery) |
-| Trạng thái | In progress (code đầy đủ, chưa có test tự động riêng) |
+| Trạng thái | In progress (code đầy đủ; 5 test tự động mới qua TestClient; AC-007.2 song song thật vẫn cần Postgres) |
 
 ## 1. Mục tiêu
 
@@ -112,13 +112,13 @@ POST /documents/{id}/retry          # chỉ cho tài liệu failed với UPLOAD_
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Tệp PDF hợp lệ 3 MB → 201, `status='processing'`, có job trong hàng đợi `ingestion` (AC-003.1) — logic đúng trong `upload_document` (`app/api/routers/documents.py`), **chưa có test tự động riêng cho router này**
-- [x] Tệp đúng 20 MB → 201 (AC-006.1); tệp 20 MB + 1 byte → 413 (AC-006.2) — kiểm tra `content_length` trước khi đọc, và kiểm tra lại `size_bytes` khi stream (`FILE_TOO_LARGE` → 413 xác nhận trong `core/errors.py`)
-- [x] Tệp `.pdf` nhưng nội dung là PNG → `FILE_NOT_PDF` (415) — kiểm tra magic byte `%PDF-` trước khi ghi
-- [x] Client khai `Content-Length` nhỏ hơn thực tế rồi gửi tệp lớn → bị chặn khi stream vượt `max_file_size_bytes`, rollback + xoá blob dở dang
-- [ ] **Test song song thật** (asyncio/threading) cho AC-007.2 — **chưa viết**; code dùng `SELECT ... FOR UPDATE` trên hàng `app_user` để khoá kiểm tra hạn mức, về lý thuyết đúng nhưng chưa có test chứng minh dưới tải đồng thời thật
-- [x] Đã đủ 50 tài liệu → 422 `QUOTA_EXCEEDED` (AC-007.1) — xác nhận bằng đọc code + catalog lỗi
-- [x] `on_duplicate=reject/keep_both/replace` — cả 3 nhánh có trong `_unique_name()`, khớp mô tả (sinh tên `(2).pdf`, chuyển bản cũ `status=deleting`)
+- [x] Tệp PDF hợp lệ → 201, `status='processing'`, có job trong hàng đợi `ingestion` (AC-003.1) — **test mới** `test_valid_pdf_upload_returns_201_and_enqueues_ingestion` (`tests/unit/test_documents_router.py`), qua `TestClient` thật + `AsyncSession`/Redis/queue giả lập
+- [x] Tệp đúng 20 MB → 201 (AC-006.1); tệp 20 MB + 1 byte → 413 (AC-006.2) — kiểm tra `content_length` trước khi đọc; **test mới** `test_file_too_large_by_content_length_header_returns_413` xác nhận nhánh 413 qua header `Content-Length`
+- [x] Tệp `.pdf` nhưng nội dung là PNG → `FILE_NOT_PDF` (415) — **test mới** `test_non_pdf_magic_bytes_returns_415`
+- [x] Client khai `Content-Length` nhỏ hơn thực tế rồi gửi tệp lớn → bị chặn khi stream vượt `max_file_size_bytes`, rollback + xoá blob dở dang (xác nhận bằng đọc code; chưa test riêng nhánh "gian dối Content-Length" cụ thể)
+- [ ] **Test song song thật** (asyncio/threading) cho AC-007.2 — **vẫn chưa viết**; đây là giới hạn thật của mock `AsyncSession` (không mô phỏng được ngữ nghĩa khóa `SELECT ... FOR UPDATE` của Postgres) — cần test tích hợp Testcontainers tương tự `tests/integration/conftest.py` (T-504) chạy nhiều coroutine `asyncio.gather` thật
+- [x] Đã đủ 50 tài liệu → 422 `QUOTA_EXCEEDED` (AC-007.1) — **test mới** `test_quota_exceeded_returns_422`
+- [x] `on_duplicate=reject/keep_both/replace` — cả 3 nhánh có trong `_unique_name()`; **test mới** `test_duplicate_name_reject_mode_returns_409` xác nhận nhánh `reject` (mặc định); `replace`/`keep_both` vẫn chỉ xác nhận bằng đọc code
 - [x] Thiếu `X-CSRF-Token` → 403 (middleware `csrf_protection` trong `app/api/main.py`, áp dụng mọi `POST /api/v1/*`); phiên hết hạn → 401 (`get_current_user`)
 - [x] Rate limit 60 tệp/giờ dùng `check_rate_limit` của T-105
 - [ ] Ngắt kết nối giữa chừng → dọn object mồ côi — logic rollback tức thời có (`except: path.unlink(...)`), cơ chế `reconcile_orphan_blobs` (T-206) dọn định kỳ cũng tồn tại, nhưng **chưa có test tích hợp mô phỏng ngắt kết nối giữa chừng**
@@ -126,7 +126,7 @@ POST /documents/{id}/retry          # chỉ cho tài liệu failed với UPLOAD_
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 7 AC ở §2 đạt về mặt code, nhưng AC-007.2 **chưa có test song song** chạy trong CI — chưa đạt đủ điều kiện DoD
+- [ ] 7 AC ở §2 đạt về mặt code; 6/7 giờ có test tự động (chỉ AC-007.2 **chưa có test song song** chạy trong CI) — chưa đạt đủ điều kiện DoD vì thiếu đúng ca khó nhất
 - [x] Mọi giới hạn đọc từ `get_settings()` (T-105), không hard-code — xác nhận bằng đọc code
 - [x] Không có đường dẫn code nào ghi `document.owner_id` từ client — `owner_id` luôn lấy từ `current_user.id` (phiên)
 - [x] Khóa object đúng tiền tố `owner/{owner_id}/{document_id}.pdf`, không trả URL trực tiếp — xác nhận bằng đọc code
@@ -137,12 +137,26 @@ POST /documents/{id}/retry          # chỉ cho tài liệu failed với UPLOAD_
 Toàn bộ router `app/api/routers/documents.py::upload_document` đã được kiểm
 tra tĩnh sạch (`ruff check .`, `mypy app`, `lint-imports` — xem xác nhận
 toàn backend ở README) và đọc thủ công khớp với mô tả §3/§5 của task này.
-Phần **chưa đạt** là test tự động: hiện chưa có `tests/unit/test_documents_router.py`
-hay tương đương để chứng minh các ca ở §7 (đặc biệt AC-007.2 — hạn mức dưới
-tải song song — và ca ngắt kết nối giữa chừng). Việc cần làm tiếp: viết test
-dùng `TestClient` + `dependency_overrides` cho `get_current_user`/`get_db_session`,
-và một test tích hợp chạy nhiều coroutine `asyncio.gather` để chứng minh
-`SELECT ... FOR UPDATE` thực sự chặn vượt hạn mức 50 tài liệu.
+
+**Đã thêm (phiên này):** `tests/unit/test_documents_router.py` (5 test) —
+đúng như đề xuất ở lần rà soát trước, dùng `TestClient` thật +
+`dependency_overrides` cho `get_current_user`/`get_db_session`/`get_queue`,
+`fakeredis` cho rate limit, và một `_SequentialSession` giả lập trả lần
+lượt kết quả cho từng lệnh `AsyncSession.execute()` theo đúng thứ tự
+`upload_document` gọi (owner FOR UPDATE → đếm hạn mức → kiểm tra trùng
+tên). Phủ 5/7 ca ở §7: upload hợp lệ → 201 + enqueue, 415 sai magic byte,
+422 hết hạn mức, 409 trùng tên (`on_duplicate=reject`), 413 theo header
+`Content-Length`. Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports`
+(3 hợp đồng vẫn giữ) và `pytest` (131 passed).
+
+**Vẫn chưa làm (giới hạn thật của kỹ thuật mock, không phải thiếu thời
+gian):** AC-007.2 (hạn mức dưới tải song song) cần ngữ nghĩa khóa
+`SELECT ... FOR UPDATE` của Postgres thật — một `AsyncSession` giả lập
+không thể mô phỏng việc 5 transaction đồng thời bị serialize bởi khóa
+hàng. Cần test tích hợp Testcontainers (cùng hạ tầng với
+`tests/integration/conftest.py`, T-504) chạy `asyncio.gather` với 5
+request thật. Cũng chưa test riêng ca "ngắt kết nối giữa chừng" và nhánh
+`replace`/`keep_both` của `on_duplicate`.
 
 ## 9. Tham chiếu
 

@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-304 (API SSE), T-305 (Composer/store) |
-| Trạng thái | In progress (hiển thị + chip nguồn cơ bản, chưa markdown/sanitize/hover) |
+| Trạng thái | In progress (markdown + rehype-sanitize + hover `[n]`↔chip + IR-01/02/03 đã nối; còn thiếu axe-core và so khớp ảnh thiết kế) |
 
 ## 1. Mục tiêu
 
@@ -110,30 +110,38 @@ Không có. Câu trả lời chỉ sống trong RAM (Zustand + cache TanStack Qu
 
 ## 7. Kiểm thử bắt buộc
 
-- [x] XSS không thực thi — hiện render answer bằng `{answer}` trong JSX (React escape mặc định, không `dangerouslySetInnerHTML`) nên an toàn mặc định; nhưng cũng có nghĩa là **không có markdown nào được render** dù `react-markdown`/`rehype-sanitize`/`remark-gfm` có trong `package.json` — phụ thuộc chưa được dùng
-- [x] Thẻ nguồn không xuất hiện khi streaming — `citations` chỉ được `setCitations` khi nhận `event: citations`, đúng sau khi `delta` kết thúc và trước `done` (khớp thứ tự backend ở T-304)
-- [ ] `incomplete` → ẩn thẻ nguồn — **chưa có khái niệm `incomplete`** ở FE (không xử lý `event: error`/ngắt kết nối giữa chừng)
-- [ ] `[n]` không khớp → chữ thường — không áp dụng vì câu trả lời không được parse thành các đoạn `[n]` tương tác, chỉ hiện thô
-- [ ] Hover `[1]` nổi bật chip — chưa có (chip chỉ có `onClick` phát `citation_viewed`, không có hover-link với vị trí trong văn bản)
-- [ ] 4 tài liệu → 4 chip không trùng — về lý thuyết đúng vì `citations.map` render mọi phần tử nhận được, chưa có test
-- [ ] aria-live công bố "Đã có câu trả lời" — `aria-live="polite"` có trên vùng trả lời nhưng nội dung thay đổi dần theo từng token (có thể đọc nhiều lần, không có thông báo hoàn tất riêng)
-- [ ] axe-core — chưa cài
+- [x] XSS không thực thi — `AnswerMessage.tsx` render qua `react-markdown` + `remark-gfm` + `rehype-sanitize` với schema giới hạn (`p, strong, em, ul, ol, li, code, br`, không thuộc tính); test `ChatPage.test.tsx` ("IR-04: nội dung `<script>` bị rehype-sanitize loại bỏ") gửi một `delta` chứa `<script>window.__xss=true</script>` và xác nhận `document.querySelector("script")` là `null` và biến global không được set
+- [x] Thẻ nguồn không xuất hiện khi streaming — `citations` chỉ cập nhật khi nhận `event: citations`; `CitationList` chỉ render khi `phase === 'complete'` (IR-01, không chỉ khi "chưa stream")
+- [x] `incomplete` → ẩn thẻ nguồn — `ChatPage.tsx::runQuestion` đặt `phase='incomplete'` khi `event:error{code:'ANSWER_INTERRUPTED'}` đến **sau** ít nhất một `delta`; `AnswerMessage` không render `CitationList` khi `phase!=='complete'`; có test riêng xác nhận `citation-list` không tồn tại trong DOM ở nhánh này
+- [x] `[n]` không khớp → chữ thường — `CitationRef` (trong `AnswerMessage.tsx`, dùng từ `CitationChip.tsx`) trả `<span>[n]</span>` thuần khi không tìm thấy trong `citationsByIndex`; test "CitationRef [n] không khớp" xác nhận không có `citation-ref` nhưng text `[5]` vẫn hiển thị
+- [x] Hover `[1]` nổi bật chip — `highlightedIndex` dùng chung giữa `CitationRef` và `CitationChip` trong `AnswerMessage`, cập nhật qua `onMouseEnter/onFocus` cả hai chiều (UX-04)
+- [x] 4 tài liệu → 4 chip không trùng — `citations.map` theo `index` nhận từ server, key `${documentId}-${index}` đảm bảo duy nhất
+- [~] aria-live công bố "Đã có câu trả lời" — có vùng `aria-live="polite"` riêng (`data-testid="answer-announcer"`, ẩn bằng `.sr-only`) chỉ cập nhật text khi `done` tới, tách khỏi `message-list` (cũng `aria-live="polite"` nhưng đổi nội dung mỗi token); về lý thuyết giảm đọc lặp nhưng chưa kiểm bằng trình đọc màn hình thật
+- [ ] axe-core — chưa chạy cho `features/chat` (có sẵn hạ tầng `expectNoA11yViolations` ở `shared/testing/axe.ts`, dùng trong `shared/ui/*.test.tsx`, chưa áp dụng ở đây)
 
 ## 8. Định nghĩa Hoàn thành
 
 - [ ] Khớp ảnh thiết kế — chưa đối chiếu
-- [ ] Bảng `phase` 7 dòng — chỉ có trước/trong/sau stream (3 trạng thái ngầm), chưa đủ 7
-- [x] Không lưu câu trả lời vào Web Storage — xác nhận bằng đọc code
-- [x] `citation_viewed` không chứa tên tệp/nội dung — `track("citation_viewed", {citation_index: i+1})`, chỉ gửi chỉ số
+- [x] Bảng `phase` 7 dòng — `AnswerMessage.tsx` xử lý đủ `pending`/`streaming`/`complete·answered`/`complete·partial`/`complete·not_found`/`failed`/`incomplete` theo đúng bảng §3 (ẩn/hiện thẻ nguồn, khóa composer tương ứng qua `awaitingAnswer`)
+- [x] Không lưu câu trả lời vào Web Storage — xác nhận bằng đọc code (chỉ `useState` trong `ChatPage.tsx`)
+- [x] `citation_viewed` không chứa tên tệp/nội dung — `CitationChip.tsx` phát `track("citation_viewed", {citation_index})` khi hover ≥500ms (dùng `setTimeout`, hủy ở `mouseleave`) hoặc khi click; có test dùng fake timers xác nhận không phát khi rời chuột trước 500ms
 
 ### Ghi chú triển khai thực tế
 
-Phần cốt lõi (ẩn thẻ nguồn khi đang stream, chỉ hiện sau khi nhận đủ) đã
-đúng nhờ thứ tự sự kiện SSE của T-304. Thiếu: markdown rendering (dependency
-đã cài nhưng chưa dùng), liên kết hover giữa `[n]` trong văn bản và chip
-nguồn, xử lý trạng thái `incomplete` khi SSE bị ngắt giữa chừng, và a11y
-(axe-core, thông báo hoàn tất riêng cho trình đọc màn hình). Giữ
-"In progress".
+Viết lại hoàn toàn phần hiển thị câu trả lời thành
+`frontend/src/features/chat/AnswerMessage.tsx` +
+`frontend/src/features/chat/CitationChip.tsx`. Markdown dùng
+`react-markdown`/`remark-gfm`/`rehype-sanitize` với schema tag tối giản
+đúng §5.3; việc thay token `[n]` bằng `CitationRef` được làm bằng một hàm
+đệ quy (`renderWithCitationRefs`) duyệt `children` của các thẻ `p/li/strong/em`
+do `react-markdown` trả về và tách chuỗi theo regex `/\[(\d+)\]/g` — cách
+này tương thích với nội dung markdown bị cắt giữa chừng khi streaming
+(không parse toàn bộ AST lại mỗi token). `highlightedIndex` là state cục
+bộ trong `AnswerMessage` dùng chung cho `CitationRef` và `CitationChip`
+(UX-04). IR-02 (uncited) dùng `Banner tone="warning"`; `not_found` dùng
+`Banner tone="info"` với icon ℹ (UX-06, T-307). Còn thiếu: axe-core cho
+`features/chat`, so khớp ảnh thiết kế, kiểm thử trình đọc màn hình thật
+cho vùng `aria-live`. Giữ "In progress".
 
 ## 9. Tham chiếu
 

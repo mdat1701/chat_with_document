@@ -10,7 +10,7 @@
 | Vai trò chính | AI (chính) + BE |
 | Ước lượng | 2 ngày công |
 | Phụ thuộc | T-302 (truy xuất vector + cổng bằng chứng), T-303 (prompt v1 + kiểm tra trích dẫn) |
-| Trạng thái | In progress (FTS+RRF+đa dạng hoá đã làm ở T-302, thiếu cross-encoder rerank) |
+| Trạng thái | In progress (FTS+RRF+đa dạng hoá đã làm ở T-302; cross-encoder rerank đã cài trong phiên này, chưa chạy với TEI thật) |
 
 ## 1. Mục tiêu
 
@@ -92,17 +92,17 @@ Không thêm bảng mới.
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] AC-012.1 (đáp án rải 2 tài liệu) — logic RRF hợp nhất vector+FTS hỗ trợ việc này về nguyên tắc, nhưng **0 test retrieval/qa nào tồn tại** để chứng minh
+- [ ] AC-012.1 (đáp án rải 2 tài liệu) — logic RRF hợp nhất vector+FTS hỗ trợ việc này về nguyên tắc; giờ đã có test cho `retrieve()` (xem các mục dưới) nhưng chưa có ca cụ thể cho "2 tài liệu khác nhau" — cần Postgres thật hoặc fixture phức tạp hơn
 - [ ] AC-012.2 (mâu thuẫn, nêu cả hai nguồn) — phụ thuộc hành vi LLM thật theo `prompt.py::build_prompt` ("Nếu có mâu thuẫn, nêu cả hai giá trị"), không kiểm chứng được với `FakeLLM`
-- [x] Đa dạng tài liệu — `diversify_evidence(max_chunks_per_doc=4, limit=8)` đúng cơ chế giới hạn theo tài liệu, xác nhận bằng đọc code; chưa có test
+- [x] Đa dạng tài liệu — `diversify_evidence(max_chunks_per_doc=4, limit=8)`; test `test_diversify_evidence_caps_chunks_per_document` (`tests/unit/test_retrieval_service.py`)
 - [x] FTS tìm được mã dạng `HD-2026/A-17` — dùng `websearch_to_tsquery('simple', unaccent(query_text))`, về nguyên tắc đúng vì FTS không phụ thuộc embedding; chưa test với Postgres thật
 - [x] Không dấu khớp có dấu nhờ `unaccent` — cả truy vấn và `tsv` đều áp `unaccent`, nhất quán hai chiều
-- [ ] Rerank lỗi vẫn trả lời được — **không áp dụng**: không có bước gọi reranker/cross-encoder nào (xem ghi chú), nên không có lỗi "rerank" để mô phỏng
-- [ ] p90 ≤ 15s — không đo được (không có staging/LLM thật)
+- [x] Rerank lỗi vẫn trả lời được — **đã cài**: `TeiRerankerAdapter.rerank()` ném `RuntimeError` khi TEI lỗi/hình dạng phản hồi sai, `retrieve()` bắt riêng `RuntimeError` và quay về xếp hạng RRF thô, không làm hỏng câu trả lời — test `test_retrieve_falls_back_to_rrf_when_reranker_fails`
+- [ ] p90 ≤ 15s — không đo được (không có staging/LLM/TEI reranker thật)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-012.1/AC-012.2 có test tự động trong CI — chưa có
+- [ ] AC-012.1/AC-012.2 có test tự động trong CI — chưa có (cần Postgres+LLM thật)
 - [x] `answer.cited_doc_count` — tính bằng `len({item["document_id"] for item in citations})` trong `conversations.py`
 - [ ] Chỉ mục GIN trên `chunk(tsv)` — khai báo `Index("ix_chunk_tsv_gin", "tsv", postgresql_using="gin")` trong model, chưa `EXPLAIN` trên Postgres thật
 - [ ] Span `retrieval.fts`/`retrieval.rerank` trong trace — không có span thủ công nào cho các bước này
@@ -114,13 +114,39 @@ Không thêm bảng mới.
 
 Phần lớn T-401 **đã được làm sẵn khi triển khai T-302** (code không tách
 rời "chỉ vector" rồi "thêm FTS" theo đúng trình tự 2 task — `retrieve()` đã
-làm FTS+RRF+đa dạng hoá ngay từ đầu). Điều **chưa làm** là bước rerank bằng
-cross-encoder nêu ở §1 bước 2 (nửa sau) — không có adapter/model rerank nào,
-`diversify_evidence` chỉ giới hạn số đoạn/tài liệu chứ không chấm điểm lại
-bằng cross-encoder. Cũng lưu ý lỗi logic cổng bằng chứng `τ` đã ghi ở T-302
-ảnh hưởng trực tiếp tới độ tin cậy của toàn bộ kết quả truy xuất ở đây.
-Không có test nào cho `app/modules/retrieval/` hay `app/modules/qa/` —
-đây là khoảng trống lớn nhất trước khi coi Sprint 3-4 "Done" thật sự.
+làm FTS+RRF+đa dạng hoá ngay từ đầu).
+
+**Đã sửa/thêm (phiên này):**
+1. Lỗi logic cổng bằng chứng `τ` ghi ở T-302 đã được sửa — xem ghi chú ở
+   đó; T-401 kế thừa trực tiếp bản sửa này.
+2. Thêm bước **rerank cross-encoder** đúng §5 bước 3-5: `app/ports/
+   reranker_port.py` (`RerankerPort`, Protocol — `modules.retrieval` chỉ
+   biết interface này, không biết TEI), `app/adapters/tei_reranker.py`
+   (`TeiRerankerAdapter`, gọi `POST {tei_rerank_url}/rerank`, khôi phục
+   đúng thứ tự đầu vào từ `index` trong phản hồi TEI). `retrieve()` nhận
+   thêm tham số `reranker: RerankerPort | None` — khi có, lấy top-20 ứng
+   viên sau RRF, gọi rerank, **cổng bằng chứng áp lên điểm rerank cao
+   nhất** thay vì cosine thô (đúng §5 bước 5); khi reranker ném lỗi hoặc
+   không được cấu hình (`None`), quay về hành vi RRF+cosine-gate của
+   T-302 — không làm hỏng câu trả lời (đúng §6).
+3. `api/deps.py::get_reranker_port()` chọn adapter theo `settings.
+   llm_provider` (cùng cờ `"fake"` dùng cho `get_llm_port()`): môi trường
+   dev/test trả `None` (bỏ qua rerank), môi trường thật trả
+   `TeiRerankerAdapter()` — `modules.qa`/`modules.retrieval` không tự
+   chọn adapter (nguyên tắc P-01), tiêm qua `conversations.py`.
+4. Thêm `settings.tei_rerank_url` (instance TEI riêng cho model
+   cross-encoder, khác `tei_embed_url`).
+
+Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports` (3 hợp đồng vẫn
+giữ) và 11 test mới (`tests/unit/test_retrieval_service.py`: 3 test
+rerank mới + 5 test gate cũ; `tests/unit/test_tei_reranker.py`: 3 test
+cho việc khôi phục thứ tự/báo lỗi của adapter) — `pytest` 121 passed.
+
+**Chưa làm:** chưa chạy với TEI reranker thật (không có hạ tầng trong
+sandbox); span OTel `retrieval.fts`/`retrieval.rerank` thủ công; test
+Postgres thật cho AC-012.1 (đáp án rải 2 tài liệu) và AC-012.2 (mâu
+thuẫn) — cần LLM thật để đánh giá nội dung câu trả lời, không chỉ cấu
+trúc dữ liệu.
 
 ## 9. Tham chiếu
 

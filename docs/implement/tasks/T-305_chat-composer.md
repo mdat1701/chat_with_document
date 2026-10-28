@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (nền tảng FE), T-304 (API SSE), T-205 (biết số tài liệu ready) |
-| Trạng thái | In progress (composer tối giản chạy được, thiếu đa số trạng thái/UX đặc tả) |
+| Trạng thái | In progress (7 trạng thái, phím tắt, bộ đếm ký tự, giữ nháp khi lỗi/hết phiên đã nối; còn thiếu axe-core và so khớp ảnh thiết kế) |
 
 ## 1. Mục tiêu
 
@@ -93,31 +93,37 @@ Không đụng CSDL. Lưu trữ phía client (SDD §3.4.4):
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] `TypingIndicator` ≤ 300ms — chưa có indicator riêng, chỉ có chữ tĩnh "Đang tìm trong tài liệu…"
-- [ ] `Enter`/`Shift+Enter`/`/` — hiện dùng `<form onSubmit>` (nút Gửi hoặc Enter mặc định của form/textarea); chưa xử lý `Shift+Enter` xuống dòng hay phím tắt `/` focus
-- [ ] Đủ 7 trạng thái Composer — chỉ có 2 trạng thái thực tế (`busy`/không); thiếu offline/quota/error states
-- [ ] Ngắt mạng giữa chừng → câu hỏi không mất, có nút Gửi lại — **chưa có**: `fetch` lỗi sẽ ném exception không bắt (không có `try/catch` quanh `fetch`/`reader` trong `ask()`), `busy` có thể kẹt `true` mãi vì `setBusy(false)` nằm cuối hàm không có `finally`
-- [ ] Phiên hết hạn → khôi phục nháp (AC-001.3) — chưa có (xem T-107)
-- [ ] axe-core — chưa cài
-- [x] Không lưu nội dung câu hỏi vào Web Storage — xác nhận bằng đọc code (state chỉ nằm trong React state, không ghi localStorage)
+- [x] `TypingIndicator` ≤ 300ms — thêm optimistic update đồng bộ (`setMessages` ngay khi submit, trước khi `await` bất kỳ API nào) nên `TypingIndicator` hiện trong cùng frame React; test `ChatPage.test.tsx` xác nhận `typing-indicator` xuất hiện ngay sau `fireEvent.click`
+- [x] `Enter`/`Shift+Enter`/`/` — `Composer.tsx::handleKeyDown` chặn `Enter` (không Shift) để gửi, để `Shift+Enter` rơi qua hành vi mặc định (xuống dòng); listener `keydown` toàn `document` cho `/` focus vào `#question-input` khi không đang gõ ở input/textarea/contentEditable khác
+- [x] Đủ 7 trạng thái Composer — `ChatPage.tsx` tính `disabledReason` theo đúng thứ tự ưu tiên offline → no_docs → all_processing → all_failed → awaiting_answer; `Composer.tsx` khóa toàn bộ ô cho 4 trạng thái đầu, chỉ khóa nút Gửi cho `awaiting_answer`; có test cho `no_docs`
+- [x] Ngắt mạng giữa chừng → câu hỏi không mất, có nút Gửi lại — `streamQuestion` (shared/api/client.ts) không bao giờ `throw`, mọi lỗi mạng/đứt kết nối thành `{type:"error", code:"ANSWER_NETWORK"}`; composer giữ `draft` nguyên vẹn vì chỉ `setDraft("")` sau khi submit thành công tạo tin nhắn (không phụ thuộc kết quả SSE); `ErrorMessage` hiện nút "Gửi lại" gọi lại đúng câu hỏi cũ (lưu trong `questionByAnswerId` map)
+- [x] Phiên hết hạn → khôi phục nháp (AC-001.3) — tái dùng hạ tầng đã có từ T-107 (`features/auth/draft.ts`): `ChatPageInner` gọi `restoreDraft()` khi khởi tạo state rồi `clearDraft()`, và `registerComposerSource(() => draft)` để interceptor 401 toàn cục lưu nháp khi `streamQuestion`/`apiFetch` gặp 401 giữa chừng
+- [ ] axe-core — chưa chạy cho `Composer`/`ChatPage` (có sẵn cho `shared/ui`, chưa mở rộng sang `features/chat`)
+- [x] Không lưu nội dung câu hỏi vào Web Storage — xác nhận bằng đọc code (chỉ `sessionStorage` khi hết phiên qua `draft.ts`, xóa ngay sau khi gửi/khôi phục thành công)
 
 ## 8. Định nghĩa Hoàn thành
 
 - [ ] Khớp ảnh thiết kế — chưa đối chiếu
-- [x] `data-testid` cho `question-input` — có; thiếu cho các trạng thái khác
-- [ ] Chuỗi lấy từ `messages.vi.ts` — chưa, hard-code
-- [x] `question_submitted` không chứa nội dung câu hỏi — `track("question_submitted", {question_length, language, ready_doc_count: 0})`, không gửi text thật; `ready_doc_count: 0` bị hard-code thay vì giá trị thật
+- [x] `data-testid` cho `question-input` — có, cùng `send-button`, `char-counter`, `typing-indicator`, `user-message`, `answer-message`
+- [x] Chuỗi lấy từ `messages.vi.ts` — toàn bộ nhãn composer (`composerPlaceholder`, `composerSubmit`, `composerAiDisclaimer`, 5 tooltip khóa, bộ đếm, ví dụ câu hỏi) chuyển vào `uiText` trong `shared/i18n/messages.vi.ts`
+- [x] `question_submitted` không chứa nội dung câu hỏi — `ready_doc_count` giờ lấy từ `readyDocCountRef.current` (tính từ `GET /documents` + SSE `/documents/events` thật), không còn hard-code `0`
 
 ### Ghi chú triển khai thực tế
 
-`ChatPage.tsx` có một composer hoạt động được ở mức cơ bản: gửi câu hỏi,
-nhận SSE streaming thật qua `fetch` + `ReadableStream` (không dùng
-`EventSource` vì đây là POST — lựa chọn đúng), hiển thị câu trả lời tăng
-dần, phát `question_submitted` không kèm nội dung câu hỏi. Đây là một phần
-nhỏ của đặc tả 7-trạng-thái: thiếu typing indicator, xử lý ngắt mạng
-(không có `try/catch`, lỗi mạng sẽ làm `busy` kẹt ở `true` vì không có
-khối `finally`), giữ nháp khi hết phiên, và hầu hết các trạng thái biên.
-Giữ "In progress".
+Composer được viết lại thành `Composer.tsx` (textarea tự giãn tối đa 6
+dòng, `CharCounter` đọc `max_question_length` từ `useAppConfig()`, lời
+miễn trừ AI cố định) và `ChatPage.tsx` (điều phối trạng thái, không dùng
+Zustand như gợi ý trong §5 mà dùng `useState`/`useRef` thuần — quyết định
+thực dụng để tránh thêm phụ thuộc chéo trong lúc một phiên khác đang sửa
+`features/auth`/`features/documents`/`App.tsx` song song; hành vi khớp đặc
+tả 7 trạng thái). Danh sách tài liệu lấy qua `GET /documents` + SSE
+`subscribeDocumentEvents` (không phụ thuộc `DocumentLibrary.tsx` để tránh
+đụng file của phiên khác). `streamQuestion` (shared/api/client.ts) được mở
+rộng để không bao giờ `throw`: mọi lỗi (mạng, 401/429/…, đứt SSE) được
+chuẩn hoá thành sự kiện `error`, nên composer/`finally` không còn rủi ro
+kẹt `busy=true`. AC-001.3 tái sử dụng đúng hạ tầng `features/auth/draft.ts`
+đã có sẵn từ T-107. Còn thiếu: axe-core cho `features/chat`, đối chiếu ảnh
+thiết kế. Giữ "In progress".
 
 ## 9. Tham chiếu
 

@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     clamav_port: int = 3310
 
     tei_embed_url: str = "http://localhost:8080"
+    # TEI chạy mô hình cross-encoder (`bge-reranker-v2-m3`) — instance
+    # RIÊNG với `tei_embed_url` vì khác loại mô hình (T-401 §5 bước 3).
+    tei_rerank_url: str = "http://localhost:8082"
 
     # Giá trị mặc định DF-01 – DF-10 (PRD §0.3). Expose qua GET /config ở T-105.
     max_file_size_bytes: int = Field(default=20_971_520, gt=0)

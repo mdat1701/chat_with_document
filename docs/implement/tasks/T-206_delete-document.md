@@ -10,7 +10,7 @@
 | Vai trò chính | BE (UI xác nhận ở T-208) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-104 (RLS/`owner_id`), T-203 (`chunk` đã tồn tại) |
-| Trạng thái | In progress (xóa dữ liệu đúng, thiếu audit_log + sự kiện analytics) |
+| Trạng thái | In progress (xóa dữ liệu đúng; audit_log + sự kiện analytics đã nối trong phiên này) |
 
 ## 1. Mục tiêu
 
@@ -93,16 +93,22 @@ Trường hợp biên:
 - [x] Gọi `DELETE` hai lần → lần hai 404 (không 500) — vì hàng đã bị xóa thật ở lần đầu, `scalar_one_or_none()` trả `None`
 - [x] Xóa tài liệu đang `processing` → `_index_document`/`_set_failed` đều có guard theo `document.status`, không ghi chunk mồ côi vì bản ghi `document` đã bị xóa hẳn
 - [x] Lỗi xóa object vẫn trả `204` — router bọc `unlink(missing_ok=True)` sau khi đã xóa DB; `reconcile_orphan_blobs` (T-207) dọn sau
-- [ ] `audit_log` có bản ghi — **chưa có**: `delete_document_use_case` không ghi `audit_log`
+- [x] `audit_log` có bản ghi — **đã sửa**: ghi ở tầng `api`/`workers` (không phải trong `delete_document_use_case` — module `documents`/`retention` không được import gì ngoài `ports`/`core` theo ranh giới SADD §2.2.1), cả 2 nhánh `DELETE /documents/{id}` (`app/api/routers/documents.py`, `actor_id=current_user`) và retention tự động (`app/workers/retention_tasks.py`, `actor_id=None`)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] AC-008.1 – AC-008.3 — phần API đạt; UI xác nhận thuộc T-208 (xem ghi chú T-205: hiện dùng `window.confirm()` thô, không phải dialog theo thiết kế)
+- [x] AC-008.1 – AC-008.3 — phần API đạt từ trước; UI xác nhận (T-208) giờ dùng `DeleteConfirmDialog` thật (`frontend/src/features/documents/DeleteConfirmDialog.tsx`, dựng trên `shared/ui/Dialog`) thay cho `window.confirm()` — xem ghi chú T-208
 - [x] `204` chỉ trả sau khi chunk đã xóa — đúng, cùng transaction, commit trước khi response
 - [x] Use case dùng chung cho retention — `retention/service.py::_purge_expired` gọi lại `delete_document_use_case` (xem T-207), không trùng code
 - [ ] Bằng chứng G-05 — chưa có báo cáo/test tổng hợp riêng
 
 ### Ghi chú triển khai thực tế
+
+**Cập nhật phía FE (phiên T-109/T-205/T-208):** `DocumentLibrary.tsx` không
+còn gọi `window.confirm()` — nút "Xóa" mở `DeleteConfirmDialog` thật (focus
+mặc định ở "Hủy", `Esc`/click ra ngoài tương đương "Hủy", không đóng danh
+sách trước khi nhận `204` thật), rồi hiện toast "Đã xóa "<tên tệp>"." qua
+`shared/ui` `ToastRegion` đã có sẵn. Chi tiết component ở T-208.
 
 `delete_document_use_case` (`app/modules/documents/service.py`) xóa dứt
 khoát trong một transaction (chunk rồi document), dựa vào RLS để tự động
@@ -111,10 +117,17 @@ trả 404 cho tài liệu của người khác — đơn giản hơn quy trình 
 nghĩa là đã ra khỏi phạm vi truy vấn" vì chunk+document biến mất cùng lúc,
 không có cửa sổ trạng thái trung gian để retrieval đọc nhầm.
 
-**Thiếu so với §5 bước 8:** không ghi `audit_log`, không phát sự kiện
-analytics `document_deleted{trigger:'user'}`. Đây là việc cần làm thêm —
-không phải lỗi logic xóa, nhưng là khoảng trống thật so với Definition of
-Done và sẽ thiếu bằng chứng khi tổng hợp Pilot Gate G-05 (T-603).
+**Đã sửa (phiên này):** nối cả `audit_log` lẫn sự kiện analytics
+`document_deleted` cho §5 bước 8 — tầng `api` (`DELETE /documents/{id}`)
+ghi `actor_id=current_user.id, trigger=user`; tầng `workers` (retention
+tự động, T-207) ghi `actor_id=None, trigger=retention` cùng
+`document_id` lấy từ `purge_expired_use_case()` (đổi kiểu trả về từ chỉ
+`owner_id` sang `DeletedDocument(owner_id, document_id)` để đủ thông tin
+ghi `target_id` chính xác). Xác nhận bằng `ruff check .`, `mypy app`,
+`lint-imports` (3 hợp đồng vẫn giữ) và `pytest` (126 passed) — chưa có
+test đơn vị riêng cho việc ghi `audit_log` (cùng lý do chi phí mock đã
+nêu ở T-202: cần mock `AsyncSession`/`worker_session_scope` sâu, để lại
+cho đợt viết test tích hợp).
 
 ## 9. Tham chiếu
 

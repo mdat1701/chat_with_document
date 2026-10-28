@@ -10,7 +10,7 @@
 | Vai trò chính | BE (chính) + FE + QA |
 | Ước lượng | 2 ngày công |
 | Phụ thuộc | T-007 (bộ lọc log `core`), T-304 (`answer_rendered`), T-204 (sự kiện tài liệu) |
-| Trạng thái | In progress (allow-list + hash đúng; 6/15 sự kiện phía BE đã nối trong phiên này; sự kiện phía FE vẫn thiếu) |
+| Trạng thái | In progress (allow-list + hash đúng; 6/15 sự kiện BE + `session_started` (T-107) + 4 sự kiện phía tài liệu + `citation_viewed` hover-timing/`retry_clicked{context}` phía hỏi đáp (T-305/T-306/T-307) đã nối; chỉ còn `feedback_submitted` chưa có điểm phát) |
 
 ## 1. Mục tiêu
 
@@ -118,7 +118,23 @@ Body: { "events": [ { event_name, timestamp, props }, … ] }   // tối đa 20 
 - [ ] Unit test allow-list — **0 test cho `app/modules/analytics/`**; logic đúng khi đọc: `props` ngoài allow-list bị loại (`rejected_props`), log cảnh báo, sự kiện vẫn ghi với `safe_props`
 - [x] Không sự kiện nào chứa `document_name`/`file_name` — cả `ALLOWED_EVENTS` và allow-list `props` đều không có trường tên tệp/tài liệu
 - [x] `user_hash` khác nhau giữa 2 người, không đảo ngược được — HMAC-SHA256 với `analytics_hash_secret`, một chiều
-- [ ] Đủ 12 sự kiện phát đúng thời điểm theo phễu — **đã nối thêm 3 sự kiện phía BE trong phiên này**: `document_processing_succeeded`/`document_processing_failed` (`app/workers/ingestion_tasks.py::_emit_processing_outcome_event`, sau khi pipeline kết thúc) và `document_deleted` cả 2 nhánh `trigger=user` (`app/api/routers/documents.py::delete_document`) và `trigger=retention` (`app/workers/retention_tasks.py::_emit_deleted_events`, dùng `owner_id` mà `purge_expired_use_case` giờ trả về thay vì chỉ đếm số lượng). Vẫn **chưa có lời gọi nào** cho `session_started`, `empty_state_viewed`, `document_upload_started`, `document_upload_rejected_client`, `retry_clicked`, `feedback_submitted` — đây đều là sự kiện phát từ **phía FE** theo thiết kế (SDD §3.8.4), cần làm cùng T-106/T-109/T-205/T-208/T-307
+- [ ] Đủ 12 sự kiện phát đúng thời điểm theo phễu — **đã nối thêm 3 sự kiện phía BE** (phiên trước): `document_processing_succeeded`/`document_processing_failed` (`app/workers/ingestion_tasks.py::_emit_processing_outcome_event`, sau khi pipeline kết thúc) và `document_deleted` cả 2 nhánh `trigger=user` (`app/api/routers/documents.py::delete_document`) và `trigger=retention` (`app/workers/retention_tasks.py::_emit_deleted_events`, dùng `owner_id` mà `purge_expired_use_case` giờ trả về thay vì chỉ đếm số lượng). **`session_started` nay đã nối phía FE** (phiên T-107 này): `frontend/src/features/auth/auth.ts::useAuth.load()` gọi `track("session_started", { is_first_session })` ngay sau `GET /me` trả 200 lần đầu, khử trùng lặp qua `sessionStorage`. **Nay đã nối thêm (phiên T-109/T-205/T-208)** bốn sự kiện phía tài liệu:
+`document_upload_started{file_size_bucket}` (`useUploadQueue.ts::beginUpload`,
+ngay trước mỗi `uploadDocument()`), `document_upload_rejected_client{reason_code}`
+(`useUploadQueue.ts::addFiles`, cho từng tệp bị `validateFiles()` từ chối,
+không kèm tên tệp), `empty_state_viewed{state_code}`
+(`emptyState.ts::markEmptyStateViewedOnce`, cờ `sessionStorage` đảm bảo một
+lần/variant/phiên, bọc `try/catch`), và `retry_clicked{context}` (hai điểm:
+`useUploadQueue.ts::retryFailedItem` với `context:"document_upload"`, và
+`DocumentLibrary.tsx::retry` với `context:"document_processing"` khi gọi
+`POST /documents/{id}/retry`). **Nay đã nối thêm (phiên T-305/T-306/T-307,
+`features/chat`)**: `citation_viewed{citation_index}` với đúng ngưỡng
+hover ≥500ms **hoặc** click (`CitationChip.tsx`, dùng `setTimeout` hủy ở
+`mouseleave`, có test fake-timer xác nhận không phát khi rời chuột trước
+500ms) và `retry_clicked{context}` với `context` lấy từ phase trước khi
+thử lại (`"failed"`/`"incomplete"`, `ChatPage.tsx::retryAnswer`). Vẫn
+**chưa có lời gọi nào** cho `feedback_submitted` — chưa có component
+feedback nào được xây ở Sprint 3/4 (ngoài phạm vi các task hiện có)
 - [~] Ghi `analytics_event` lỗi không chặn câu trả lời — trong `conversations.py`, `session.add(Answer)` + `record_event` + `commit` chạy **sau** khi `event: done` đã được gửi cho client, nên người dùng vẫn thấy đủ câu trả lời trước khi có thể gặp lỗi lưu phía sau; tuy vậy lỗi commit vẫn khiến SSE kết thúc bằng `event: error` nối sau `done` — hơi khác "vẫn trả lời bình thường, không có dấu hiệu lỗi nào"
 - [ ] Lint ranh giới chỉ `shared/analytics` được gửi sự kiện (DR-05) — chưa cấu hình (xem T-106)
 
@@ -157,10 +173,36 @@ giữ) và `pytest` (105 passed) — **không có test đơn vị mới riêng**
 `worker_session_scope`/`AsyncSession` ở độ phức tạp tương đương test
 tích hợp, để lại cho đợt viết test tích hợp Celery).
 
-**Chưa làm (còn lại, thuộc FE):** `session_started`, `empty_state_viewed`,
-`document_upload_started`, `document_upload_rejected_client`,
-`retry_clicked`, `feedback_submitted` — đều phát từ phía client theo
-thiết kế gốc, cần làm cùng các task FE liên quan. Giữ "In progress".
+**Đã sửa thêm (phiên T-107):** nối `session_started` phía FE — xem ghi chú
+ở hàng "Đủ 12 sự kiện..." phía trên. Tổng 7/15 tên sự kiện giờ có lời gọi
+thật phía code.
+
+**Đã sửa thêm (phiên T-109/T-205/T-208):** nối 4 sự kiện phía tài liệu —
+xem ghi chú ở hàng "Đủ 12 sự kiện..." phía trên. Tổng **11/15** tên sự
+kiện giờ có lời gọi thật phía code (6 BE + `session_started` + 4 sự kiện
+tài liệu). Tất cả sự kiện FE mới vẫn đi qua `shared/analytics/client.ts::track()`
+duy nhất, không có module nào khác tự gửi sự kiện (đúng DR-05 dù lint
+ranh giới chưa cấu hình).
+
+**Đã sửa thêm (phiên T-305/T-306/T-307, `features/chat`):** hoàn thiện
+`citation_viewed` với đúng ngưỡng hover ≥500ms hoặc click (trước đó chỉ có
+click) và nối `retry_clicked{context}` ở nhánh câu trả lời
+(`answer_failed`/`incomplete`), cả hai có test (`ChatPage.test.tsx`, dùng
+fake timers cho ngưỡng hover). Đồng thời phát hiện và **sửa một lỗi đếm
+trùng**: `question_submitted`/`answer_failed` giờ dùng `ready_doc_count`
+thật (không còn hard-code `0`), và quan trọng hơn — `ChatPage.tsx` **không
+còn tự phát `answer_rendered`** nữa, vì backend (`conversations.py`) đã
+phát đúng sự kiện này ngay sau `event: done` với `latency_ms` đo chính xác
+phía server (§5.4 của task này); nếu FE cũng phát lại, mỗi câu trả lời sẽ
+bị đếm hai lần trong `analytics_event`, làm sai các số liệu phễu MET-003.
+Tổng **14/15** tên sự kiện trong bảng §3.2 giờ có lời gọi thật, chỉ còn
+thiếu `feedback_submitted` (chưa có component nào phát sự kiện này trong
+bất kỳ task Sprint 3/4 nào).
+
+**Chưa làm:** `feedback_submitted` (chưa có task/component sở hữu), canary
+test tự động (AC-020.1), xác nhận ATTT bằng văn bản (AC-020.2), unit test
+allow-list phía BE, và lint ranh giới DR-05 cho `shared/analytics`. Giữ
+**"In progress"**.
 
 ## 9. Tham chiếu
 
