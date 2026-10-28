@@ -179,12 +179,12 @@ chạy được, có kiểm chứng:**
 
 **VERIFY đã chạy, kết quả:** `npm run build` ✅, `npm run lint` ✅ (0 lỗi,
 đã xác nhận rule ranh giới + rule fetch thật sự bắt lỗi khi thử vi phạm),
-`npx tsc --noEmit` ✅, `npm test` ✅ (20/20 test, bao gồm toàn bộ test
-axe-core). `npm run format:check` **vẫn báo lỗi trên ~37 file** — đây là nợ
-kỹ thuật Prettier có từ trước (gần như mọi file hiện có trong repo, kể cả
-file không đổi trong đợt này như `shared/analytics/client.ts`, đều không
-qua được `prettier --check`), không phải lỗi do đợt triển khai này gây ra;
-không sửa vì ngoài phạm vi task.
+`npx tsc --noEmit` ✅, `npm test` ✅. `npm run format:check` — **đã sửa**
+(phiên sau, cùng đợt T-405/dọn dẹp cuối): chạy `prettier --write .` một
+lần cho toàn bộ 56 file đang lệch định dạng (nợ kỹ thuật có từ trước, che
+mất việc job `lint` trong `ci.yml` chạy `npm run lint && npm run
+format:check` nên **sẽ luôn đỏ** nếu không dọn) — xác nhận lại
+lint/tsc/build/test đều xanh sau khi định dạng lại.
 
 **Cập nhật (đợt T-405, sau khi `shared/ui` đã tồn tại đầy đủ):**
 1. Hex literal trong `features/*`/`global.css` đã được dọn sạch — xác
