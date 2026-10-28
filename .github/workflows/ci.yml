@@ -148,15 +148,29 @@ jobs:
 
   rag-eval:
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || contains(join(github.event.pull_request.changed_files, ','), 'backend/app/modules/qa')
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # `github.event.pull_request.changed_files` là SỐ LƯỢNG (int), không
+      # phải danh sách tên tệp — không dùng được với `contains(join(...))`
+      # như bản trước. Dùng action chuyên dụng để biết PR có đổi
+      # `backend/app/modules/qa/**` hay không.
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            qa:
+              - 'backend/app/modules/qa/**'
+      - if: github.event_name == 'schedule' || steps.changes.outputs.qa == 'true'
+        uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install pyyaml
-      - run: python -m tools.evaluation.run_eval --datasets tools/evaluation/datasets/golden_set.yaml tools/evaluation/datasets/no_answer_set.yaml --base-url "$EVAL_BASE_URL" --cookie "$EVAL_COOKIE" --out tools/evaluation/reports/ci-${{ github.sha }}.json
+      - if: github.event_name == 'schedule' || steps.changes.outputs.qa == 'true'
+        run: pip install pyyaml
+      - if: github.event_name == 'schedule' || steps.changes.outputs.qa == 'true'
+        run: python -m tools.evaluation.run_eval --datasets tools/evaluation/datasets/golden_set.yaml tools/evaluation/datasets/no_answer_set.yaml --base-url "$EVAL_BASE_URL" --cookie "$EVAL_COOKIE" --csrf-token "$EVAL_CSRF_TOKEN" --out tools/evaluation/reports/ci-${{ github.sha }}.json
         env:
           EVAL_BASE_URL: ${{ secrets.EVAL_BASE_URL }}
           EVAL_COOKIE: ${{ secrets.EVAL_COOKIE }}
-      - uses: actions/upload-artifact@v4
+          EVAL_CSRF_TOKEN: ${{ secrets.EVAL_CSRF_TOKEN }}
+      - if: github.event_name == 'schedule' || steps.changes.outputs.qa == 'true'
+        uses: actions/upload-artifact@v4
         with: { name: rag-evaluation, path: tools/evaluation/reports/ }

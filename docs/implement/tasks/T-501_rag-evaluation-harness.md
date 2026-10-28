@@ -10,7 +10,7 @@
 | Vai trò chính | AI (chủ trì) · BA (bộ câu hỏi chuẩn) · TL (tích hợp CI) |
 | Ước lượng | 3d |
 | Phụ thuộc | T-304 (API hỏi đáp SSE), T-302, T-303 · Giả định A-03 (bộ câu hỏi + corpus) · D-01 (LLM) |
-| Trạng thái | In progress (harness có code, chưa chạy thật trên staging) |
+| Trạng thái | In progress (đã sửa lỗi thiếu CSRF token + lỗi điều kiện CI; vẫn chưa chạy thật trên staging) |
 
 ## 1. Mục tiêu
 
@@ -122,19 +122,31 @@ Báo cáo kết quả (JSON — mỗi lần chạy **bắt buộc** ghi `prompt_
 
 ## 7. Kiểm thử bắt buộc
 
-Chưa mục nào thực thi được trong môi trường này — cần staging + LLM/TEI
-thật + corpus mẫu. `tools/evaluation/run_eval.py`, `compare.py`,
+Chưa mục nào thực thi end-to-end được trong môi trường này — cần staging +
+LLM/TEI thật + corpus mẫu. `tools/evaluation/run_eval.py`, `compare.py`,
 `plot_curve.py`, `reingest_corpus.py` và 2 bộ dữ liệu YAML (`golden_set`,
-`no_answer_set`) tồn tại dưới dạng code (đang được một phiên rà soát riêng
-trong cùng lượt làm việc này kiểm tra cú pháp/import — không lặp lại ở
-đây). `reports/baseline.json` trung thực ghi `"status": "pending-run"` với
-mọi chỉ số `null` — **không có số liệu giả**, đúng tinh thần P-04.
+`no_answer_set`) tồn tại dưới dạng code, đã được rà soát cú pháp/import ở
+một phiên trước (compile sạch, `--help` chạy được, `compare.py`/
+`plot_curve.py` đã test với dữ liệu JSON giả lập). `reports/baseline.json`
+trung thực ghi `"status": "pending-run"` với mọi chỉ số `null` — **không
+có số liệu giả**, đúng tinh thần P-04.
+
+**Lỗi thật phát hiện và đã sửa (phiên này):** `run_eval.py::ask()` gửi
+`Cookie` nhưng **không bao giờ gửi header `X-CSRF-Token`** — mọi
+`POST /conversations*` sẽ bị middleware `csrf_protection`
+(`app/api/main.py`, T-102) từ chối với `403 CSRF_INVALID` ngay khi script
+chạy thật lần đầu trên staging, bất kể cookie phiên có hợp lệ hay không.
+Đã thêm tham số `--csrf-token` và gửi đúng header. Xác nhận bằng
+`python -m py_compile` + `--help` chạy được; **không thể xác nhận bằng
+một lần gọi API thật** (không có staging) — đây là lỗi chỉ phát hiện được
+nhờ đọc kỹ middleware CSRF đã triển khai ở T-102/T-008, không phải chạy
+thử.
 
 ## 8. Định nghĩa Hoàn thành
 
 - [ ] `run_eval.py` chạy một lệnh trên dev/CI — chưa chạy được (thiếu LLM/TEI thật)
 - [ ] `baseline.json` được BA+PM xác nhận — chưa có số liệu để xác nhận
-- [ ] CI nightly/theo thay đổi prompt — chưa thấy job CI riêng cho evaluation trong `.github/workflows/ci.yml` (cần kiểm tra lại khi sửa CI)
+- [ ] CI nightly/theo thay đổi prompt — job `rag-eval` **đã tồn tại** trong `.github/workflows/ci.yml` nhưng có lỗi thật: điều kiện `if` dùng `github.event.pull_request.changed_files` như một danh sách (`join(...)`), trong khi trường này thực ra là một **số nguyên đếm số tệp đổi**, không phải danh sách tên tệp — biểu thức này không hoạt động như ý định "chỉ chạy khi PR đổi `backend/app/modules/qa/**`". Đã sửa bằng `dorny/paths-filter@v3` (xác nhận cú pháp YAML hợp lệ bằng `ruamel.yaml`, **chưa chạy được workflow thật** để xác nhận hành vi)
 - [x] Mã bộ đánh giá nằm ngoài `backend/app` — xác nhận: toàn bộ ở `tools/evaluation/`, không bị `backend/app` import (không vi phạm `import-linter`)
 - [ ] Không tài liệu nhạy cảm trong corpus — chưa kiểm tra nội dung `golden_set.yaml`/`no_answer_set.yaml`
 - [ ] Báo cáo đính kèm G-02 — chưa có số liệu thật

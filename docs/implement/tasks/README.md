@@ -88,7 +88,7 @@
 
 | Task | Tên | Gate | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
-| [T-501](T-501_rag-evaluation-harness.md) | Bộ đánh giá chất lượng RAG offline | G-02 | AI | 3d | In progress (harness viết xong, chưa chạy) |
+| [T-501](T-501_rag-evaluation-harness.md) | Bộ đánh giá chất lượng RAG offline | G-02 | AI | 3d | In progress (sửa lỗi thiếu CSRF token + lỗi điều kiện CI; chưa chạy thật) |
 | [T-502](T-502_quality-tuning-round1.md) | Hiệu chỉnh chất lượng vòng 1 | G-02 | AI | 3d | To do (chờ T-501 có số liệu) |
 | [T-503](T-503_security-privacy-hardening.md) | Hoá cứng bảo mật & quyền riêng tư | G-04 | TL | 2d | In progress (có test canary-style ở mức unit; canary/SCA thật cần staging) |
 | [T-504](T-504_isolation-tests-and-e2e.md) | Kiểm thử cô lập & E2E | G-01, G-03 | QA | 2d | In progress (integration test viết xong, E2E chưa chạy) |

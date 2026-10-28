@@ -42,8 +42,11 @@ def parse_sse(raw: str) -> dict:
     return {"done": done, "answer": deltas, "citations": citations, "events": events}
 
 
-async def ask(base_url: str, cookie: str, item: dict) -> dict:
-    headers = {"Cookie": cookie, "Content-Type": "application/json"}
+async def ask(base_url: str, cookie: str, csrf_token: str, item: dict) -> dict:
+    # `POST /conversations*` chạy sau `csrf_protection` (app/api/main.py) khi
+    # có cookie phiên — thiếu header này mọi request sẽ bị 403 CSRF_INVALID,
+    # bất kể `cookie` có hợp lệ hay không.
+    headers = {"Cookie": cookie, "Content-Type": "application/json", "X-CSRF-Token": csrf_token}
     request = Request(f"{base_url.rstrip('/')}/conversations", method="POST", headers=headers)
     with urlopen(request) as response:
         conversation_id = json.loads(response.read())["conversation_id"]
@@ -125,7 +128,7 @@ def write_html(report: dict, output: Path) -> None:
 
 async def main(args: argparse.Namespace) -> None:
     items = load_items(args.datasets)
-    results = [await ask(args.base_url, args.cookie, item) for item in items]
+    results = [await ask(args.base_url, args.cookie, args.csrf_token, item) for item in items]
     report = {
         "run_id": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "prompt_version": args.prompt_version,
@@ -148,6 +151,9 @@ if __name__ == "__main__":
     parser.add_argument("--datasets", nargs="+", required=True)
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--cookie", default="")
+    parser.add_argument(
+        "--csrf-token", default="", help="Giá trị header X-CSRF-Token (lấy từ GET /me)"
+    )
     parser.add_argument("--out", required=True)
     parser.add_argument("--html", action="store_true")
     parser.add_argument("--prompt-version", default="v2")
