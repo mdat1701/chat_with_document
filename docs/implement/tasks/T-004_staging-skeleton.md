@@ -9,7 +9,7 @@
 | Vai trò chính | OPS (hỗ trợ: TL, ATTT) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-002, T-003, **D-02** (nền tảng triển khai) |
-| Trạng thái | To do |
+| Trạng thái | Done (manifest) — chưa có cluster thật để áp dụng, xem ghi chú cuối |
 
 ## 1. Mục tiêu
 
@@ -79,18 +79,52 @@ Không có schema mới. Staging dùng cùng migration Alembic với local/prod 
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Truy cập URL staging qua HTTPS, chứng chỉ hợp lệ, HSTS có trong response header
-- [ ] `curl -N https://<staging>/api/v1/documents/events` nhận được `: ping` định kỳ, dữ liệu không bị buffer
-- [ ] Triển khai lại khi đang có kết nối SSE mở → kết nối cũ đóng êm, không lỗi 502
-- [ ] Migration Alembic chạy tự động khi triển khai, pod chỉ nhận traffic sau khi `/readyz` xanh
-- [ ] Không tìm thấy bí mật nào trong image (`docker history`) hay manifest trong Git
+- [ ] Truy cập URL staging qua HTTPS, chứng chỉ hợp lệ, HSTS có trong response header — **không thể kiểm** (không có cluster/DNS/cert-manager thật)
+- [ ] `curl -N .../documents/events` nhận `: ping` định kỳ, không bị buffer — **không thể kiểm**; đã viết đúng 3 Ingress tách riêng theo annotation ingress-nginx chuẩn (`proxy-buffering: off`, `X-Accel-Buffering: no`, timeout riêng 75s/3600s) và ghi rõ cách kiểm chứng + dấu hiệu sai trong `RUNBOOK.md`
+- [ ] Triển khai lại khi đang có kết nối SSE mở → đóng êm, không lỗi 502 — **không thể kiểm**; `maxUnavailable: 0` + `terminationGracePeriodSeconds: 75` (api) / `630` (worker) đã khai báo đúng
+- [ ] Migration Alembic chạy tự động khi triển khai, pod chỉ nhận traffic sau khi `/readyz` xanh — **không thể kiểm**; `job-migrate.yaml` + `readinessProbe: /readyz` đã khai báo, quy trình áp dụng trước rollout ghi trong `RUNBOOK.md`
+- [x] Không tìm thấy bí mật nào trong manifest Git — xác nhận: mọi giá trị nhạy cảm đi qua `ExternalSecret`/Vault (`external-secret.yaml`), `ConfigMap` chỉ chứa giá trị DF-* không nhạy cảm; `grep -riE "password|secret" infra/k8s/staging/*.yaml` chỉ khớp **tên khóa** (`client_secret`, `hash_secret`...), không có giá trị thật
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] Staging truy cập được, chạy bản build mới nhất của nhánh chính
-- [ ] Cấu hình SSE đã kiểm chứng bằng `curl -N`
-- [ ] `RETENTION_DAYS` rút ngắn trên staging, ghi rõ trong runbook
-- [ ] Runbook rollback đã viết và thử rollback thành công một lần
+- [ ] Staging truy cập được, chạy bản build mới nhất — **chưa triển khai thật**, chờ D-02
+- [ ] Cấu hình SSE đã kiểm chứng bằng `curl -N` — chưa thể, không có cluster
+- [x] `RETENTION_DAYS` rút ngắn trên staging (`1` thay vì `90`), ghi rõ trong `configmap.yaml` và `RUNBOOK.md`
+- [x] Runbook rollback đã viết (`RUNBOOK.md`) — **chưa thử rollback thật** (không có cluster)
+
+### Ghi chú triển khai thực tế
+
+**Không có cluster Kubernetes, DNS, hay quyền truy cập cloud nào trong môi
+trường triển khai task này** — đây là hạn chế nặng nhất trong tất cả các task
+đã làm, vì T-004 về bản chất là triển khai hạ tầng thật, không phải chạy mã.
+Đã làm tối đa có thể mà không cần cluster:
+
+1. Viết đầy đủ 10 manifest Kubernetes (`infra/k8s/staging/`): namespace,
+   ServiceAccount, ConfigMap, ExternalSecret+SecretStore (Vault), Deployment
+   api/worker/beat/frontend + Service, **3 Ingress tách riêng** cho SSE (điểm
+   dễ sai nhất của task, xem Mục 3), Job migration, `kustomization.yaml` gom
+   lại, và `RUNBOOK.md`.
+2. **Xác minh cú pháp YAML thật** cho cả 10 file (`ruamel.yaml.load_all`,
+   không chỉ đọc bằng mắt) — phát hiện và tiện thể xác nhận luôn
+   `infra/docker-compose.yml` của T-002 (chưa từng kiểm được vì lúc đó không
+   cài được `pyyaml`) cũng hợp lệ cú pháp.
+3. Rà soát thủ công kỹ theo đúng 2 rủi ro lớn nhất mà task nêu: (a) Ingress
+   buffer SSE — giải quyết bằng cách **tách 3 Ingress riêng** vì annotation
+   `ingress-nginx` áp dụng cho toàn bộ path trong cùng một Ingress, không thể
+   đặt `proxy-read-timeout` khác nhau cho `/documents/events` (3600s) và
+   `/conversations/*/questions` (75s) nếu gộp chung — đây là điều SADD không
+   nêu rõ nhưng bắt buộc về mặt kỹ thuật; (b) rolling update cắt SSE — xử lý
+   bằng `maxUnavailable: 0` + `terminationGracePeriodSeconds` khớp timeout
+   nghiệp vụ của từng loại pod.
+4. **Không wire job deploy tự động vào CI** (`.github/workflows/ci.yml`) như
+   Mục 5 bước 8 gợi ý — vì chưa có `KUBE_CONFIG`/thông tin cluster thật, thêm
+   job sẽ chỉ lỗi ồn ào mỗi lần chạy CI mà không có giá trị. Quy trình triển
+   khai thủ công đã ghi đầy đủ trong `RUNBOOK.md`, sẵn sàng chuyển thành job
+   CI khi D-02 chốt và có `KUBE_CONFIG` thật.
+
+**Giá trị còn để trống/giả định, cần DevOps điền khi D-02 chốt:** domain thật
+(`staging.example.com`), địa chỉ Vault server, `cert-manager` ClusterIssuer,
+registry image (`ghcr.io/ORG/...`).
 
 ## 9. Tham chiếu
 

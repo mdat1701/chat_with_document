@@ -1,0 +1,26 @@
+# Giá trị DF-01 – DF-10 (PRD §0.3, nguyên tắc P-06 — cấu hình thay vì
+# hằng số). RETENTION_DAYS rút ngắn trên staging để kiểm thử job dọn
+# dẹp (T-207) phục vụ Pilot Gate G-05 mà không phải chờ 90 ngày thật
+# (T-004 §1, §5 bước 6).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cwd-config
+  namespace: cwd-staging
+data:
+  APP_ENV: "staging"
+  SERVICE_NAME: "cwd-backend"
+
+  MAX_FILE_SIZE_BYTES: "20971520" # DF-01
+  MAX_DOCUMENTS: "50" # DF-02
+  MAX_PAGES: "300" # DF-03
+  RETENTION_DAYS: "1" # DF-05 — rút ngắn từ 90 (prod) để kiểm thử G-05
+  MAX_QUESTION_LENGTH: "2000" # DF-07
+  ANSWER_TIMEOUT_MS: "60000" # DF-10
+
+  S3_BUCKET: "cwd-documents-staging"
+  CLAMAV_PORT: "3310"
+
+  # Rỗng ở staging cho tới khi có OTel Collector thật (T-004 ngoài phạm vi
+  # Sprint 0) — ứng dụng tự chuyển sang no-op/console exporter (T-007).
+  OTEL_EXPORTER_ENDPOINT: ""

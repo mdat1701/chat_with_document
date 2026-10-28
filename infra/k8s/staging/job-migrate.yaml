@@ -1,0 +1,22 @@
+# CI/CD chạy Job này TRƯỚC khi cập nhật Deployment cwd-api (T-004 §5
+# bước 7) — `kubectl apply` rồi `kubectl wait --for=condition=complete`
+# trước bước rollout tiếp theo. `generateName` để mỗi lần triển khai
+# tạo một Job mới (Job không cho sửa lại sau khi tạo).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: cwd-migrate-
+  namespace: cwd-staging
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: cwd-backend
+      containers:
+        - name: migrate
+          image: ghcr.io/ORG/cwd-backend:TAG # CÙNG tag với Deployment đang triển khai
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef: { name: cwd-config }
+            - secretRef: { name: cwd-secrets }

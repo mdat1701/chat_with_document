@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cwd-staging
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - configmap.yaml
+  - external-secret.yaml
+  - deployment-api.yaml
+  - deployment-worker.yaml
+  - deployment-frontend.yaml
+  - ingress.yaml
+# job-migrate.yaml KHÔNG nằm trong kustomization — CI áp dụng riêng
+# trước mỗi lần triển khai (T-004 §5 bước 7), không phải một phần của
+# trạng thái ổn định thường trực.

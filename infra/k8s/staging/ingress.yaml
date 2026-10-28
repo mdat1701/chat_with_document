@@ -1,0 +1,98 @@
+# Ingress NGINX + cert-manager (T-004 §5 bước 3-4). TÁCH RIÊNG 3 Ingress
+# vì annotation của ingress-nginx áp dụng cho TOÀN BỘ path trong cùng
+# một Ingress — không thể đặt proxy_read_timeout khác nhau cho từng
+# path nếu gộp chung. Đây là điểm dễ sai nhất của task (T-004 §3):
+# SAI cấu hình này sẽ làm treo luồng câu trả lời/trạng thái tài liệu,
+# phát hiện rất muộn ở Sprint 3 nếu không kiểm tra ngay ở Sprint 0.
+#
+# Kiểm chứng bắt buộc sau khi áp dụng (T-004 §5 bước 4, §7):
+#   curl -N https://staging.example.com/api/v1/documents/events
+#   -> phải thấy `: ping` chảy định kỳ, KHÔNG phải một cục dữ liệu dồn
+#      lại rồi mới trả 1 lần khi kết thúc.
+
+# --- 1. Traffic thường: mọi route trừ 2 đường SSE ------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cwd-general
+  namespace: cwd-staging
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging # [TBD — DevOps, D-02]
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # HSTS max-age=31536000 (SADD §4.1.2).
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+spec:
+  tls:
+    - hosts: ["staging.example.com"] # [TBD — DevOps điền domain thật]
+      secretName: cwd-staging-tls
+  rules:
+    - host: staging.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: cwd-web, port: { number: 80 } } }
+          - path: /api/v1
+            pathType: Prefix
+            backend: { service: { name: cwd-api, port: { number: 80 } } }
+          - path: /healthz
+            pathType: Exact
+            backend: { service: { name: cwd-api, port: { number: 80 } } }
+          - path: /readyz
+            pathType: Exact
+            backend: { service: { name: cwd-api, port: { number: 80 } } }
+
+---
+# --- 2. SSE câu hỏi: /api/v1/conversations/*/questions (API-09, T-304) ---
+# Timeout = DF-10 (60s) + biên an toàn 15s (SADD §4.2.4).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cwd-sse-questions
+  namespace: cwd-staging
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "75"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Accel-Buffering: no";
+spec:
+  tls:
+    - hosts: ["staging.example.com"]
+      secretName: cwd-staging-tls
+  rules:
+    - host: staging.example.com
+      http:
+        paths:
+          - path: /api/v1/conversations
+            pathType: Prefix
+            backend: { service: { name: cwd-api, port: { number: 80 } } }
+
+---
+# --- 3. SSE trạng thái tài liệu: /api/v1/documents/events (API-06, T-204) -
+# Kết nối dài hạn (kéo mở nhiều phút) — timeout cao hơn hẳn.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cwd-sse-document-events
+  namespace: cwd-staging
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Accel-Buffering: no";
+spec:
+  tls:
+    - hosts: ["staging.example.com"]
+      secretName: cwd-staging-tls
+  rules:
+    - host: staging.example.com
+      http:
+        paths:
+          - path: /api/v1/documents/events
+            pathType: Exact
+            backend: { service: { name: cwd-api, port: { number: 80 } } }

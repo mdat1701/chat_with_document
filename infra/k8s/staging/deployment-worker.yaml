@@ -1,0 +1,64 @@
+# worker + beat — cùng image với api, chỉ khác command (SADD §4.4,
+# T-006 §5). Hai hàng đợi tách biệt (bulkhead, SADD §4.2.3).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cwd-worker
+  namespace: cwd-staging
+spec:
+  replicas: 2 # tự tăng tối đa 6 qua HPA khi hàng đợi ingestion dồn (SADD §4.2.2)
+  strategy:
+    rollingUpdate: { maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: cwd-worker }
+  template:
+    metadata:
+      labels: { app: cwd-worker }
+    spec:
+      serviceAccountName: cwd-backend
+      # Chờ task hiện tại (tối đa task_soft_time_limit=10' + biên) hoàn
+      # tất khi rolling update (T-006 §6, T-004 §5 bước 2).
+      terminationGracePeriodSeconds: 630
+      containers:
+        - name: worker
+          image: ghcr.io/ORG/cwd-backend:TAG
+          command:
+            [
+              "celery",
+              "-A",
+              "app.workers.celery_app",
+              "worker",
+              "-Q",
+              "ingestion,maintenance",
+              "--concurrency=2",
+            ]
+          envFrom:
+            - configMapRef: { name: cwd-config }
+            - secretRef: { name: cwd-secrets }
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits: { memory: "1Gi" }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cwd-beat
+  namespace: cwd-staging
+spec:
+  replicas: 1 # DUY NHẤT 1 bản sao — beat không được chạy trùng lịch (T-207)
+  selector:
+    matchLabels: { app: cwd-beat }
+  template:
+    metadata:
+      labels: { app: cwd-beat }
+    spec:
+      serviceAccountName: cwd-backend
+      containers:
+        - name: beat
+          image: ghcr.io/ORG/cwd-backend:TAG
+          command: ["celery", "-A", "app.workers.celery_app", "beat"]
+          envFrom:
+            - configMapRef: { name: cwd-config }
+            - secretRef: { name: cwd-secrets }
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }

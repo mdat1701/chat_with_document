@@ -1,0 +1,49 @@
+# api (SADD §4.2.2, §4.2.3, T-004 §5 bước 2, 9, 10).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cwd-api
+  namespace: cwd-staging
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0 } # không cắt kết nối SSE đang mở
+  selector:
+    matchLabels: { app: cwd-api }
+  template:
+    metadata:
+      labels: { app: cwd-api }
+    spec:
+      serviceAccountName: cwd-backend
+      # Chờ SSE đang mở đóng êm khi rolling update (T-004 §5 bước 2, §6).
+      terminationGracePeriodSeconds: 75
+      containers:
+        - name: api
+          image: ghcr.io/ORG/cwd-backend:TAG # CI (T-003) điền tag = git sha
+          command: ["python", "-m", "uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports: [{ containerPort: 8000 }]
+          envFrom:
+            - configMapRef: { name: cwd-config }
+            - secretRef: { name: cwd-secrets }
+          # Probe trỏ /healthz, /readyz (T-008) — T-004 §5 bước 9.
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits: { memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cwd-api
+  namespace: cwd-staging
+spec:
+  selector: { app: cwd-api }
+  ports: [{ port: 80, targetPort: 8000 }]
