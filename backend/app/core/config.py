@@ -14,7 +14,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+asyncpg://cwd:cwd_local_only@localhost:5432/cwd"
+    # Vai trò CSDL riêng cho worker (BYPASSRLS — T-005); mặc định đoán từ
+    # database_url nếu không khai báo (xem Settings.worker_database_url_or_default).
+    worker_database_url: str | None = None
+
     redis_url: str = "redis://localhost:6379/0"
+    # DB Redis riêng cho broker Celery, tách khỏi phiên/rate limit (SADD §2.3)
+    # để maxmemory-policy khác nhau giữa hai mục đích dùng.
+    celery_broker_url: str = "redis://localhost:6379/1"
 
     s3_endpoint: str = "http://localhost:9000"
     s3_access_key: str = "cwd_minio"
@@ -39,6 +46,13 @@ class Settings(BaseSettings):
     oidc_client_secret: str = ""
 
     llm_provider: str = "fake"
+
+    def worker_database_url_or_default(self) -> str:
+        """`worker_database_url` nếu khai báo, ngược lại đổi user/password
+        `cwd` -> `cwd_worker` trong `database_url` (T-006 §5 bước 5)."""
+        if self.worker_database_url:
+            return self.worker_database_url
+        return self.database_url.replace("cwd:cwd_local_only@", "cwd_worker:cwd_worker_local_only@")
 
 
 @lru_cache

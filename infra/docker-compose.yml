@@ -101,6 +101,31 @@ services:
       retries: 30
       start_period: 180s # lần đầu cần tải model (~2GB)
 
+  # api/worker/beat dùng chung image back-end (SADD §4.4) — Dockerfile
+  # được tạo ở T-003. Service dưới đây CHƯA build được cho tới khi đó;
+  # giữ định nghĩa sẵn để không phải sửa file này lần nữa (T-006 §5 bước 6).
+  worker:
+    build:
+      context: ../backend
+    env_file: ["../.env"]
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "ingestion,maintenance", "--concurrency=2"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    profiles: ["app"] # `docker compose --profile app up` sau khi có Dockerfile (T-003)
+
+  beat:
+    build:
+      context: ../backend
+    env_file: ["../.env"]
+    command: ["celery", "-A", "app.workers.celery_app", "beat"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles: ["app"]
+
 volumes:
   pg_data:
   redis_data:

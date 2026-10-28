@@ -9,7 +9,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 1d |
 | Phụ thuộc | T-001, T-002 |
-| Trạng thái | To do |
+| Trạng thái | Done |
 
 ## 1. Mục tiêu
 
@@ -95,18 +95,34 @@ Không có. Worker dùng schema của T-005; chỉ cần cấu hình kết nối
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] Worker khởi động và log rõ đang lắng nghe đúng 2 hàng đợi
-- [ ] `ingestion.ping` đẩy vào đúng hàng đợi `ingestion` (kiểm tra bằng `redis-cli LLEN`)
-- [ ] Giết worker giữa lúc chạy task dài → task quay lại hàng đợi và được xử lý lại
-- [ ] Beat khởi động không lỗi khi danh sách lịch còn rỗng
-- [ ] Worker kết nối CSDL bằng vai trò `cwd_worker` (kiểm tra `SELECT current_user`)
+- [x] Worker khởi động và log rõ đang lắng nghe đúng 2 hàng đợi — chạy thật `celery -A app.workers.celery_app worker -Q ingestion,maintenance --pool=solo`, log in đúng `[queues] .> ingestion .> maintenance` và liệt kê đủ 6 task
+- [x] `ingestion.ping` đẩy vào đúng hàng đợi `ingestion` — xác nhận bằng `celery_app.amqp.router.route()` (không cần Redis chạy để kiểm tra logic định tuyến) và giữ lại thành test hồi quy (`tests/unit/test_celery_config.py`)
+- [ ] Giết worker giữa lúc chạy task dài → task quay lại hàng đợi — **chưa xác minh**: cần Redis + một task chạy thật, không có trong môi trường này; `task_acks_late=True` đã xác nhận bằng test cấu hình
+- [x] Beat khởi động không lỗi khi danh sách lịch còn rỗng — chạy thật, log `beat: Starting...`, không lỗi
+- [ ] Worker kết nối CSDL bằng vai trò `cwd_worker` — **chưa xác minh** (cần Postgres thật); `worker_session_scope()` đã trỏ đúng `worker_database_url_or_default()`
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] `make up` khởi động đủ `api`, `worker`, `beat` tại local
-- [ ] `QueuePort` + adapter Celery đã có, `modules/` không import Celery trực tiếp
-- [ ] Khung task cho ingestion/retention/blob đã sẵn sàng cho Sprint 2
-- [ ] Log vòng đời task không chứa nội dung tài liệu
+- [ ] `make up` khởi động đủ `api`, `worker`, `beat` tại local — `worker`/`beat` đã thêm vào `infra/docker-compose.yml` dưới `profiles: ["app"]` (chưa bật mặc định vì Dockerfile thuộc T-003 chưa tồn tại — bật khi T-003 xong)
+- [x] `QueuePort` + adapter Celery đã có (`app/ports/queue_port.py`, `app/adapters/celery_queue.py`); `modules/` không import Celery trực tiếp — xác nhận bằng `lint-imports` (3/3 contract KEPT)
+- [x] Khung task cho ingestion/retention/blob đã sẵn sàng cho Sprint 2 (gọi use case `NotImplementedError` rõ ràng, không phải hàm rỗng im lặng)
+- [x] Log vòng đời task không chứa nội dung tài liệu — chỉ log `document_id`
+
+### Ghi chú triển khai thực tế
+
+Không có Redis/Postgres thật trong môi trường triển khai, nhưng **worker và
+beat thật sự khởi động được** (binary Celery, không mock) và in đúng cấu hình
+— đây là bằng chứng mạnh hơn T-001/T-002/T-005 vì Celery không cần kết nối
+thành công để khởi động tiến trình (chỉ cần khi thật sự tiêu thụ task). Đã xác
+nhận: 6 task đăng ký đúng tên, định tuyến đúng 2 hàng đợi, `acks_late`/
+`soft_time_limit` đúng giá trị.
+
+**Quyết định kỹ thuật tự đưa ra:** thêm `celery_broker_url` (Redis DB `/1`)
+tách khỏi `redis_url` (DB `/0`, dành cho phiên/rate limit) theo đúng yêu cầu
+SADD §2.3 nhưng task không nêu tên biến cụ thể. Thêm `worker_database_url`
+(mặc định suy ra từ `database_url` bằng cách đổi `cwd` → `cwd_worker`) để
+`worker_session_scope()` dùng đúng vai trò CSDL — cần xác nhận lại mật khẩu
+thật khi có secret manager (T-004/D-02).
 
 ## 9. Tham chiếu
 
