@@ -101,9 +101,27 @@ services:
       retries: 30
       start_period: 180s # lần đầu cần tải model (~2GB)
 
-  # api/worker/beat dùng chung image back-end (SADD §4.4) — Dockerfile
-  # được tạo ở T-003. Service dưới đây CHƯA build được cho tới khi đó;
-  # giữ định nghĩa sẵn để không phải sửa file này lần nữa (T-006 §5 bước 6).
+  # api/worker/beat dùng chung image back-end (SADD §4.4, backend/Dockerfile
+  # — T-003). Nằm dưới profile "app" để `make up` (chỉ hạ tầng dữ liệu) vẫn
+  # nhanh; dùng `docker compose --profile app up` khi cần chạy cả app.
+  api:
+    build:
+      context: ../backend
+    env_file: ["../.env"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    profiles: ["app"]
+
   worker:
     build:
       context: ../backend
@@ -114,7 +132,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    profiles: ["app"] # `docker compose --profile app up` sau khi có Dockerfile (T-003)
+    profiles: ["app"]
 
   beat:
     build:
@@ -124,6 +142,15 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    profiles: ["app"]
+
+  web:
+    build:
+      context: ../frontend
+    ports:
+      - "5173:8080"
+    depends_on:
+      - api
     profiles: ["app"]
 
 volumes:

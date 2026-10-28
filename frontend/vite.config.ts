@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
@@ -18,5 +19,10 @@ export default defineConfig({
       // Back-end API cục bộ (T-002 docker-compose expose cổng 8000).
       "/api": { target: "http://localhost:8000", changeOrigin: true },
     },
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test-setup.ts"],
   },
 });

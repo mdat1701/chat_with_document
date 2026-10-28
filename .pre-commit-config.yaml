@@ -1,0 +1,29 @@
+# Gương cục bộ của các job bắt buộc trong .github/workflows/ci.yml
+# (T-003) — chạy nhanh trước khi commit, không thay thế CI.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: lint-imports
+        name: Kiểm tra ranh giới module (import-linter, SADD §2.2.1)
+        entry: bash -c 'cd backend && lint-imports'
+        language: system
+        pass_filenames: false
+        files: ^backend/
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=5000]

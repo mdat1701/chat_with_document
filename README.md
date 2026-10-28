@@ -32,3 +32,23 @@ Quy ước **expand → migrate → contract** (SADD §4.4): không đổi tên 
 trong cùng một bản phát hành. Thêm cột mới ở bản phát hành này (expand), chuyển
 dữ liệu/đọc-ghi sang cột mới ở bản sau (migrate), chỉ xóa cột cũ khi không còn
 code nào đọc nó (contract, thường cách ít nhất một bản phát hành).
+
+## CI (T-003)
+
+Trước khi mở PR, chạy tại local đúng những gì CI chạy:
+
+```bash
+make lint        # ruff + eslint + prettier --check
+make lint-arch   # import-linter (back-end) — xem T-106 cho phần front-end
+make test        # pytest (trừ test cô lập) + vitest
+```
+
+Pipeline đầy đủ (`.github/workflows/ci.yml`): `lint` → `typecheck` → `boundaries`
+→ `backend-test` (Testcontainers PostgreSQL+pgvector/Redis thật) →
+`frontend-test` (vitest) → `sca`/`sast` (song song) → `build` (image `backend`
++ `frontend`, quét Trivy). `e2e` và `rag-eval` là job rỗng, bật ở T-504/T-501.
+
+**Bảo vệ nhánh chính** (cấu hình thủ công trên GitHub, không nằm trong code):
+Settings → Branches → bật "Require status checks to pass" cho `lint`,
+`typecheck`, `boundaries`, `backend-test`, `frontend-test` trước khi cho phép
+merge vào `main`.
