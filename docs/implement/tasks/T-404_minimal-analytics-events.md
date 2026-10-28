@@ -115,7 +115,7 @@ Body: { "events": [ { event_name, timestamp, props }, … ] }   // tối đa 20 
 ## 7. Kiểm thử bắt buộc
 
 - [ ] Canary test tự động — chưa có, mới xác nhận bằng đọc code
-- [ ] Unit test allow-list — **0 test cho `app/modules/analytics/`**; logic đúng khi đọc: `props` ngoài allow-list bị loại (`rejected_props`), log cảnh báo, sự kiện vẫn ghi với `safe_props`
+- [x] Unit test allow-list — **đã thêm** (ghi nhận chéo từ T-503): `tests/unit/test_analytics_service.py` (5 test) xác nhận `props` ngoài allow-list bị loại, sự kiện lạ bị từ chối, `user_id` luôn được hash
 - [x] Không sự kiện nào chứa `document_name`/`file_name` — cả `ALLOWED_EVENTS` và allow-list `props` đều không có trường tên tệp/tài liệu
 - [x] `user_hash` khác nhau giữa 2 người, không đảo ngược được — HMAC-SHA256 với `analytics_hash_secret`, một chiều
 - [ ] Đủ 12 sự kiện phát đúng thời điểm theo phễu — **đã nối thêm 3 sự kiện phía BE** (phiên trước): `document_processing_succeeded`/`document_processing_failed` (`app/workers/ingestion_tasks.py::_emit_processing_outcome_event`, sau khi pipeline kết thúc) và `document_deleted` cả 2 nhánh `trigger=user` (`app/api/routers/documents.py::delete_document`) và `trigger=retention` (`app/workers/retention_tasks.py::_emit_deleted_events`, dùng `owner_id` mà `purge_expired_use_case` giờ trả về thay vì chỉ đếm số lượng). **`session_started` nay đã nối phía FE** (phiên T-107 này): `frontend/src/features/auth/auth.ts::useAuth.load()` gọi `track("session_started", { is_first_session })` ngay sau `GET /me` trả 200 lần đầu, khử trùng lặp qua `sessionStorage`. **Nay đã nối thêm (phiên T-109/T-205/T-208)** bốn sự kiện phía tài liệu:
@@ -136,7 +136,7 @@ thử lại (`"failed"`/`"incomplete"`, `ChatPage.tsx::retryAnswer`). Vẫn
 **chưa có lời gọi nào** cho `feedback_submitted` — chưa có component
 feedback nào được xây ở Sprint 3/4 (ngoài phạm vi các task hiện có)
 - [~] Ghi `analytics_event` lỗi không chặn câu trả lời — trong `conversations.py`, `session.add(Answer)` + `record_event` + `commit` chạy **sau** khi `event: done` đã được gửi cho client, nên người dùng vẫn thấy đủ câu trả lời trước khi có thể gặp lỗi lưu phía sau; tuy vậy lỗi commit vẫn khiến SSE kết thúc bằng `event: error` nối sau `done` — hơi khác "vẫn trả lời bình thường, không có dấu hiệu lỗi nào"
-- [ ] Lint ranh giới chỉ `shared/analytics` được gửi sự kiện (DR-05) — chưa cấu hình (xem T-106)
+- [x] Lint ranh giới chỉ `shared/analytics` được gửi sự kiện (DR-05) — **đã cấu hình** (đợt T-106): rule `no-restricted-globals` trong `eslint.config.js` chặn `fetch`/`EventSource`/`sendBeacon` ngoài `shared/api` và `shared/analytics` (ngoại lệ có chủ đích cho hàng đợi sự kiện best-effort)
 
 ## 8. Định nghĩa Hoàn thành
 
