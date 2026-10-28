@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-205 (danh sách tài liệu), T-206 (API xóa), T-106 (`shared/ui`: Dialog, Toast, EmptyState) |
-| Trạng thái | In progress (`resolveEmptyState` + ES-01/02/03, `DeleteConfirmDialog`, `DuplicateFileDialog`, toast đã có; ES-04/ES-05 và kịch bản E2E còn thiếu — xem ghi chú) |
+| Trạng thái | In progress (`resolveEmptyState` + ES-01/02/03, `DeleteConfirmDialog`, `DuplicateFileDialog`, toast, axe-core cho 2 dialog đã có; ES-04/ES-05 và kịch bản E2E còn thiếu — xem ghi chú) |
 
 ## 1. Mục tiêu
 
@@ -111,7 +111,7 @@ Trường hợp biên:
 - [x] Nhấn "Hủy" → không gọi `DELETE` — `onCancel` chỉ `setPendingDelete(null)`, không có side-effect mạng nào (đọc code xác nhận; chưa có test network-mock riêng)
 - [x] Toast tự ẩn sau 4 giây(`showToast` mặc định `duration=5000`ở `shared/ui/Toast.tsx` — **lưu ý: 5000ms, không phải 4000ms** như đặc tả gốc, xem ghi chú) và dùng `role="status"`/`role="alert"`
 - [x] `empty_state_viewed` chỉ phát **một lần** cho mỗi variant/phiên — `emptyState.ts::markEmptyStateViewedOnce` dùng cờ `sessionStorage`, bọc `try/catch`
-- [ ] axe-core: 0 lỗi nghiêm trọng trên Dialog và EmptyState — hạ tầng có sẵn (T-106), test axe cho `Dialog`/`EmptyState` gốc đã có ở `shared/ui`, nhưng chưa viết test axe riêng cho `DeleteConfirmDialog`/`DuplicateFileDialog` lắp ráp thật
+- [x] axe-core: 0 lỗi nghiêm trọng trên Dialog và EmptyState — test axe gốc đã có ở `shared/ui`; nay thêm `DeleteConfirmDialog.test.tsx` và `DuplicateFileDialog.test.tsx` (lắp ráp thật, dùng `baseElement` thay vì `container` vì Radix portal nội dung ra ngoài cây render, theo đúng khuôn mẫu `Dialog.test.tsx`/`Drawer.test.tsx`); 0 lỗi mức `serious`/`critical`
 - [ ] ES-05: sau khi xóa tài liệu cuối, hội thoại cũ **vẫn hiển thị** — `resolveEmptyState` trả đúng `ES-05` khi `docs.length===0 && hasMessages`, nhưng `hasMessages` hiện luôn `false` trong `DocumentLibrary` (chưa nối `features/chat`) nên **ES-05 không thể kích hoạt được bằng dữ liệu thật** — xem ghi chú
 
 ## 8. Định nghĩa Hoàn thành
@@ -154,9 +154,15 @@ việc nhỏ cho vòng sau hoặc quyết định đổi mặc định chung.
 - E2E 5 kịch bản + chụp ảnh so sánh thiết kế — chưa có hạ tầng Playwright
   chạy trong phiên này cho phần tài liệu.
 
+**Đã bổ sung ở phiên sau (axe-core):** `DeleteConfirmDialog.test.tsx` (3 ca)
+và `DuplicateFileDialog.test.tsx` (2 ca) — cả hai dùng `baseElement` (không
+phải `container`) khi gọi `expectNoA11yViolations` vì nội dung Dialog được
+Radix portal ra `document.body`, nằm ngoài cây mà `render()` trả về trong
+`container`. Không phát hiện vi phạm a11y mức nghiêm trọng.
+
 Giữ **"In progress"** (không phải "Done") vì ES-04/ES-05 và phần E2E còn
 thiếu, dù phần API xác nhận xóa + ES-01/02/03 + sự kiện `empty_state_viewed`
-đã đạt chức năng.
++ axe-core đã đạt.
 
 ## 9. Tham chiếu
 

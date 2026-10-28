@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (nền tảng FE), T-105 (`GET /config`), T-108 (API tải lên) |
-| Trạng thái | In progress (hàng đợi 3 đồng thời + tiến trình thật + dialog trùng tên đã có; còn thiếu khớp ảnh thiết kế và test E2E — xem ghi chú) |
+| Trạng thái | In progress (hàng đợi 3 đồng thời + tiến trình thật + dialog trùng tên + axe-core cho `UploadDropzone`/`DuplicateFileDialog` đã có; còn thiếu khớp ảnh thiết kế và test E2E — xem ghi chú) |
 
 ## 1. Mục tiêu
 
@@ -126,7 +126,7 @@ Không có thay đổi CSDL. Trạng thái hàng đợi nằm trong Zustand (RAM
 - [~] 6 AC ở §2 — AC-003.1/AC-004.1/AC-004.2/AC-006.2/AC-007.1 có cơ sở trong code (đọc xác nhận); ER-08 (dialog trùng tên) có component thật nhưng chưa test E2E tự động nào chạy qua CI
 - [x] Giới hạn hiển thị/kiểm tra lấy từ `GET /config` — `DocumentLibrary` đọc `useAppConfig()` rồi truyền `max_file_size_bytes`/`max_documents` cho `useUploadQueue`/`validateFiles`, và `max_pages` cho dòng gợi ý trong `UploadDropzone`; không còn hard-code `20*1024*1024`/`50` ở `App.tsx`
 - [x] Không ghi nội dung tệp vào Web Storage — xác nhận bằng đọc code (hàng đợi chỉ giữ `File` trong state React/RAM)
-- [ ] axe-core — hạ tầng đã có (T-106) nhưng chưa viết test axe riêng cho `UploadDropzone`/`DuplicateFileDialog`
+- [x] axe-core — `UploadDropzone.test.tsx` (trạng thái sẵn sàng và bị khóa) và `DuplicateFileDialog.test.tsx` mới, dùng `expectNoA11yViolations`; 0 lỗi mức `serious`/`critical`
 - [x] Toàn bộ chuỗi lỗi lấy từ `messages.vi.ts` (`uiText`) — các chuỗi còn lại hard-code là nhãn nút chung ("Xóa", "Hủy") giống quy ước đã có ở các feature khác, không phải lỗi nghiệp vụ
 
 ### Ghi chú triển khai thực tế
@@ -152,10 +152,15 @@ người dùng chọn Thay thế (`?on_duplicate=replace`)/Giữ cả hai
 RATE_LIMITED` tạm dừng toàn hàng đợi theo `Retry-After` (ước lượng từ
 `retry_after_seconds` trong `params`) rồi tự tiếp tục.
 
+**Đã bổ sung ở phiên sau (axe-core):** `UploadDropzone.test.tsx` (2 ca
+dựng — sẵn sàng và bị khóa kèm tooltip lý do) và
+`DuplicateFileDialog.test.tsx` (1 ca), theo đúng khuôn mẫu
+`shared/ui/*.test.tsx`; không phát hiện vi phạm a11y mức nghiêm trọng.
+
 **Còn thiếu/biết trước (giữ "In progress"):** chưa có bộ ảnh so sánh thiết
-kế (`html_design/SCR-02_*`) và chưa có test axe-core/E2E riêng cho luồng
-tải lên — cả hai cần một vòng QA/kiểm thử trực quan riêng, ngoài phạm vi
-một phiên code. Cũng chưa kiểm tra magic-bytes PDF phía client (vẫn dựa
+kế (`html_design/SCR-02_*`) và chưa có test E2E riêng cho luồng tải lên —
+cả hai cần một vòng QA/kiểm thử trực quan riêng, ngoài phạm vi một phiên
+code. Cũng chưa kiểm tra magic-bytes PDF phía client (vẫn dựa
 server trả `415`), đúng như spec cho phép ("dựa hoàn toàn vào server" không
 còn đúng kể từ khi `validateFiles` chặn theo `type`/đuôi tệp, nhưng chưa
 đọc byte đầu tệp phía trình duyệt).

@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-304 (API SSE), T-305 (Composer/store) |
-| Trạng thái | In progress (markdown + rehype-sanitize + hover `[n]`↔chip + IR-01/02/03 đã nối; còn thiếu axe-core và so khớp ảnh thiết kế) |
+| Trạng thái | In progress (markdown + rehype-sanitize + hover `[n]`↔chip + IR-01/02/03 + axe-core cho `AnswerMessage`/`CitationChip` đã nối; còn thiếu so khớp ảnh thiết kế) |
 
 ## 1. Mục tiêu
 
@@ -117,7 +117,7 @@ Không có. Câu trả lời chỉ sống trong RAM (Zustand + cache TanStack Qu
 - [x] Hover `[1]` nổi bật chip — `highlightedIndex` dùng chung giữa `CitationRef` và `CitationChip` trong `AnswerMessage`, cập nhật qua `onMouseEnter/onFocus` cả hai chiều (UX-04)
 - [x] 4 tài liệu → 4 chip không trùng — `citations.map` theo `index` nhận từ server, key `${documentId}-${index}` đảm bảo duy nhất
 - [~] aria-live công bố "Đã có câu trả lời" — có vùng `aria-live="polite"` riêng (`data-testid="answer-announcer"`, ẩn bằng `.sr-only`) chỉ cập nhật text khi `done` tới, tách khỏi `message-list` (cũng `aria-live="polite"` nhưng đổi nội dung mỗi token); về lý thuyết giảm đọc lặp nhưng chưa kiểm bằng trình đọc màn hình thật
-- [ ] axe-core — chưa chạy cho `features/chat` (có sẵn hạ tầng `expectNoA11yViolations` ở `shared/testing/axe.ts`, dùng trong `shared/ui/*.test.tsx`, chưa áp dụng ở đây)
+- [x] axe-core — `AnswerMessage.test.tsx` mới (5 ca theo phase: pending/complete/failed/not_found/incomplete, cộng 1 ca axe xoay vòng qua pending→complete→failed) và `CitationChip.test.tsx` mới (`CitationChip` + `CitationRef`, cả 2 trạng thái highlighted/không); 0 lỗi mức `serious`/`critical`
 
 ## 8. Định nghĩa Hoàn thành
 
@@ -139,9 +139,16 @@ này tương thích với nội dung markdown bị cắt giữa chừng khi stre
 (không parse toàn bộ AST lại mỗi token). `highlightedIndex` là state cục
 bộ trong `AnswerMessage` dùng chung cho `CitationRef` và `CitationChip`
 (UX-04). IR-02 (uncited) dùng `Banner tone="warning"`; `not_found` dùng
-`Banner tone="info"` với icon ℹ (UX-06, T-307). Còn thiếu: axe-core cho
-`features/chat`, so khớp ảnh thiết kế, kiểm thử trình đọc màn hình thật
-cho vùng `aria-live`. Giữ "In progress".
+`Banner tone="info"` với icon ℹ (UX-06, T-307).
+
+**Đã bổ sung ở phiên sau (axe-core):** `AnswerMessage.test.tsx` và
+`CitationChip.test.tsx` — theo khuôn mẫu `shared/ui/*.test.tsx`
+(`expectNoA11yViolations`). `@shared/analytics/client` được mock trong
+`CitationChip.test.tsx` vì `track()` gọi thật khi hover/click chip. Không
+phát hiện vi phạm a11y mức nghiêm trọng.
+
+Còn thiếu: so khớp ảnh thiết kế, kiểm thử trình đọc màn hình thật cho vùng
+`aria-live`. Giữ "In progress".
 
 ## 9. Tham chiếu
 

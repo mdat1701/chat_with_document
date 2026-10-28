@@ -366,4 +366,31 @@ describe("ChatPage", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("answer-markdown")).toHaveTextContent("[5]");
   });
+
+  it("T-405 §5.6: Ctrl+Shift+O xóa lịch sử hội thoại và trả focus về ô câu hỏi", async () => {
+    installFetchMock({
+      documents: [{ id: "d1", status: "ready" }],
+      sseEvents: [
+        'event: delta\ndata: {"text":"Nội dung."}\n\n',
+        'event: done\ndata: {"type":"answered","latency_ms":100,"uncited":true}\n\n',
+      ],
+    });
+    await renderChat();
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi đầu tiên" },
+    });
+    fireEvent.click(screen.getByTestId("send-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("user-message")).toBeInTheDocument(),
+    );
+
+    fireEvent.keyDown(document, {
+      key: "O",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(screen.queryByTestId("user-message")).not.toBeInTheDocument();
+    expect(screen.getByTestId("question-input")).toHaveFocus();
+  });
 });

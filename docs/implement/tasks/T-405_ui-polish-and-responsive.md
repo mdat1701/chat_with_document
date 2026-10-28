@@ -10,7 +10,7 @@
 | Vai trò chính | FE (chính) + QA |
 | Ước lượng | 3 ngày công |
 | Phụ thuộc | T-205 (thư viện tài liệu), T-305 (`Composer`), T-306 (`AnswerMessage`) |
-| Trạng thái | In progress (xem "Ghi chú triển khai thực tế" — còn thiếu kiểm thử đa trình duyệt thật, đối chiếu ảnh thiết kế bằng mắt, và phím tắt `Ctrl+Shift+O`/mũi tên) |
+| Trạng thái | In progress (xem "Ghi chú triển khai thực tế" — phím tắt `Ctrl+Shift+O`/mũi tên nay đã cài; còn thiếu kiểm thử đa trình duyệt thật và đối chiếu ảnh thiết kế bằng mắt) |
 
 ## 1. Mục tiêu
 
@@ -80,6 +80,7 @@ Không có thay đổi CSDL. Chỉ dùng `localStorage` cho **tùy chọn giao d
 - [x] axe-core chạy trên các component mới (`OfflineBanner`, `Drawer`) + toàn bộ `shared/ui` hiện có → 0 lỗi mức `serious`/`critical` trong các test đã chạy; **chưa** chạy axe-core trên toàn trang SCR-01/02/03/07 thực sự (không có browser thật trong sandbox này, chỉ chạy `jest-axe` trên cây DOM từng component)
 - [ ] Zoom 200% ở 1280px và chiều rộng 360px — **không thể xác minh bằng trình duyệt thật** trong sandbox này; chỉ xác minh được qua đọc CSS: không có `width` cố định lớn hơn viewport trong `chat.css`/`documents.css`/`ui.css`, `body { min-width: 320px }`, không phát hiện phần tử có khả năng gây tràn ngang ở 360px
 - [ ] Điều hướng toàn bộ luồng chính chỉ bằng bàn phím — xác minh được cho `Dialog`/`Drawer`/`Tooltip`/`UserMenu` (đều dùng Radix UI, có bẫy focus + `Esc` sẵn có); **chưa** chạy kiểm thử thủ công Tab-qua-toàn-trang bằng trình duyệt thật
+- [x] **Phím tắt §5 bước 6:** `Ctrl+Shift+O` (cuộc trò chuyện mới, test trong `ChatPage.test.tsx`) và `↑`/`↓` (duyệt danh sách tài liệu, test trong `DocumentLibrary.test.tsx`) nay đã cài đặt, cộng với `/`/`Enter`/`Shift+Enter`/`Esc` đã có từ trước — đủ 6 phím tắt liệt kê ở §5 bước 6
 - [ ] Đối chiếu ảnh: [`SCR-02_22_offline-banner.png`](../../design/html_design/SCR-02_22_offline-banner.png), [`SCR-02_25_question-too-long.png`](../../design/html_design/SCR-02_25_question-too-long.png), [`SCR-02_26_tablet-drawer.png`](../../design/html_design/SCR-02_26_tablet-drawer.png), [`SCR-02_23_user-menu.png`](../../design/html_design/SCR-02_23_user-menu.png), [`SCR-02_24_streaming.png`](../../design/html_design/SCR-02_24_streaming.png) — **chưa đối chiếu bằng mắt** (không có trình duyệt/renderer ảnh trong sandbox này)
 
 ## 8. Định nghĩa Hoàn thành
@@ -127,23 +128,43 @@ như ghi chú cũ của task này nói. Phiên này bổ sung phần còn thiế
   axe-core qua `expectNoA11yViolations`, theo đúng khuôn mẫu các test
   `shared/ui` khác).
 
-**Chưa làm / không thể làm trong phiên này (nêu rõ để không báo cáo khống):**
+**Đã cài đặt ở phiên sau (hai phím tắt còn lại của §5 bước 6):**
 
-1. **Phím tắt** `Ctrl+Shift+O` (cuộc trò chuyện mới) và điều hướng mũi tên
-   trong danh sách tài liệu — **chưa cài đặt**, đúng như mục "ưu tiên thấp"
-   trong chỉ dẫn của task. `/` để focus ô câu hỏi, `Enter`/`Shift+Enter`,
-   `Esc` đóng hộp thoại (qua Radix) đã có sẵn.
-2. **Kiểm thử đa trình duyệt** (Chrome/Edge/Firefox) và **đối chiếu 5 ảnh
+- **`Ctrl+Shift+O` — cuộc trò chuyện mới.** Thêm một `useEffect` trong
+  `ChatPageInner` (`features/chat/ChatPage.tsx`) lắng nghe `keydown` toàn
+  `document` (giống cách `/` đã làm trong `Composer.tsx`): khi
+  `event.ctrlKey && event.shiftKey && key∈{"o","O"}` → `preventDefault()`,
+  xóa `conversation_id` hiện tại (`conversationIdRef.current = undefined`,
+  câu hỏi kế tiếp sẽ tạo hội thoại mới qua `ensureConversationId()`), xóa
+  `messages`/`questionByAnswerId`, xóa nháp (`setDraft("")` +
+  `clearDraft()`), hiện toast xác nhận (`uiText.newConversationToast`, chuỗi
+  mới trong `messages.vi.ts`), và trả focus về `#question-input`. Test mới
+  trong `ChatPage.test.tsx`.
+- **Mũi tên `↑`/`↓` duyệt danh sách tài liệu.** `DocumentLibrary.tsx` thêm
+  `handleDocListKeyDown` trên `<ul data-testid="doc-list">`: mỗi
+  `<li data-testid="doc-item">` nay có `tabIndex={0}`, và `ArrowDown`/
+  `ArrowUp` di chuyển focus roving giữa các dòng (kẹp ở đầu/cuối, không
+  xoay vòng) — không can thiệp phím mũi tên khi dùng ở nơi khác. Test mới
+  trong `DocumentLibrary.test.tsx`.
+
+`/` để focus ô câu hỏi, `Enter`/`Shift+Enter`, `Esc` đóng hộp thoại (qua
+Radix) đã có sẵn từ trước — vậy toàn bộ phím tắt liệt kê ở §5 bước 6 nay
+đã cài đặt.
+
+**Vẫn chưa làm / không thể làm trong phiên này (nêu rõ để không báo cáo khống):**
+
+1. **Kiểm thử đa trình duyệt** (Chrome/Edge/Firefox) và **đối chiếu 5 ảnh
    thiết kế bằng mắt** — không thể thực hiện trong sandbox này (không có
    trình duyệt thật/headless browser để chụp màn hình so sánh). Đây là lý
    do chính khiến Định nghĩa Hoàn thành (§8) chưa đạt 100%.
-3. **Zoom 200%** và axe-core quét toàn trang (SCR-01/02/03/07) — chỉ kiểm
+2. **Zoom 200%** và axe-core quét toàn trang (SCR-01/02/03/07) — chỉ kiểm
    chứng được gián tiếp qua đọc CSS và chạy axe-core ở mức component
-   (`jest-axe`/`vitest`), không phải trên trang đã render đầy đủ trong
-   trình duyệt.
-4. `DocumentLibrary`'s `hasMessages` vẫn hard-code `false` (ghi chú cũ từ
+   (`jest-axe`/`vitest`, nay mở rộng sang hầu hết component tương tác của
+   `features/auth`/`features/chat`/`features/documents`), không phải trên
+   trang đã render đầy đủ trong trình duyệt.
+3. `DocumentLibrary`'s `hasMessages` vẫn hard-code `false` (ghi chú cũ từ
    T-205) — ngoài phạm vi T-405, không đụng tới.
-5. Không chạy backend thật để kiểm `NE-03` kịch bản "API vẫn lỗi dù
+4. Không chạy backend thật để kiểm `NE-03` kịch bản "API vẫn lỗi dù
    `navigator.onLine` báo online" — logic hiện tại (banner chỉ dựa vào sự
    kiện `online`/`offline`, lỗi API dùng `ErrorCode` riêng ở `AnswerMessage`)
    đã đúng theo thiết kế nhưng chưa có test tích hợp riêng cho trường hợp

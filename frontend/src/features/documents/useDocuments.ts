@@ -75,6 +75,12 @@ export function useDocuments() {
           return next;
         });
       },
+      () => {
+        // T-204 §5 bước 5: khi mất kết nối SSE (EventSource tự reconnect),
+        // đồng bộ lại bằng GET /documents — nguồn sự thật là DB, không
+        // phải luồng sự kiện có thể bị lỡ trong lúc mất kết nối.
+        void reload();
+      },
     );
     return unsubscribe;
   }, [reload]);

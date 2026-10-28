@@ -89,6 +89,26 @@ function ChatPageInner() {
     clearDraft();
   }, []);
 
+  // IX-02 (T-405 §5 bước 6): Ctrl+Shift+O bắt đầu cuộc trò chuyện mới — xóa
+  // lịch sử hiển thị, bỏ `conversation_id` hiện tại (câu hỏi kế tiếp sẽ tạo
+  // hội thoại mới qua `ensureConversationId`), và trả focus về ô câu hỏi.
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || !event.shiftKey) return;
+      if (event.key !== "O" && event.key !== "o") return;
+      event.preventDefault();
+      conversationIdRef.current = undefined;
+      questionByAnswerId.current.clear();
+      setMessages([]);
+      setDraft("");
+      clearDraft();
+      showToast({ title: uiText.newConversationToast, tone: "neutral" });
+      document.getElementById("question-input")?.focus();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [showToast]);
+
   // Cho interceptor 401 toàn cục (shared/api/client.ts → setUnauthorizedHandler)
   // đọc nội dung đang soạn mà không cần shared/api phụ thuộc ngược vào features/chat.
   useEffect(() => {

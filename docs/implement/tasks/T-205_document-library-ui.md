@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (design system, `shared/api`), T-204 (SSE), T-108 (upload API) |
-| Trạng thái | In progress (realtime SSE, icon/màu theo trạng thái, bộ đếm, skeleton, nhãn hết hạn đã có — xem ghi chú về khoảng trống hợp đồng API) |
+| Trạng thái | In progress (realtime SSE, icon/màu theo trạng thái, bộ đếm, skeleton, nhãn hết hạn, axe-core + điều hướng mũi tên trong danh sách đã có — xem ghi chú về khoảng trống hợp đồng API) |
 
 ## 1. Mục tiêu
 
@@ -124,7 +124,7 @@ Trường hợp biên:
 - [x] Hiển thị đủ 5 trạng thái, mỗi trạng thái có icon và chữ — `StatusBadge.tsx` render icon + chữ + `aria-label` đầy đủ cho `uploading`/`processing`/`ready`/`expiring` (dẫn xuất)/`failed`
 - [ ] 50 tài liệu render ≤ 100ms — chưa đo bằng công cụ (không có `document.list` test lớn trong CI); danh sách vẫn là `<ul>` thường, chưa cần virtualization ở quy mô hiện tại
 - [x] Nhãn hết hạn tại mốc 7 ngày — `emptyState.ts::daysUntil` + `StatusBadge` hiện "Sẽ bị xóa sau N ngày"/"Sẽ bị xóa hôm nay" khi `0 <= daysLeft <= 7` — **nhưng phụ thuộc `expiresAt` mà `GET /documents` thật chưa trả về** (xem ghi chú khoảng trống hợp đồng bên dưới), nên trong thực tế nhãn này chưa bao giờ hiện được với dữ liệu thật
-- [ ] axe-core — hạ tầng có sẵn (T-106) nhưng chưa viết test axe riêng cho `DocumentLibrary`
+- [x] axe-core — `DocumentLibrary.test.tsx` mới (trạng thái trống ES-01 và danh sách có tài liệu ready/failed), dùng `expectNoA11yViolations` qua fetch mock giống `ChatPage.test.tsx`; 0 lỗi mức `serious`/`critical`
 - [x] Skeleton khi tải lần đầu — `Skeleton` (shared/ui) hiện khi `loading===true`, không hiện lại khi refetch nền (SSE không đổi `loading`)
 - [x] Bộ đếm `used/max` — `Badge` `data-testid="doc-counter"` hiện `used/max`, đổi tone `warning` khi `used >= max`
 - [ ] Responsive 900px (ngăn trượt) — chưa làm ở task này, để lại cho T-405 như ghi chú gốc của task
@@ -136,6 +136,7 @@ Trường hợp biên:
 - [x] Realtime qua SSE — `shared/api/client.ts::subscribeDocumentEvents()` (mới) mở `EventSource` tới `GET /api/v1/documents/events`, `useDocuments.ts` hợp nhất sự kiện `status` vào state cục bộ theo `id`; nếu `id` lạ thì `reload()` toàn bộ. Tách đúng ranh giới DR-04 (chỉ `shared/api` được dựng `EventSource`)
 - [x] Không lưu tên tệp/nội dung vào Web Storage — xác nhận bằng đọc code (chỉ `sessionStorage` lưu cờ boolean đã-xem `empty_state_viewed`, không có nội dung tài liệu)
 - [x] Có `data-testid` cho `doc-item`/`doc-delete`/`doc-retry`/`doc-counter`/`doc-list`/`empty-state`; dùng được bàn phím vì là phần tử `<button>`/`<ul>` chuẩn
+- [x] `↑`/`↓` duyệt danh sách tài liệu (T-405 §5 bước 6) — mỗi `<li data-testid="doc-item">` nay có `tabIndex={0}`; `onKeyDown` trên `<ul data-testid="doc-list">` roving-focus giữa các dòng theo `ArrowDown`/`ArrowUp` (kẹp ở đầu/cuối danh sách, không xoay vòng); test trong `DocumentLibrary.test.tsx`
 
 ### Ghi chú triển khai thực tế
 
@@ -173,6 +174,12 @@ song khác trong lần triển khai này nên không chạm vào; `DocumentLibra
 dùng `hasMessages=false` cố định cho mục đích suy ra ES-04/ES-05 nội bộ
 của chính nó. ES-01/ES-02/ES-03 (chỉ phụ thuộc trạng thái tài liệu, không
 phụ thuộc hội thoại) vẫn đúng và đã nối `empty_state_viewed`.
+
+**Đã bổ sung ở phiên sau (axe-core + phím tắt):** `DocumentLibrary.test.tsx`
+mới (4 ca: trạng thái trống, danh sách có dữ liệu, a11y cho cả hai, điều
+hướng `ArrowDown`/`ArrowUp`) và roving-focus `↑`/`↓` giữa các dòng
+`doc-item` (T-405 §5 bước 6) — xem `handleDocListKeyDown` trong
+`DocumentLibrary.tsx`. Không phát hiện vi phạm a11y mức nghiêm trọng.
 
 ## 9. Tham chiếu
 

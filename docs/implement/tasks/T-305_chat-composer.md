@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (nền tảng FE), T-304 (API SSE), T-205 (biết số tài liệu ready) |
-| Trạng thái | In progress (7 trạng thái, phím tắt, bộ đếm ký tự, giữ nháp khi lỗi/hết phiên đã nối; còn thiếu axe-core và so khớp ảnh thiết kế) |
+| Trạng thái | In progress (7 trạng thái, phím tắt, bộ đếm ký tự, giữ nháp khi lỗi/hết phiên, axe-core cho `Composer` đã nối; còn thiếu so khớp ảnh thiết kế) |
 
 ## 1. Mục tiêu
 
@@ -98,7 +98,7 @@ Không đụng CSDL. Lưu trữ phía client (SDD §3.4.4):
 - [x] Đủ 7 trạng thái Composer — `ChatPage.tsx` tính `disabledReason` theo đúng thứ tự ưu tiên offline → no_docs → all_processing → all_failed → awaiting_answer; `Composer.tsx` khóa toàn bộ ô cho 4 trạng thái đầu, chỉ khóa nút Gửi cho `awaiting_answer`; có test cho `no_docs`
 - [x] Ngắt mạng giữa chừng → câu hỏi không mất, có nút Gửi lại — `streamQuestion` (shared/api/client.ts) không bao giờ `throw`, mọi lỗi mạng/đứt kết nối thành `{type:"error", code:"ANSWER_NETWORK"}`; composer giữ `draft` nguyên vẹn vì chỉ `setDraft("")` sau khi submit thành công tạo tin nhắn (không phụ thuộc kết quả SSE); `ErrorMessage` hiện nút "Gửi lại" gọi lại đúng câu hỏi cũ (lưu trong `questionByAnswerId` map)
 - [x] Phiên hết hạn → khôi phục nháp (AC-001.3) — tái dùng hạ tầng đã có từ T-107 (`features/auth/draft.ts`): `ChatPageInner` gọi `restoreDraft()` khi khởi tạo state rồi `clearDraft()`, và `registerComposerSource(() => draft)` để interceptor 401 toàn cục lưu nháp khi `streamQuestion`/`apiFetch` gặp 401 giữa chừng
-- [ ] axe-core — chưa chạy cho `Composer`/`ChatPage` (có sẵn cho `shared/ui`, chưa mở rộng sang `features/chat`)
+- [x] axe-core — `Composer.test.tsx` mới (trạng thái sẵn sàng, khóa toàn bộ, khóa kèm tooltip), dùng `expectNoA11yViolations`; 0 lỗi mức `serious`/`critical`. `ChatPage` (container) chưa có test axe riêng — bao phủ gián tiếp qua `Composer`/`AnswerMessage`/`CitationChip`
 - [x] Không lưu nội dung câu hỏi vào Web Storage — xác nhận bằng đọc code (chỉ `sessionStorage` khi hết phiên qua `draft.ts`, xóa ngay sau khi gửi/khôi phục thành công)
 
 ## 8. Định nghĩa Hoàn thành
@@ -122,8 +122,17 @@ tả 7 trạng thái). Danh sách tài liệu lấy qua `GET /documents` + SSE
 rộng để không bao giờ `throw`: mọi lỗi (mạng, 401/429/…, đứt SSE) được
 chuẩn hoá thành sự kiện `error`, nên composer/`finally` không còn rủi ro
 kẹt `busy=true`. AC-001.3 tái sử dụng đúng hạ tầng `features/auth/draft.ts`
-đã có sẵn từ T-107. Còn thiếu: axe-core cho `features/chat`, đối chiếu ảnh
-thiết kế. Giữ "In progress".
+đã có sẵn từ T-107.
+
+**Đã bổ sung ở phiên sau (axe-core):** `Composer.test.tsx` — 4 ca
+(hiển thị, khóa toàn bộ, a11y ở trạng thái sẵn sàng và khóa kèm tooltip),
+theo khuôn mẫu `shared/ui/*.test.tsx`. Không phát hiện vi phạm a11y mức
+nghiêm trọng.
+
+Còn thiếu: đối chiếu ảnh thiết kế, và axe-core chạy trực tiếp trên
+`ChatPage` (container lắp ráp `Composer`+`AnswerMessage`+`CitationChip`,
+mỗi thành phần đã có test axe riêng nhưng chưa có một test axe "toàn
+trang chat" gộp cả ba). Giữ "In progress".
 
 ## 9. Tham chiếu
 

@@ -105,6 +105,8 @@ export const uiText = {
   documentDrawerTitle: "Tài liệu của bạn",
   userMenuHelp: "Trợ giúp",
   userMenuLogout: "Đăng xuất",
+  // T-405 §5 bước 6 — phím tắt Ctrl+Shift+O (cuộc trò chuyện mới).
+  newConversationToast: "Đã bắt đầu cuộc trò chuyện mới",
 } as const;
 
 // Chuỗi hiển thị cố định của features/auth (SCR-01, SCR-03 — T-107).

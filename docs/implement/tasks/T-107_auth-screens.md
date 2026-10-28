@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-101 (luồng OIDC), T-102 (API-01), T-106 (nền tảng FE) |
-| Trạng thái | In progress (3 màn hình + route guard + AC-001.3 (giữ bản nháp) + i18n + `session_started` đã nối trong phiên này; còn thiếu axe-core/so khớp ảnh thiết kế/E2E) |
+| Trạng thái | In progress (3 màn hình + route guard + AC-001.3 (giữ bản nháp) + i18n + `session_started` + axe-core cho `LoginScreen`/`NoAccessScreen` đã nối; còn thiếu so khớp ảnh thiết kế/E2E) |
 
 ## 1. Mục tiêu
 
@@ -92,7 +92,7 @@ type SessionState =
 - [x] Giả lập 401 khi composer đang có chữ → sau khi đăng nhập lại, nội dung được khôi phục nguyên vẹn (AC-001.3) — `setUnauthorizedHandler()` trong `shared/api/client.ts` gọi `captureDraftOnUnauthorized()` (`features/auth/draft.ts`) trên mọi 401 (`apiFetch` và `streamQuestion`); `ChatPage` đăng ký nội dung composer hiện tại qua `registerComposerSource()` và khôi phục bằng `restoreDraft()` lúc mount. Xác nhận bằng unit test (`draft.test.ts`, 9 test) — chưa có E2E trình duyệt thật cho round-trip UI đầy đủ
 - [x] Chế độ ẩn danh chặn `sessionStorage` → `saveDraft`/`restoreDraft`/`clearDraft` bọc `try/catch`, không ném lỗi khi storage bị chặn — test giả lập bằng cách mock `sessionStorage.prototype` ném `DOMException`
 - [ ] Đăng xuất → cache Query trống — chưa có TanStack Query nào được dùng thật (xem ghi chú T-106)
-- [ ] axe-core trên SCR-01, SCR-03, SCR-07 — axe-core chưa được cài (xem T-106)
+- [x] axe-core trên SCR-01, SCR-03 — `features/auth/AuthScreens.test.tsx` mới (4 ca, dùng `expectNoA11yViolations` như các test `shared/ui`) chạy qua `LoginScreen` và `NoAccessScreen`, 0 lỗi mức `serious`/`critical`; **SCR-07 (404)** không có component riêng để test (chỉ là `<div>` placeholder trong `App.tsx`), không áp dụng
 - [ ] Giao diện khớp ảnh thiết kế ở 1280px và 1024px — chưa đối chiếu bằng mắt/test ảnh
 
 ## 8. Định nghĩa Hoàn thành
@@ -158,14 +158,22 @@ dẫn `returnTo` được dựng động theo `window.location.pathname`.
    Policy nghiêm ngặt) — nếu cần chính xác tuyệt đối, nên đổi sang một cờ
    do backend OIDC callback set (ngoài phạm vi T-107, chạm vào T-101/BE).
 
-**Còn thiếu (không đổi so với trước, ngoài phạm vi phiên này):** axe-core,
-so khớp ảnh thiết kế ở 1280px/1024px, E2E cho AC-001.1/1.2/1.4 — không có
-trình duyệt thật để chạy Playwright/axe trong môi trường này (xem ghi chú
-T-504). Round-trip AC-001.3 mới được xác nhận bằng unit test, chưa bằng
-E2E trình duyệt thật.
+**Đã bổ sung ở phiên sau (axe-core cho `features/auth`):**
+`features/auth/AuthScreens.test.tsx` — 4 ca kiểm thử theo đúng khuôn mẫu
+`shared/ui/*.test.tsx` (`expectNoA11yViolations` từ
+`shared/testing/axe.ts`), bao phủ `LoginScreen` và `NoAccessScreen`; không
+phát hiện vi phạm a11y mức nghiêm trọng. `logout`/`apiFetch`/
+`setCsrfToken`/`setUnauthorizedHandler` được mock qua `vi.mock("@shared/api/client")`
+để test không phụ thuộc mạng thật.
+
+**Còn thiếu (ngoài phạm vi phiên này):** so khớp ảnh thiết kế ở
+1280px/1024px, E2E cho AC-001.1/1.2/1.4 — không có trình duyệt thật để
+chạy Playwright trong môi trường này (xem ghi chú T-504). Round-trip
+AC-001.3 mới được xác nhận bằng unit test, chưa bằng E2E trình duyệt thật.
+SCR-07 (404) không có component riêng nên không có test axe cho nó.
 
 Giữ trạng thái **"In progress"**: các khoảng trống AC-001.3/i18n/
-`session_started` đã đóng, nhưng DoD về axe-core/so khớp ảnh thiết kế/E2E
+`session_started`/axe-core đã đóng, nhưng DoD về so khớp ảnh thiết kế/E2E
 vẫn chưa đạt.
 
 ## 9. Tham chiếu

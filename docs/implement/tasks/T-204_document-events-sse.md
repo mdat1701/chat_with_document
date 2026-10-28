@@ -10,7 +10,7 @@
 | Vai trò chính | BE (phối hợp FE ở T-205) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-201/T-203 (worker publish sự kiện), T-102 (phiên), T-106 (SSE client ở `shared/api`) |
-| Trạng thái | Done (BE; phụ thuộc FE `sseClient` ở T-106 chưa có) |
+| Trạng thái | **Done** (BE từ trước; FE `subscribeDocumentEvents()` đã nối trong đợt T-205 — xem ghi chú) |
 
 ## 1. Mục tiêu
 
@@ -95,7 +95,7 @@ Trường hợp biên:
 
 - [ ] Worker đổi trạng thái → UI cập nhật ≤ 5s qua Ingress staging — không có staging/Ingress thật, không đo được
 - [x] A không nhận sự kiện của B — kênh pub/sub theo `doc-status:{owner_id}` (lấy từ `current_user.id`, không nhận từ client) nên tách biệt theo thiết kế; chưa có test 2 phiên song song tự động
-- [ ] Ngắt mạng 30s rồi nối lại → UI dùng `GET /documents` để đồng bộ lại — endpoint `GET /documents` tồn tại và trả trạng thái mới nhất, nhưng **chưa có FE nào gọi SSE để mất kết nối rồi fallback** (xem T-106: `sseClient` chưa tồn tại)
+- [x] Ngắt mạng 30s rồi nối lại → UI dùng `GET /documents` để đồng bộ lại — **đã nối**: `useDocuments.ts` truyền callback `onError` cho `subscribeDocumentEvents()` gọi lại `reload()` khi `EventSource` báo lỗi (trước đó tham số này tồn tại trong `shared/api/client.ts` nhưng không ai truyền vào — sửa 1 dòng); chưa có test tự động mô phỏng mất kết nối thật
 - [x] Idle 60s không bị đóng — `document_events` gửi `": ping\n\n"` mỗi 15s khi không có message mới
 - [x] Đóng tab → `sse_connections.dec()` trong khối `finally`, có `pubsub.unsubscribe()`/`close()`
 - [ ] 10 tệp, 1 lỗi → 10 sự kiện cuối — logic publish đúng (mỗi lần đổi trạng thái gọi `_publish_status`), chưa có test tích hợp đo đủ số sự kiện
@@ -104,7 +104,7 @@ Trường hợp biên:
 
 - [ ] AC-010.1 trên staging — chưa có staging
 - [ ] Không rò rỉ kết nối sau 100 lần mở-đóng — chưa test tải
-- [ ] Chỉ `shared/api` phía FE gọi `EventSource` — **chưa áp dụng được, FE chưa có `sseClient`/`EventSource` nào cả** (gap nằm ở T-106, không phải T-204)
+- [x] Chỉ `shared/api` phía FE gọi `EventSource` — **đã có**: `shared/api/client.ts::subscribeDocumentEvents()` là nơi duy nhất dựng `EventSource`, enforce bằng rule ESLint ranh giới (T-106); `features/documents/useDocuments.ts` chỉ gọi hàm này, không tự tạo `EventSource`
 - [x] Payload không chứa tên tệp/nội dung — `_publish_status` chỉ gửi `id/status/error_code/page_count`
 
 ### Ghi chú triển khai thực tế
@@ -115,11 +115,16 @@ publish qua `app/modules/ingestion/service.py::_publish_status`) đã viết
 keep-alive bằng comment SSE, dọn kết nối trong `finally`, payload tối giản
 không rò rỉ nội dung. Kiểm tra tĩnh sạch (ruff/mypy/lint-imports).
 
-**Chưa làm được, không thuộc phạm vi code T-204:** phía front-end chưa có
-`shared/api/sseClient` nào gọi `EventSource` tới endpoint này (xem gap đã
-ghi ở T-106) — nghĩa là SSE backend đã sẵn sàng nhưng chưa có UI nào tiêu
-thụ nó. Đây là lý do T-205 (thư viện tài liệu UI) chưa thể tự cập nhật
-real-time.
+**Đã nối (đợt T-205, xác nhận/chỉnh thêm trong phiên này):** FE giờ có
+`subscribeDocumentEvents()` trong `shared/api/client.ts` tiêu thụ đúng
+endpoint này, dùng trong `features/documents/useDocuments.ts`. Đã sửa
+thêm một khoảng trống nhỏ: `onError` của `subscribeDocumentEvents()` tồn
+tại trong client nhưng trước đó không ai truyền callback vào — nghĩa là
+khi `EventSource` báo lỗi (mất kết nối), UI không tự đồng bộ lại bằng
+`GET /documents` như §5 bước 5 yêu cầu. Đã nối callback đó gọi `reload()`.
+Chuyển hẳn sang **Done** vì phần BE+FE core của task này đều hoạt động;
+phần đo lường trên staging thật (AC-010.1 ≤5s, rò rỉ kết nối sau 100 lần
+mở-đóng) vẫn chưa thực hiện được, không phải khoảng trống code.
 
 ## 9. Tham chiếu
 

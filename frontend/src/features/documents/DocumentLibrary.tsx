@@ -1,4 +1,9 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { apiFetch, retryDocument, ApiError } from "@shared/api/client";
 import { useAppConfig } from "@shared/config";
 import {
@@ -78,6 +83,30 @@ export function DocumentLibrary({ online = true }: Props) {
   const [pendingDelete, setPendingDelete] = useState<DocumentVM | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
+  const docListRef = useRef<HTMLUListElement>(null);
+
+  // T-405 §5 bước 6: ↑/↓ duyệt danh sách tài liệu (roving focus giữa các
+  // dòng `doc-item`; không can thiệp phím mũi tên khi focus đang ở trong
+  // một nút bấm bên trong dòng, để không phá hành vi mặc định của nút đó).
+  const handleDocListKeyDown = (
+    event: ReactKeyboardEvent<HTMLUListElement>,
+  ) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const list = docListRef.current;
+    if (!list) return;
+    const rows = Array.from(
+      list.querySelectorAll<HTMLElement>('[data-testid="doc-item"]'),
+    );
+    if (rows.length === 0) return;
+    const current = rows.indexOf(document.activeElement as HTMLElement);
+    event.preventDefault();
+    const delta = event.key === "ArrowDown" ? 1 : -1;
+    const nextIndex =
+      current === -1
+        ? 0
+        : Math.min(Math.max(current + delta, 0), rows.length - 1);
+    rows[nextIndex]?.focus();
+  };
 
   const atQuota = used >= config.max_documents;
   const uploadDisabled = !online || atQuota;
@@ -232,9 +261,20 @@ export function DocumentLibrary({ online = true }: Props) {
           <strong>{uiText.es03Title}</strong> — {uiText.es03Description}
         </Banner>
       ) : (
-        <ul className="document-list" data-testid="doc-list">
+        <ul
+          ref={docListRef}
+          className="document-list"
+          data-testid="doc-list"
+          onKeyDown={handleDocListKeyDown}
+        >
           {documents.map((doc) => (
-            <li key={doc.id} className="document-row" data-testid="doc-item">
+            <li
+              key={doc.id}
+              className="document-row"
+              data-testid="doc-item"
+              tabIndex={0}
+              aria-label={doc.name}
+            >
               <div className="document-row__main">
                 <span className="document-row__name" title={doc.name}>
                   <strong>{doc.name}</strong>
