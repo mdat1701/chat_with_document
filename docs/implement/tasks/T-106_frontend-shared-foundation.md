@@ -10,7 +10,7 @@
 | Vai trò chính | FE (một người kiêm design system) |
 | Ước lượng | 3d |
 | Phụ thuộc | T-102 (API-01), T-105 (API-02) |
-| Trạng thái | Done (nền tảng lõi + `shared/ui` + `useAppConfig()` + lint ranh giới + axe-core đã xong; còn thiếu README kiến trúc front-end và việc dọn hex-literal cố định trong `features/*`/`global.css` — xem "Ghi chú triển khai thực tế") |
+| Trạng thái | **Done** (nền tảng lõi + `shared/ui` + `useAppConfig()` + lint ranh giới + axe-core + README kiến trúc + dọn hex-literal đều đã xong — xem "Ghi chú triển khai thực tế") |
 
 ## 1. Mục tiêu
 
@@ -117,9 +117,9 @@ Không có thay đổi CSDL. Chính sách lưu trữ phía client (SDD §3.4.4) 
 
 - [x] 4 route MVP-lite chạy được với dữ liệu giả lập; không có route nào tới màn hình post-MVP (SCR-04 – SCR-06) — xác nhận trong `App.tsx`: `/login`, `/`, `/no-access`, `/404`
 - [x] 100% chuỗi hiển thị nằm trong `messages.vi.ts` — tồn tại và được các feature import (chưa grep toàn bộ để xác nhận 100%)
-- [ ] 100% màu/cỡ chữ/khoảng cách lấy từ design token — `shared/tokens/global.css` đã có đủ bảng token (§3.8.1) và toàn bộ `shared/ui` chỉ dùng token; **nhưng** `features/*` (`App.tsx` dùng class `.page`/`.card`/`.button`, `UploadDropzone.tsx` có `style={{ border: "2px dashed #b8c5d9" }}`) vẫn còn hex cố định — cố ý chưa đụng vào theo đúng phạm vi task này (feature sẽ được một lượt khác thay bằng `shared/ui`); chưa có lint rule chặn hex literal
+- [x] 100% màu/cỡ chữ/khoảng cách lấy từ design token — **đã dọn xong** (đợt T-405): `grep -rn "#[0-9a-fA-F]\{3,6\}" src/features src/shared` (trừ `global.css`) cho 0 kết quả; `global.css` bổ sung thêm `--color-skeleton-highlight`, `--color-overlay`, `--breakpoint-*` để thay các hex còn sót trong `ui.css`/`global.css`'s `.card`/`.button`/`.document-row`. Vẫn chưa có lint rule tự động chặn hex literal (chỉ xác nhận bằng grep thủ công, không chạy trong CI)
 - [x] Lint ranh giới + axe-core chạy trong CI và đang xanh — `eslint.config.js` đã có rule `boundaries/element-types` + chặn `fetch` ngoài `shared/api`/`shared/analytics`; job `lint` trong `.github/workflows/ci.yml` chạy `npm run lint` và job `frontend-test` chạy `npm run test` (bao gồm các test axe-core) — cả hai đã xác nhận xanh cục bộ (`npm run lint`, `npm test`), chưa tự chạy workflow GitHub Actions thật để xác nhận trên CI
-- [ ] README front-end mô tả cách thêm một feature mới đúng kiến trúc — vẫn chưa có, ngoài phạm vi lần này
+- [x] README front-end mô tả cách thêm một feature mới đúng kiến trúc — **đã thêm** `frontend/README.md` (mới): cấu trúc thư mục, 6 luật ranh giới DR-01–DR-06 (và cách ESLint thực thi), quy trình 7 bước thêm feature mới, bảng lệnh thường dùng
 
 ### Ghi chú triển khai thực tế
 
@@ -186,27 +186,30 @@ file không đổi trong đợt này như `shared/analytics/client.ts`, đều k
 qua được `prettier --check`), không phải lỗi do đợt triển khai này gây ra;
 không sửa vì ngoài phạm vi task.
 
-**Phần CHƯA làm / cố ý để ngoài phạm vi đợt này:**
-1. `features/*` (`App.tsx`, `UploadDropzone.tsx`, `global.css` lớp
-   `.page`/`.card`/`.button`/`.offline-banner`…) vẫn dùng className/style
-   thô với hex cố định, **chưa** được thay bằng `shared/ui` — đúng theo yêu
-   cầu của lần triển khai này ("không refactor feature files, agent khác sẽ
-   làm tiếp"). Vì vậy DoD "100% màu/cỡ chữ/khoảng cách lấy từ design token"
-   vẫn chưa đạt ở tầng `features/*`, dù `shared/ui` đã 100% dùng token.
-2. Chưa có lint rule chặn hex literal trong `features/*` (SDD §3.8 gợi ý) —
-   chưa làm.
-3. TanStack Query / Zustand: `useAuth` (zustand) đã dùng thật, nhưng chưa có
-   `QueryClientProvider` nào được lắp vào `App.tsx`, và chưa có cơ chế "xoá
-   sạch cache khi đăng xuất" — vẫn như ghi chú cũ, ngoài phạm vi đợt này.
-4. README front-end mô tả cách thêm feature mới đúng kiến trúc — chưa có.
-5. Chưa chạy thật GitHub Actions để xác nhận job `lint`/`frontend-test`
-   xanh trên CI (chỉ xác nhận xanh cục bộ bằng đúng lệnh mà CI dùng).
+**Cập nhật (đợt T-405, sau khi `shared/ui` đã tồn tại đầy đủ):**
+1. Hex literal trong `features/*`/`global.css` đã được dọn sạch — xác
+   nhận bằng grep, 0 kết quả ngoài `global.css` (nguồn token).
+2. Đã thêm `frontend/README.md` mô tả kiến trúc + quy trình thêm
+   feature mới.
 
-Trạng thái chuyển thành **"Done"** cho đúng phạm vi mục tiêu cốt lõi của
-T-106 (dựng `shared/ui`, `useAppConfig()`, lint ranh giới, axe-core) —
-nhưng các việc dọn dẹp `features/*` theo token/config vẫn còn và nên được
-theo dõi ở một task riêng (hoặc lượt refactor feature tiếp theo) thay vì
-giữ T-106 "In progress" vô thời hạn.
+Hai mục này đóng nốt 2/2 khoảng trống DoD còn lại của T-106 sau lần
+"Done có điều kiện" trước đó — nên chuyển hẳn sang **"Done"** không còn
+điều kiện kèm theo ở mức cốt lõi của task này.
+
+**Vẫn CHƯA làm (không thuộc phạm vi cốt lõi của T-106, theo dõi ở nơi
+khác):**
+1. Lint rule *tự động* chặn hex literal trong CI — hiện chỉ xác nhận
+   bằng grep thủ công, chưa có rule ESLint riêng (ví dụ
+   `eslint-plugin-no-hex-colors` hay quy tắc tự viết).
+2. TanStack Query / Zustand: `useAuth` (zustand) đã dùng thật, nhưng
+   chưa có `QueryClientProvider` nào được lắp vào `App.tsx` (các hook
+   dữ liệu như `useDocuments.ts` tự quản lý state thay vì qua TanStack
+   Query), và chưa có cơ chế "xoá sạch cache khi đăng xuất" — đây là một
+   khoảng trống kiến trúc thật sự (dependency có trong `package.json`
+   nhưng không được dùng), nên theo dõi như một hạng mục riêng nếu dự
+   án tiếp tục sau MVP-lite.
+3. Chưa chạy thật GitHub Actions để xác nhận job `lint`/`frontend-test`
+   xanh trên CI (chỉ xác nhận xanh cục bộ bằng đúng lệnh mà CI dùng).
 
 ## 9. Tham chiếu
 

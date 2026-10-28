@@ -44,7 +44,7 @@
 | [T-103](T-103_access-grant-cli.md) | Cấp quyền qua CLI/config | US-023 | BE | 1d | **Done** |
 | [T-104](T-104_owner-scoped-db-access.md) | Cô lập `owner_id` + RLS | US-002 | BE | 2d | **Done** |
 | [T-105](T-105_config-api-and-rate-limit.md) | `GET /config` & rate limit | US-006, US-007 | BE | 1d | **Done** |
-| [T-106](T-106_frontend-shared-foundation.md) | Nền tảng front-end dùng chung | — | FE | 3d | Done (`shared/ui` + `useAppConfig()` + lint ranh giới + axe-core đã xong; còn thiếu README kiến trúc front-end và dọn hex-literal trong `features/*`) |
+| [T-106](T-106_frontend-shared-foundation.md) | Nền tảng front-end dùng chung | — | FE | 3d | **Done** |
 | [T-107](T-107_auth-screens.md) | Màn hình đăng nhập & chưa cấp quyền | US-001 | FE | 2d | In progress (AC-001.3 + i18n + `session_started` đã làm; còn thiếu axe-core/so khớp ảnh thiết kế/E2E) |
 | [T-108](T-108_upload-api.md) | `POST /documents` (tải lên) | US-003, 004, 006, 007 | BE | 3d | In progress (5 test mới; AC-007.2 song song cần Postgres thật) |
 | [T-109](T-109_upload-client.md) | Client tải lên | US-003, US-004 | FE | 3d | In progress (hàng đợi 3 đồng thời, validate trước khi gửi, dialog trùng tên, Hủy/abort đã có — xem ghi chú) |
