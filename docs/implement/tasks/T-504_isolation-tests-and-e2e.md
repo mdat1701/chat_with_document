@@ -10,7 +10,7 @@
 | Vai trò chính | QA (chủ trì) · BE (hỗ trợ fixture) · TL (tích hợp CI) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-104 (RLS), T-108, T-206, T-304, T-306 |
-| Trạng thái | In progress (integration test cô lập viết xong, E2E Playwright chưa chạy được) |
+| Trạng thái | In progress (4 integration test cô lập viết xong gồm 2 ca RLS qua SQL trực tiếp, chưa chạy thật trên Postgres; E2E Playwright chưa chạy được) |
 
 ## 1. Mục tiêu
 
@@ -112,7 +112,7 @@ test('G-01: upload → ready → hỏi → có nguồn → xóa', async ({ page 
 ## 7. Kiểm thử bắt buộc
 
 - [x] AC-002.2/AC-002.3 viết đúng trong `tests/integration/test_owner_isolation.py` (`test_owner_isolation_contract`) — A không thấy tài liệu của B trong `GET /documents`, `DELETE` trên tài liệu của B → 404; AC-002.1 (hỏi câu chỉ có đáp án ở tài liệu B → `not_found`) chưa có ca riêng (cần `FakeLLM` trả lời có cấu trúc kiểm được, hiện `test_owner_cannot_query_other_owner_document` chỉ kiểm tra status code 201/403/404 lỏng lẻo, không kiểm nội dung câu trả lời)
-- [ ] Ca gọi SQL trực tiếp chứng minh RLS độc lập tầng ứng dụng — chưa viết (task này chỉ test qua tầng API/TestClient)
+- [x] Ca gọi SQL trực tiếp chứng minh RLS độc lập tầng ứng dụng — **đã thêm** `test_rls_blocks_even_with_direct_sql_bypassing_app_layer` (chạy thẳng SQL qua vai trò `cwd_app`, không qua FastAPI/ORM, sau `set_config('app.user_id', A, true)`) và `test_rls_fails_closed_without_app_user_id_set` (không đặt `app.user_id` → lỗi, không âm thầm trả toàn bộ bảng, đúng T-104) trong `tests/integration/test_owner_isolation.py`; cùng cơ chế skip-khi-không-Docker như 2 test cũ
 - [ ] E2E Playwright (`frontend/e2e/`, `playwright.config.ts`) — có file cấu hình nhưng **chưa thể chạy thật** trong môi trường này (không có trình duyệt/stack đầy đủ) — xem xác nhận riêng của phần FE
 - [ ] E2E `not_found` — chưa chạy được, cùng lý do
 - [ ] Tắt policy RLS phải làm test đỏ — chưa thử nghiệm (cần chỉnh migration tạm thời rồi chạy lại, chưa làm)
@@ -141,11 +141,34 @@ và B. Đã xác nhận bằng `pytest -v`: trước đây 2 `ERROR`, sau khi s�
 do thiếu fixture. Đã xoá thư mục `tests/isolation/` (chỉ chứa 1 placeholder
 `@pytest.mark.skip` cho chính task này) vì nay đã có test thật thay thế.
 
-**Việc còn thiếu, cần làm khi có Docker + trình duyệt thật:** chạy
-`pytest tests/integration` để xác nhận test thật sự pass (không chỉ skip
-đúng cách), viết ca AC-002.1 kiểm tra nội dung câu trả lời `not_found`,
-viết ca RLS qua SQL trực tiếp, và chạy Playwright E2E (xem xác nhận riêng
-của phần front-end trong phiên này).
+**Đã thêm (phiên sau):** 2 ca RLS qua SQL trực tiếp —
+`test_rls_blocks_even_with_direct_sql_bypassing_app_layer` (chạy thẳng
+SQL qua vai trò `cwd_app` sau `set_config('app.user_id', A, true)`,
+không qua FastAPI/ORM) và `test_rls_fails_closed_without_app_user_id_set`
+(không đặt `app.user_id` → kỳ vọng lỗi, đúng hành vi fail-closed của
+T-104). Cả hai viết đúng theo cùng khuôn mẫu đã dùng cho 2 test cũ, tự
+`pytest.skip` khi không có Docker — xác nhận bằng cách chạy
+`pytest tests/integration/test_owner_isolation.py -v` và thấy **4**
+test `SKIPPED` (trước đây 2), không có `ERROR`/lỗi cú pháp nào.
+
+**Thành thật về giới hạn xác minh:** khác với các mục đã chuyển "Done"
+ở các task khác (nơi phần còn thiếu chỉ là *đo lường*/*chạy trên môi
+trường thật* của logic đã xác nhận đúng), 2 test RLS mới này **chưa
+từng chạy thật** — chỉ xác nhận được là chúng *thu thập được* và *skip
+đúng cách* (không lỗi cú pháp/fixture), không xác nhận được chúng
+*pass* khi có Postgres thật. Vì đây là bằng chứng cốt lõi cho Pilot Gate
+G-03, giữ "In progress" thay vì "Done" cho tới khi chạy được trên môi
+trường có Docker.
+
+**Vẫn còn thiếu, cần Docker + trình duyệt thật:** chạy `pytest
+tests/integration` để xác nhận toàn bộ 4 test thật sự pass (không chỉ
+skip đúng cách), viết ca AC-002.1 kiểm tra nội dung câu trả lời
+`not_found` (hiện bị giới hạn bởi `FakeLLM` luôn trả cùng một chuỗi cố
+định không trích dẫn gì — không phân biệt được "cô lập hoạt động đúng"
+với "FakeLLM không bao giờ trích dẫn", nên viết thêm cũng không tăng độ
+tin cậy thật sự), thử tắt policy RLS để xác nhận test tự viết thật sự đỏ
+(mutation test cho chính bộ test), và chạy Playwright E2E (xem xác nhận
+riêng của phần front-end).
 
 
 

@@ -91,7 +91,7 @@
 | [T-501](T-501_rag-evaluation-harness.md) | Bộ đánh giá chất lượng RAG offline | G-02 | AI | 3d | In progress (sửa lỗi thiếu CSRF token + lỗi điều kiện CI; chưa chạy thật) |
 | [T-502](T-502_quality-tuning-round1.md) | Hiệu chỉnh chất lượng vòng 1 | G-02 | AI | 3d | To do (chờ T-501 có số liệu) |
 | [T-503](T-503_security-privacy-hardening.md) | Hoá cứng bảo mật & quyền riêng tư | G-04 | TL | 2d | In progress (có test canary-style ở mức unit; canary/SCA thật cần staging) |
-| [T-504](T-504_isolation-tests-and-e2e.md) | Kiểm thử cô lập & E2E | G-01, G-03 | QA | 2d | In progress (integration test viết xong, E2E chưa chạy) |
+| [T-504](T-504_isolation-tests-and-e2e.md) | Kiểm thử cô lập & E2E | G-01, G-03 | QA | 2d | In progress (4 integration test gồm 2 ca RLS qua SQL trực tiếp, chưa chạy thật; E2E chưa chạy) |
 | [T-505](T-505_performance-smoke-test.md) | Kiểm thử hiệu năng quy mô pilot | G-06 | QA | 2d | To do (script k6 sẵn sàng, chưa chạy) |
 | [T-506](T-506_quality-tuning-round2.md) | Hiệu chỉnh chất lượng vòng 2 | G-02 | AI | 2d | To do (có điều kiện, chờ T-502) |
 
