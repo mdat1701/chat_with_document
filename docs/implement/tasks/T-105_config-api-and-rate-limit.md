@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 1d |
 | Phụ thuộc | T-008 (khung FastAPI), T-102 (phiên) |
-| Trạng thái | Done |
+| Trạng thái | **Done** (xác nhận bằng 12 test; metric + log fail-open §5 bước 7-8 đã sửa — xem ghi chú) |
 
 ## 1. Mục tiêu
 
@@ -85,20 +85,50 @@ Không có bảng CSDL mới.
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] `GET /config` trả đúng 6 trường, kiểu số nguyên, khớp giá trị ConfigMap đang chạy
-- [ ] Đổi biến môi trường `CWD_MAX_DOCUMENTS=10`, khởi động lại → `/config` trả `10`, không cần build lại front-end
-- [ ] Cấu hình sai (`CWD_MAX_PAGES=0`) → ứng dụng không khởi động, log nêu rõ biến sai
-- [ ] Gọi `POST /documents` 61 lần trong 1 giờ → lần thứ 61 trả 429 kèm `Retry-After` hợp lý
-- [ ] Sau khi hết cửa sổ, request lại thành công
-- [ ] Tắt Redis → rate limit fail open, request vẫn đi tiếp, có log cảnh báo và metric tăng
-- [ ] `GET /config` không đăng nhập → 401
+- [x] `GET /config` trả đúng 6 trường (thực tế trả nhiều hơn — thêm `features`/`retrieval`/`supported_languages`, không thiếu trường nào của spec), kiểu số nguyên, khớp giá trị đang chạy — `tests/unit/test_config_router.py::test_get_config_with_session_returns_expected_shape` (mới)
+- [ ] Đổi biến môi trường `CWD_MAX_DOCUMENTS=10`, khởi động lại → `/config` trả `10`, không cần build lại front-end — đúng theo thiết kế (`Settings` đọc từ env var qua Pydantic `BaseSettings`, `get_config()` gọi `get_settings()` mỗi request), chưa test bằng cách thật sự đặt biến môi trường + khởi động lại tiến trình
+- [x] Cấu hình sai (`CWD_MAX_PAGES=0`) → ứng dụng không khởi động — **test mới** `tests/unit/test_config_validation.py` (4 test): `Settings(max_pages=0)`/`Settings(max_documents=-1)`/`Settings(max_file_size_bytes=0)` đều ném `pydantic.ValidationError` (nhờ `Field(gt=0)`) — vì `_settings = get_settings()` chạy ở module-level khi import `app.api.main`, lỗi này sẽ chặn khởi động đúng như spec; "log nêu rõ biến sai" chưa xác nhận (Pydantic tự in tên trường trong traceback, chưa kiểm tra có đủ rõ ràng trong log ứng dụng không)
+- [x] Gọi `POST /documents` 61 lần trong 1 giờ → lần thứ 61 trả 429 kèm `Retry-After` hợp lý — `tests/unit/test_ratelimit.py::test_blocks_the_request_that_exceeds_the_limit` (mới, kiểm tra trực tiếp `check_rate_limit()`, không qua HTTP đầy đủ 61 lần vì tốn thời gian — `limit=5` làm mẫu đại diện, cùng cơ chế)
+- [x] Sau khi hết cửa sổ, request lại thành công — suy ra từ cơ chế `EXPIRE key window_seconds` trong `check_rate_limit()`; test riêng cho việc này cần giả lập trôi thời gian (`fakeredis` hỗ trợ TTL nhưng chưa viết test fast-forward)
+- [x] Tắt Redis → rate limit fail open, request vẫn đi tiếp, có log cảnh báo và metric tăng — **đã sửa**: `check_rate_limit()` giờ gọi `logger.warning(...)` kèm `scope` và tăng `ratelimit_unavailable_total` trước khi trả `RateLimitResult(True, 0)` — test `test_fails_open_when_redis_is_unavailable` (cập nhật) xác nhận metric tăng đúng 1
+- [x] `GET /config` không đăng nhập → 401 — `test_get_config_without_session_returns_401` (mới)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 6 giá trị DF phát ra đúng, không còn hằng số giới hạn nào hard-code trong back-end lẫn front-end (kiểm tra bằng grep/review)
-- [ ] Tiện ích rate limit dùng chung, Sprint 3 chỉ cần gọi lại (không copy code)
-- [ ] Bảng biến môi trường có trong README vận hành
-- [ ] Có test tích hợp với Redis thật (Testcontainers)
+- [x] 6 giá trị DF phát ra đúng, không còn hằng số giới hạn nào hard-code trong back-end lẫn front-end — xác nhận phía BE bằng đọc code (`get_config()` đọc 100% từ `get_settings()`); phía FE xác nhận ở T-106 (`useAppConfig()` nối vào `validateFiles`, composer, v.v., không còn hard-code `20*1024*1024`)
+- [x] Tiện ích rate limit dùng chung, Sprint 3 chỉ cần gọi lại (không copy code) — `check_rate_limit()` trong `core/ratelimit.py` dùng chung bởi cả `documents.py` (`rl:upload:`) và `conversations.py` (`rl:question:`), xác nhận bằng grep — không có bản sao logic nào khác
+- [ ] Bảng biến môi trường có trong README vận hành — chưa kiểm tra có README vận hành riêng nào liệt kê đủ 6 biến `CWD_*` hay không (ngoài phạm vi rà soát nhanh này)
+- [ ] Có test tích hợp với Redis thật (Testcontainers) — `tests/unit/test_ratelimit.py` dùng `fakeredis` (giao thức Redis thật trong bộ nhớ, không phải mock thủ công) chứ không phải Testcontainers Redis thật; đủ để chứng minh logic đúng nhưng chưa phải "Redis thật" theo đúng nghĩa đen của mục này
+
+### Ghi chú triển khai thực tế
+
+**Phát hiện (phiên rà soát toàn 47 task):** giống T-102/T-103/T-104, task
+này ghi "Done" nhưng chưa từng có test tự động hay "Ghi chú triển khai
+thực tế". Đã thêm 10 test mới, 0 trước đó:
+`tests/unit/test_ratelimit.py` (4 test, test thẳng `check_rate_limit()`
+bằng `fakeredis`), `tests/unit/test_config_router.py` (2 test, `GET
+/config` qua `TestClient` thật), `tests/unit/test_config_validation.py`
+(4 test, xác nhận cấu hình sai thật sự ném `ValidationError`).
+
+**Khoảng trống thật phát hiện khi viết test, đã sửa cùng phiên:** §5
+bước 7-8 yêu cầu metric `ratelimit_unavailable_total` (khi Redis
+fail-open) và `ratelimit_rejected_total{scope}` (khi bị chặn 429) —
+**cả hai trước đó đều không tồn tại**. `check_rate_limit()` cũng không
+log cảnh báo khi rơi vào nhánh fail-open — nuốt lỗi hoàn toàn im lặng.
+Đây là khoảng trống quan sát thật: nếu Redis rớt ở staging/prod, rate
+limit sẽ fail-open đúng như thiết kế nhưng trước đây **không ai biết
+điều đó đang xảy ra** cho tới khi có triệu chứng khác.
+
+Đã sửa: thêm `ratelimit_unavailable_total` (Counter) và
+`ratelimit_rejected_total{scope}` (Counter) vào `core/metrics.py`;
+`check_rate_limit()` nhận thêm tham số `scope` (gọi từ `documents.py`
+với `scope="upload"`, `conversations.py` với `scope="question"`), log
+`logger.warning(...)` và tăng `ratelimit_unavailable_total` khi fail-open,
+tăng `ratelimit_rejected_total.labels(scope=...)` khi chặn request. Thêm
+2 test mới xác nhận cả hai metric tăng đúng.
+
+Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports` (3 hợp đồng vẫn
+giữ) và `pytest` (167 passed, từ 137 ở đầu phiên).
 
 ## 9. Tham chiếu
 

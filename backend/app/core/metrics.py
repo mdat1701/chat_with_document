@@ -34,6 +34,15 @@ auth_me_total = Counter("auth_me_total", "Kết quả xác thực GET /me", ["ou
 csrf_rejected_total = Counter("csrf_rejected_total", "Số request bị từ chối vì CSRF")
 sse_connections = Gauge("sse_connections", "Số kết nối SSE đang mở")
 
+# --- Rate limit (T-105) ---
+ratelimit_unavailable_total = Counter(
+    "ratelimit_unavailable_total",
+    "Số lần check_rate_limit() fail-open vì Redis không sẵn sàng (T-105 §5 bước 7)",
+)
+ratelimit_rejected_total = Counter(
+    "ratelimit_rejected_total", "Số request bị chặn 429 RATE_LIMITED", ["scope"]
+)
+
 # --- LLM adapter resilience (T-301) ---
 llm_ttft_seconds = Histogram(
     "llm_ttft_seconds", "Thời gian từ lúc gọi LLM tới khi nhận token đầu tiên (TTFT)"

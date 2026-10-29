@@ -159,6 +159,7 @@ async def upload_document(
         key=f"rl:upload:{current_user.id}",
         limit=60,
         window_seconds=3600,
+        scope="upload",
     )
     if not limit.allowed:
         raise DomainError("RATE_LIMITED", {"retry_after_seconds": limit.retry_after_seconds})

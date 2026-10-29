@@ -67,7 +67,11 @@ async def ask_question(
     if not question or len(question) > get_settings().max_question_length:
         raise DomainError("QUESTION_INVALID")
     rate = await check_rate_limit(
-        get_redis(), key=f"rl:question:{current_user.id}", limit=10, window_seconds=60
+        get_redis(),
+        key=f"rl:question:{current_user.id}",
+        limit=10,
+        window_seconds=60,
+        scope="question",
     )
     if not rate.allowed:
         raise DomainError("RATE_LIMITED", {"retry_after_seconds": rate.retry_after_seconds})

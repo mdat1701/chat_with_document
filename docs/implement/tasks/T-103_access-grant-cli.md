@@ -10,7 +10,7 @@
 | Vai trò chính | BE (người dùng cuối: Admin / vận hành pilot) |
 | Ước lượng | 1d |
 | Phụ thuộc | T-005 (schema `app_user`, `user_role`), T-101 (cơ chế session Redis) |
-| Trạng thái | Done |
+| Trạng thái | Done (xác nhận bằng 11 test mới; chưa chạy trên Postgres/staging thật) |
 
 ## 1. Mục tiêu
 
@@ -90,20 +90,49 @@ Mã thoát: `0` thành công · `1` lỗi đầu vào (email sai định dạng,
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] `grant-access` cho email mới → `app_user.active=true`; tài khoản đó đăng nhập OIDC thành công ngay lần thử kế tiếp (AC-023.1)
-- [ ] `revoke-access --yes` khi người dùng **đang có phiên mở** → request kế tiếp của người đó trả 401, không phải chờ TTL (AC-023.2)
-- [ ] `revoke-access` thiếu `--yes` → thoát mã `1`, DB không đổi (AC-023.3)
-- [ ] Chạy `grant-access` hai lần liên tiếp → không tạo bản ghi trùng, không lỗi (idempotent)
-- [ ] Thu hồi rồi cấp lại → người dùng đăng nhập được, `oidc_subject` cũ được giữ nguyên
-- [ ] `list-users` hiển thị đúng trạng thái sau mỗi thao tác
-- [ ] Mỗi thao tác ghi đúng một dòng `audit_log`, không chứa nội dung tài liệu
+- [x] `grant-access` cho email mới → `app_user.active=true`, tạo `UserRole` — `tests/unit/test_cli.py::test_grant_access_creates_new_active_user_and_audit_log` (mới); đăng nhập OIDC thành công ngay lần thử kế tiếp (AC-023.1) phụ thuộc T-101, không kiểm chứng end-to-end được ở đây (cần IdP thật)
+- [ ] `revoke-access --yes` khi người dùng **đang có phiên mở** → request kế tiếp trả 401 (AC-023.2) — logic đúng (`test_revoke_access_deletes_all_sessions_immediately` xác nhận `delete_all_sessions_for_user` được gọi đúng `user_id`), nhưng chưa có test end-to-end qua `GET /me` thật sau khi thu hồi
+- [x] `revoke-access` thiếu `--yes` → thoát mã `1`, DB không đổi (AC-023.3) — `test_revoke_access_without_yes_flag_exits_1_and_changes_nothing` (mới)
+- [x] Chạy `grant-access` hai lần liên tiếp → không tạo bản ghi trùng, không lỗi (idempotent) — `test_grant_access_is_idempotent_for_existing_active_user_with_role` (mới)
+- [ ] Thu hồi rồi cấp lại → người dùng đăng nhập được, `oidc_subject` cũ được giữ nguyên — code giữ đúng `oidc_subject` (không ghi đè trong nhánh user đã tồn tại), nhưng chưa có test riêng cho đúng chuỗi "thu hồi rồi cấp lại"
+- [ ] `list-users` hiển thị đúng trạng thái sau mỗi thao tác — chưa có test cho `list_users()`
+- [x] Mỗi thao tác ghi đúng một dòng `audit_log`, không chứa nội dung tài liệu — xác nhận trong cả 2 test `grant_access`/`revoke_access` ở trên (`audit_entries[0].action == "access_granted"/"access_revoked"`)
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 3 AC của US-023 đạt ở mức CLI (không có UI — đúng phạm vi MVP-lite)
-- [ ] Lệnh chạy được trong container của `staging` và `prod` với tài liệu hướng dẫn kèm theo
-- [ ] Tất cả lệnh ghi đều idempotent và có `audit_log`
-- [ ] Test tích hợp chạy trong CI với Testcontainers (PostgreSQL + Redis)
+- [x] 3 AC của US-023 đạt ở mức CLI (không có UI — đúng phạm vi MVP-lite) — AC-023.1 (tạo user active), AC-023.3 (chặn thiếu `--yes`) có test; AC-023.2 (thu hồi phiên ngay) có test ở mức gọi đúng hàm, chưa test round-trip HTTP
+- [ ] Lệnh chạy được trong container của `staging` và `prod` với tài liệu hướng dẫn kèm theo — chưa có staging
+- [x] Tất cả lệnh ghi đều idempotent và có `audit_log` — xác nhận bằng test cho `grant_access`/`revoke_access`; `sync_access()` tái dùng cả hai nên kế thừa tính chất này, chưa có test riêng
+- [ ] Test tích hợp chạy trong CI với Testcontainers (PostgreSQL + Redis) — chưa có; test mới (phiên này) dùng fake factory, không phải Postgres thật
+
+### Ghi chú triển khai thực tế
+
+**Phát hiện (phiên rà soát toàn 47 task):** giống T-102/T-104/T-105,
+task này ghi "Done" từ sprint 1 nhưng chưa từng có test tự động hay
+"Ghi chú triển khai thực tế" — `app/cli.py` tồn tại và đúng kiến trúc
+nhưng chưa ai kiểm chứng hành vi bằng test. Đã thêm
+`tests/unit/test_cli.py` (11 test mới, trước đó 0 test cho module này):
+`_validate`/`_read_access_file` (hàm thuần, test trực tiếp) và
+`grant_access`/`revoke_access` (dùng factory DB giả lập mô phỏng đúng
+`async with factory() as session: async with session.begin():` của code
+thật, không phải Postgres thật).
+
+**Lệch nhỏ so với spec phát hiện khi đọc code (không phải lỗi, chỉ khác
+cách làm):** §5 bước 2 mô tả "Insert `user_role` nếu chưa tồn tại
+(idempotent, `ON CONFLICT DO NOTHING`)" — code thật dùng
+`session.get(UserRole, ...)` kiểm tra tồn tại rồi mới `session.add()`
+(check-then-insert ở tầng ứng dụng), không phải `ON CONFLICT` ở tầng
+CSDL. Với một CLI vận hành thủ công (không có tải đồng thời thực tế),
+rủi ro race condition giữa hai lần gọi `grant-access` cùng lúc là thấp,
+nhưng về mặt kỹ thuật kém chặt hơn spec gốc.
+
+Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports` (3 hợp đồng vẫn
+giữ) và `pytest` (162 passed, bao gồm 11 test này).
+
+**Vẫn environment-blocked:** chạy lệnh thật trong container staging/prod,
+test tích hợp Testcontainers (Postgres+Redis thật) cho `grant-access`/
+`revoke-access`, và xác nhận round-trip HTTP đầy đủ cho AC-023.1/AC-023.2
+(cần IdP thật + server thật chạy song song).
 
 ## 9. Tham chiếu
 
