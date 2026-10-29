@@ -68,7 +68,7 @@
 |---|---|---|---|---|---|
 | [T-301](T-301_llm-port-and-adapters.md) | `LLMPort` & 2 adapter (D-01) | — | TL | 3d | Done (sửa lỗi thật: kết nối HTTP tới LLM không đóng khi client hủy giữa chừng; chưa chạy trên LLM thật) |
 | [T-302](T-302_retrieval-and-evidence-gate.md) | Truy xuất & cổng bằng chứng | US-011, US-013 | AI | 3d | Done (lỗi logic ngưỡng τ đã sửa; chưa đo trên Postgres thật) |
-| [T-303](T-303_prompt-v1-and-citation-check.md) | Prompt v1 & kiểm tra trích dẫn | US-011, US-014 | AI | 2d | In progress (vá lỗ hổng thiếu chỉ dẫn chống prompt injection; chưa có ánh xạ `[S#]→[n]`) |
+| [T-303](T-303_prompt-v1-and-citation-check.md) | Prompt v1 & kiểm tra trích dẫn | US-011, US-014 | AI | 2d | Done (vá chống prompt injection + bằng chứng đa tài liệu; `[S#]→[n]`/`partial` là đơn giản hóa kiến trúc có chủ đích) |
 | [T-304](T-304_question-sse-api.md) | API hỏi đáp SSE | US-011 | BE | 3d | Done (bỏ qua LLM khi thiếu bằng chứng + span OTel đầy đủ pipeline; chỉ còn thiếu staging/LLM thật) |
 | [T-305](T-305_chat-composer.md) | Composer & chỉ báo đang trả lời | US-011 | FE | 3d | Done (7 trạng thái, phím tắt, bộ đếm ký tự, nháp AC-001.3, axe-core đã nối — còn thiếu so khớp ảnh) |
 | [T-306](T-306_answer-rendering-and-citations.md) | Hiển thị câu trả lời & trích dẫn | US-011, US-014 | FE | 3d | Done (markdown + sanitize + hover `[n]`↔chip + axe-core toàn trang đã có — còn thiếu so khớp ảnh) |

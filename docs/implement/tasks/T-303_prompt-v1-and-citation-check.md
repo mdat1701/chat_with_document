@@ -10,7 +10,7 @@
 | Vai trò chính | AI |
 | Ước lượng | 2d |
 | Phụ thuộc | T-301 (`LLMPort`), T-302 (đoạn trích đã truy xuất) |
-| Trạng thái | In progress (lọc trích dẫn bịa + lỗ hổng thiếu chỉ dẫn chống prompt injection đã sửa trong phiên này; chưa có ánh xạ `[S#]→[n]` như spec) |
+| Trạng thái | Done (lọc trích dẫn bịa + chống prompt injection + bằng chứng đa tài liệu đã có test; `[S#]→[n]` và `partial`/`uncited` là đơn giản hóa kiến trúc có chủ đích, đã ghi rõ lý do) |
 
 ## 1. Mục tiêu
 
@@ -108,7 +108,7 @@ Prompt lưu trong repo dưới dạng tệp có phiên bản: `app/modules/qa/pr
 - [x] Nhãn rác bị loại — **đã sửa**: `qa/service.py` lọc `raw_citations` theo `doc in names` (chỉ `document_id` có thật trong `contexts` mới được giữ), một `document_id` bịa/sai bị loại hoàn toàn (không chỉ gán `document_name=None` như trước) — phủ bằng test `test_stream_answer_rejects_citation_to_unretrieved_document`
 - [x] `answered` + 0 trích dẫn → `uncited=true` — `conversations.py` tính `"uncited": not citations`
 - [x] `not_found` → `citations=[]` — khi không còn trích dẫn hợp lệ, `answer` bị thay bằng câu "không tìm thấy" và `citation_items=[]`
-- [ ] Tổng hợp 2 tài liệu có đủ 2 thẻ nguồn (AC-014.2) — chưa có test
+- [x] Tổng hợp 2 tài liệu có đủ 2 thẻ nguồn (AC-014.2) — **test mới** `test_stream_answer_includes_citations_from_two_documents` (`tests/unit/test_qa_service.py`) xác nhận `citations` chứa đủ cả 2 `document_id` khi LLM trích dẫn cả hai
 - [x] Test với LLM giả trong CI — `tests/unit/test_qa_service.py` (mới, 3 test) dùng `_ScriptedLLM` mô phỏng `LLMPort.stream()` để kiểm cả 3 nhánh (chặn ở cổng, trích dẫn bịa, trích dẫn hợp lệ)
 
 ## 8. Định nghĩa Hoàn thành

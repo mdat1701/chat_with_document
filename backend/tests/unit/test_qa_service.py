@@ -94,6 +94,44 @@ async def test_stream_answer_rejects_citation_to_unretrieved_document(
     assert complete["citations"] == []
 
 
+async def test_stream_answer_includes_citations_from_two_documents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T-303/T-401 AC-014.2: câu trả lời tổng hợp từ N tài liệu phải có
+    đủ thẻ nguồn cho cả N tài liệu — không bị cắt bớt chỉ vì có nhiều hơn
+    một `document_id` trong danh sách trích dẫn hợp lệ."""
+    doc_a, doc_b = uuid4(), uuid4()
+    evidence = [
+        Evidence(doc_a, "HopDong.pdf", 1, 1, "giá trị hợp đồng", 0.9),
+        Evidence(doc_b, "PhuLuc.pdf", 5, 5, "điều khoản thanh toán", 0.8),
+    ]
+
+    async def _fake_retrieve(*_args: object, **_kwargs: object) -> list[Evidence]:
+        return evidence
+
+    monkeypatch.setattr(service, "retrieve", _fake_retrieve)
+    monkeypatch.setattr(service, "diversify_evidence", lambda ev, **_k: ev)
+    llm = _ScriptedLLM(
+        f"Giá trị hợp đồng [doc:{doc_a} p:1-1], thanh toán [doc:{doc_b} p:5-5]."
+    )
+
+    events = [
+        event
+        async for event in service.stream_answer(
+            session=object(),
+            owner_id=uuid4(),
+            question="Câu hỏi tổng hợp từ 2 tài liệu",
+            embedding=_FakeEmbedding(),
+            llm=llm,
+        )
+    ]
+
+    complete = events[-1][1]
+    assert complete["answer_type"] == "answered"
+    cited_doc_ids = {item["document_id"] for item in complete["citations"]}
+    assert cited_doc_ids == {str(doc_a), str(doc_b)}
+
+
 async def test_stream_answer_accepts_citation_to_retrieved_document(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
