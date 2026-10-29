@@ -16,3 +16,5 @@ coverage/
 frontend/reports/
 frontend/playwright-report/
 frontend/test-results/
+test_reports/*
+!test_reports/.gitkeep
