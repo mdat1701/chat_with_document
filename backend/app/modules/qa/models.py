@@ -7,7 +7,7 @@ ADR-10 và nguyên tắc P-03 (US-020: số liệu không chứa nội dung).
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -30,4 +30,6 @@ class Answer(Base):
     cited_doc_count: Mapped[int | None] = mapped_column(Integer)
     prompt_version: Mapped[str | None] = mapped_column(String)
     model_id: Mapped[str | None] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(nullable=False)
+    # `DateTime(timezone=True)` tường minh — xem ghi chú ở
+    # `app/modules/documents/models.py::Document.uploaded_at`.
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

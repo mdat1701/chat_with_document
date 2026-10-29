@@ -11,7 +11,7 @@ policy RLS (T-104) lọc trực tiếp mà không cần subquery sang `answer`.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,4 +26,6 @@ class Feedback(Base):
     )
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     rating: Mapped[str] = mapped_column(String, nullable=False)  # up | down
-    updated_at: Mapped[datetime] = mapped_column(nullable=False)
+    # `DateTime(timezone=True)` tường minh — xem ghi chú ở
+    # `app/modules/documents/models.py::Document.uploaded_at`.
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

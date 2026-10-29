@@ -10,7 +10,18 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import CHAR, BigInteger, Computed, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import (
+    CHAR,
+    BigInteger,
+    Computed,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,9 +56,17 @@ class Document(Base):
     error_code: Mapped[str | None] = mapped_column(String)
     blob_key: Mapped[str] = mapped_column(String, nullable=False)
     sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
-    uploaded_at: Mapped[datetime] = mapped_column(nullable=False)
-    ready_at: Mapped[datetime | None] = mapped_column()
-    expires_at: Mapped[datetime | None] = mapped_column()
+    # `DateTime(timezone=True)` tường minh — bắt buộc: SQLAlchemy 2.0 ánh xạ
+    # `Mapped[datetime]` trần (không chỉ định) thành TIMESTAMP WITHOUT TIME
+    # ZONE ở phía Python/bind-param, lệch với cột DB thật
+    # (`TIMESTAMP WITH TIME ZONE`, đúng theo migration) — INSERT một
+    # `datetime.now(UTC)` (giá trị có tz, đúng chuẩn toàn bộ codebase) qua
+    # ORM sẽ lỗi "can't subtract offset-naive and offset-aware datetimes"
+    # ngay ở lần upload tài liệu đầu tiên. Lỗi chỉ lộ ra khi insert thật
+    # qua Postgres thật bằng ORM (unit test trước đó toàn mock DB session).
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Chunk(Base):
@@ -69,7 +88,9 @@ class Chunk(Base):
     heading_path: Mapped[str | None] = mapped_column(String)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     # Cột generated — KHÔNG ghi giá trị từ code ứng dụng (T-005 §5 bước 4).
+    # Khớp đúng migration thật (immutable_unaccent — xem 0001_baseline.py):
+    # unaccent() trần không IMMUTABLE, Postgres từ chối trong cột generated.
     tsv: Mapped[str] = mapped_column(
-        TSVECTOR, Computed("to_tsvector('simple', unaccent(content))", persisted=True)
+        TSVECTOR, Computed("to_tsvector('simple', immutable_unaccent(content))", persisted=True)
     )
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1024))

@@ -5,6 +5,23 @@ blob reconcile) khai báo ở T-207.
 
 from celery import Celery
 
+# Nạp đủ MỌI models.py vào cùng một registry `Base.metadata` trước khi bất
+# kỳ task nào chạy — giống hệt `migrations/env.py` phải làm. Không module
+# task nào (`ingestion_tasks`, `retention_tasks`, ...) tự import
+# `app.modules.identity.models` (chỉ cần `Document`/`AuditLog`), nhưng cột
+# `document.owner_id`/`answer.owner_id` tham chiếu `app_user.id` bằng
+# CHUỖI ("app_user.id") — SQLAlchemy chỉ phân giải được chuỗi này nếu bảng
+# `app_user` đã được đăng ký trong cùng registry. Thiếu dòng này, worker
+# THẬT sẽ crash ngay ở lần `flush()` đầu tiên của BẤT KỲ task nào đụng tới
+# bảng có FK sang `app_user` (tức gần như mọi task) với lỗi
+# `NoReferencedTableError` — chỉ lộ ra khi chạy worker thật trên Postgres
+# thật, không unit test nào mock DB session bắt được (phát hiện khi chạy
+# TC-004 thủ công, gọi thẳng `process_document.run()`).
+import app.core.models  # noqa: E402, F401
+import app.modules.documents.models  # noqa: E402, F401
+import app.modules.feedback.models  # noqa: E402, F401
+import app.modules.identity.models  # noqa: E402, F401
+import app.modules.qa.models  # noqa: E402, F401
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.tracing import configure_tracing, instrument_celery

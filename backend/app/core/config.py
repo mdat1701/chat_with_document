@@ -9,6 +9,7 @@ from functools import lru_cache
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -89,10 +90,28 @@ class Settings(BaseSettings):
 
     def worker_database_url_or_default(self) -> str:
         """`worker_database_url` nếu khai báo, ngược lại đổi user/password
-        `cwd` -> `cwd_worker` trong `database_url` (T-006 §5 bước 5)."""
+        sang `cwd_worker` trong `database_url` (T-006 §5 bước 5).
+
+        Trước đây dùng `str.replace("cwd:cwd_local_only@", ...)` — chỉ
+        đúng khi `database_url` khớp CHÍNH XÁC chuỗi mặc định của
+        `.env.example`. Bất kỳ `DATABASE_URL` nào khác (kể cả dùng đúng
+        vai trò `cwd_app` do chính migration tạo ra, thay vì vai trò
+        superuser `cwd` của container Postgres) khiến `.replace()` không
+        khớp gì cả và ÂM THẦM trả nguyên `database_url` — worker chạy
+        nhầm bằng vai trò API (không có BYPASSRLS), lỗi khó hiểu
+        "unrecognized configuration parameter app.user_id" sâu trong
+        pipeline ingestion thay vì báo cấu hình sai ngay từ đầu. Phát
+        hiện khi chạy thật việc xử lý tài liệu (T-006/T-201) trên
+        Postgres thật với `DATABASE_URL` khác mặc định. Dùng
+        `sqlalchemy.engine.make_url()` để đổi đúng user/password bất kể
+        giá trị gốc là gì.
+        """
         if self.worker_database_url:
             return self.worker_database_url
-        return self.database_url.replace("cwd:cwd_local_only@", "cwd_worker:cwd_worker_local_only@")
+        url = make_url(self.database_url).set(
+            username="cwd_worker", password="cwd_worker_local_only"
+        )
+        return url.render_as_string(hide_password=False)
 
 
 @lru_cache
