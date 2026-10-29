@@ -13,10 +13,12 @@ from sqlalchemy import select
 
 from app.adapters.tei_embedding import TeiEmbeddingAdapter
 from app.core.db import worker_session_scope
+from app.core.metrics import documents_failed_total
 from app.modules.analytics.service import record_event
 from app.modules.documents.models import Document
 from app.modules.ingestion.service import (
     InfrastructureError,
+    _publish_status,
     _set_failed,
     process_document_use_case,
 )
@@ -68,7 +70,20 @@ def process_document(self, document_id: str) -> None:  # type: ignore[no-untyped
     asyncio.run(_emit_processing_outcome_event(document_id))
 
 
+async def _publish_reaped_status(document_ids: list[UUID]) -> None:
+    for document_id in document_ids:
+        documents_failed_total.labels(error_code="INGESTION_FAILED").inc()
+        await _publish_status(document_id, "failed", "INGESTION_FAILED", None)
+
+
 @celery_app.task(name="maintenance.reap_stuck")  # type: ignore[untyped-decorator]
 def reap_stuck() -> int:
     """Lịch chạy mỗi 5 phút (T-207 khai báo trong Celery beat)."""
-    return reap_stuck_ingestion_use_case(stuck_after_minutes=10)
+    reaped_ids = reap_stuck_ingestion_use_case(stuck_after_minutes=10)
+    if reaped_ids:
+        # T-204 §5 bước 1: worker phải publish sau MỌI lần đổi
+        # document.status, kể cả nhánh job bị treo quá hạn — trước đây
+        # `_reap_stuck` chỉ đổi DB, không có sự kiện SSE nào, nên UI phải
+        # tự làm mới trang mới thấy tài liệu chuyển sang "Lỗi".
+        asyncio.run(_publish_reaped_status(reaped_ids))
+    return len(reaped_ids)

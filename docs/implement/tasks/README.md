@@ -59,7 +59,7 @@
 | [T-204](T-204_document-events-sse.md) | Trạng thái tài liệu realtime (SSE) | US-010 | BE | 2d | **Done** |
 | [T-205](T-205_document-library-ui.md) | Thư viện tài liệu (UI) | US-009, 010, 021 | FE | 3d | In progress (realtime SSE, icon/màu theo trạng thái, bộ đếm, skeleton, axe-core, điều hướng mũi tên đã có — xem ghi chú) |
 | [T-206](T-206_delete-document.md) | Xóa tài liệu | US-008 | BE | 2d | In progress (audit_log/analytics đã nối; UI xác nhận dùng DeleteConfirmDialog thật — xem T-208) |
-| [T-207](T-207_scheduled-jobs-retention.md) | Job định kỳ & retention (D-04) | US-021 | BE | 2d | Done (chưa đo trên staging) |
+| [T-207](T-207_scheduled-jobs-retention.md) | Job định kỳ & retention (D-04) | US-021 | BE | 2d | Done (sửa lỗi `reap_stuck` thiếu publish SSE; chưa đo trên staging) |
 | [T-208](T-208_empty-states-and-delete-confirm.md) | Trạng thái trống & xác nhận xóa | US-003, 008, 010 | FE | 2d | In progress (resolveEmptyState + ES-01/02/03, DeleteConfirmDialog, DuplicateFileDialog, toast, axe-core đã có — xem ghi chú) |
 
 ## Sprint 3 — Hỏi đáp lõi (19 ngày công)

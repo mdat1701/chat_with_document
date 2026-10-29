@@ -56,13 +56,16 @@ def purge_expired_use_case(batch_size: int = 100) -> list[DeletedDocument]:
     return asyncio.run(_purge_expired(batch_size))
 
 
-def reap_stuck_ingestion_use_case(stuck_after_minutes: int = 10) -> int:
-    """Điểm vào mà `app.workers.ingestion_tasks.reap_stuck` gọi
-    (T-006). Trả về số job bị chuyển sang `failed`. Logic thật ở T-207."""
+def reap_stuck_ingestion_use_case(stuck_after_minutes: int = 10) -> list[UUID]:
+    """Điểm vào mà `app.workers.ingestion_tasks.reap_stuck` gọi (T-006).
+    Trả về `document_id` của từng job bị chuyển sang `failed` — để lớp
+    gọi (`app.workers`) phát sự kiện SSE `status=failed` (T-204 §5 bước 1:
+    worker phải publish sau MỌI lần đổi `document.status`, không riêng
+    đường đi thành công)."""
     return asyncio.run(_reap_stuck(stuck_after_minutes))
 
 
-async def _reap_stuck(stuck_after_minutes: int) -> int:
+async def _reap_stuck(stuck_after_minutes: int) -> list[UUID]:
     cutoff = datetime.now(UTC) - timedelta(minutes=stuck_after_minutes)
     async with worker_session_scope() as session:
         documents = (
@@ -73,8 +76,9 @@ async def _reap_stuck(stuck_after_minutes: int) -> int:
                 )
             )
         ).scalars().all()
+        reaped_ids = [document.id for document in documents]
         for document in documents:
             document.status = "failed"
             document.error_code = "INGESTION_FAILED"
         await session.commit()
-        return len(documents)
+        return reaped_ids

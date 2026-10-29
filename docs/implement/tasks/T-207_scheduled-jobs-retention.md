@@ -103,7 +103,7 @@ Trường hợp biên:
 - [ ] Trên staging với `retention_days` rút ngắn — cần staging thật, chưa đo
 - [ ] Sau purge: không còn `chunk`, object đã xóa — đúng theo code (`_purge_expired` gọi lại `delete_document_use_case` + `unlink`), chưa chạy trên Postgres thật
 - [x] Chạy `purge_expired` hai lần liên tiếp không lỗi — `WHERE expires_at < now() AND status != 'deleting'` nên lần hai không còn hàng để chọn (idempotent theo thiết kế)
-- [ ] `reap_stuck` chuyển tài liệu treo sang `failed` — chưa xác nhận chạy thật trên Postgres (cần kiểm tra nội dung `_reap_stuck`, chưa đọc kỹ)
+- [x] `reap_stuck` chuyển tài liệu treo sang `failed` — xác nhận bằng đọc `_reap_stuck` (`status='processing'` và `uploaded_at < now - 10 phút` → `failed`/`INGESTION_FAILED`); **lỗi thật phát hiện và đã sửa**: trước đây hàm này chỉ đổi DB, **không publish sự kiện SSE nào** dù §5 bước 2 yêu cầu — UI sẽ không thấy tài liệu chuyển "Lỗi" cho tới khi tự làm mới trang. Đã sửa: `reap_stuck_ingestion_use_case()` giờ trả về danh sách `document_id` đã reap, tầng `app.workers.ingestion_tasks.reap_stuck` gọi `_publish_status(...)` + tăng `documents_failed_total` cho từng tài liệu — chưa chạy trên Postgres thật
 - [ ] Object mồ côi 25h bị dọn, 1h không bị dọn — `_reconcile_orphan_blobs` so `path.stat().st_mtime` với `cutoff`, đúng logic nhưng chưa test tự động
 - [x] Hai worker song song không xóa trùng — dùng `.with_for_update(skip_locked=True)` đúng kỹ thuật `SKIP LOCKED`
 - [x] Log không chứa tên tệp — xác nhận bằng đọc code
@@ -127,6 +127,22 @@ còn đúng). Dùng kỹ thuật `SELECT ... FOR UPDATE SKIP LOCKED` đúng các
 nhiều worker/beat chạy song song không xóa trùng. Không có staging/Postgres
 thật trong môi trường này nên chưa đo được lịch chạy thật hay AC-021.1 trên
 dữ liệu thật.
+
+**Lỗi thật phát hiện và đã sửa (phiên sau):** `reap_stuck` chỉ đổi
+`document.status` trong DB, **không publish sự kiện SSE nào** — vi phạm
+nguyên tắc chung của T-204 §5 bước 1 "worker phải publish sau MỌI lần đổi
+trạng thái". Hệ quả: khi một job bị treo quá 10 phút và được reap, UI
+không tự chuyển sang "Lỗi" như 2 nhánh thất bại khác (vốn đi qua
+`_set_failed` → `_publish_status`), người dùng phải tự làm mới trang.
+Đã sửa: `reap_stuck_ingestion_use_case()` đổi kiểu trả về từ `int` (số
+lượng) sang `list[UUID]` (document_id từng job bị reap), tầng
+`app.workers.ingestion_tasks.reap_stuck` gọi `_publish_status(...)` +
+tăng `documents_failed_total` cho từng tài liệu — đúng mô hình đã dùng
+cho `document_deleted` ở T-206 (logic nghiệp vụ ở `modules.retention`,
+hiệu ứng phụ liên-module ở tầng `app.workers`, theo ranh giới SADD
+§2.2.1). Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports` (3 hợp
+đồng vẫn giữ) và `pytest` (145 passed) — chưa có test riêng cho đường đi
+`reap_stuck` (cần Postgres thật để tạo tài liệu `processing` quá hạn).
 
 ## 9. Tham chiếu
 
