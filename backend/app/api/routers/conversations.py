@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
@@ -33,6 +34,7 @@ from app.ports.llm_port import LLMError, LLMPort
 from app.ports.reranker_port import RerankerPort
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
+logger = logging.getLogger("app.api.conversations")
 
 
 class QuestionRequest(BaseModel):
@@ -154,6 +156,13 @@ async def ask_question(
             # cần biết có nên ẩn thẻ nguồn hay không theo từng trường hợp.
             yield f'event: error\ndata: {{"code":"{exc.code}"}}\n\n'
         except Exception:
+            # Trước đây nuốt im lặng mọi lỗi không lường trước — không
+            # trace nào trong log, không cách nào chẩn đoán được lỗi thật
+            # sau SSE "SERVICE_BUSY" (phát hiện khi chạy TC-013 thủ công:
+            # câu hỏi lỗi ngay nhưng log không có traceback nào). Dù vẫn
+            # trả đúng mã lỗi chung cho client (không lộ chi tiết nội bộ,
+            # đúng P-03), phải ghi log đầy đủ để vận hành chẩn đoán được.
+            logger.exception("Lỗi không lường trước khi trả lời câu hỏi")
             yield 'event: error\ndata: {"code":"SERVICE_BUSY"}\n\n'
 
     return StreamingResponse(

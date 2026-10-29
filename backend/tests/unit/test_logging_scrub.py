@@ -76,3 +76,23 @@ def test_json_formatter_output_never_contains_blocked_field_values() -> None:
     output = json.loads(formatter.format(record))
     assert "câu hỏi bí mật" not in json.dumps(output)
     assert output["props"] == {"latency_ms": 100}
+
+
+def test_json_formatter_includes_traceback_when_logger_exception_is_used() -> None:
+    """Lỗi thật phát hiện khi chạy TC-013 thủ công: `logger.exception(...)`
+    ghi đúng một dòng log nhưng KHÔNG CÓ traceback nào — `_JsonFormatter`
+    trước đây bỏ qua hoàn toàn `record.exc_info`, khiến mọi lỗi không
+    lường trước trong toàn backend không thể chẩn đoán được từ log."""
+    import sys
+
+    formatter = _JsonFormatter()
+    logger = logging.getLogger("test-exc-trace")
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        record = logger.makeRecord(
+            logger.name, logging.ERROR, __file__, 1, "đã xảy ra lỗi", (), sys.exc_info()
+        )
+    output = json.loads(formatter.format(record))
+    assert "error_trace" in output
+    assert "ValueError: boom" in output["error_trace"]

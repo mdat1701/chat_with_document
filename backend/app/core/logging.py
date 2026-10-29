@@ -31,6 +31,7 @@ STANDARD_FIELDS = frozenset(
         "status",
         "latency_ms",
         "error_code",
+        "error_trace",
     }
 )
 
@@ -96,6 +97,16 @@ class _JsonFormatter(logging.Formatter):
         extra_props = getattr(record, "props", None)
         if extra_props:
             payload["props"] = scrub(extra_props)
+        # Trước đây `_JsonFormatter` không bao giờ ghi traceback — mọi lời
+        # gọi `logger.exception(...)`/`logger.error(..., exc_info=True)`
+        # trong TOÀN BỘ backend bị nuốt im lặng thành một dòng log không
+        # có thông tin gì để chẩn đoán (chỉ có `message` + không có stack
+        # trace). Phát hiện khi chạy TC-013 thủ công: log ghi đúng "có
+        # lỗi" nhưng không biết lỗi gì. `formatException` chỉ trả về
+        # đường dẫn tệp/dòng/mã nguồn, không chứa giá trị biến cục bộ nên
+        # không có rủi ro lộ nội dung câu hỏi/câu trả lời (P-03).
+        if record.exc_info:
+            payload["error_trace"] = self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
 
 
