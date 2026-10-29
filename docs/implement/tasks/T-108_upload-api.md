@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-005 (schema `document`), T-102 (phiên + CSRF), T-104 (RLS), T-105 (cấu hình + rate limit), T-006 (hàng đợi Celery) |
-| Trạng thái | In progress (code đầy đủ; 5 test tự động mới qua TestClient; AC-007.2 song song thật vẫn cần Postgres) |
+| Trạng thái | In progress (code đầy đủ; test AC-007.2 song song thật đã viết (Testcontainers), chưa chạy được trên Postgres thật để xác nhận pass) |
 
 ## 1. Mục tiêu
 
@@ -116,7 +116,7 @@ POST /documents/{id}/retry          # chỉ cho tài liệu failed với UPLOAD_
 - [x] Tệp đúng 20 MB → 201 (AC-006.1); tệp 20 MB + 1 byte → 413 (AC-006.2) — kiểm tra `content_length` trước khi đọc; **test mới** `test_file_too_large_by_content_length_header_returns_413` xác nhận nhánh 413 qua header `Content-Length`
 - [x] Tệp `.pdf` nhưng nội dung là PNG → `FILE_NOT_PDF` (415) — **test mới** `test_non_pdf_magic_bytes_returns_415`
 - [x] Client khai `Content-Length` nhỏ hơn thực tế rồi gửi tệp lớn → bị chặn khi stream vượt `max_file_size_bytes`, rollback + xoá blob dở dang (xác nhận bằng đọc code; chưa test riêng nhánh "gian dối Content-Length" cụ thể)
-- [ ] **Test song song thật** (asyncio/threading) cho AC-007.2 — **vẫn chưa viết**; đây là giới hạn thật của mock `AsyncSession` (không mô phỏng được ngữ nghĩa khóa `SELECT ... FOR UPDATE` của Postgres) — cần test tích hợp Testcontainers tương tự `tests/integration/conftest.py` (T-504) chạy nhiều coroutine `asyncio.gather` thật
+- [x] **Test song song thật** (asyncio/threading) cho AC-007.2 — **đã viết** (phiên sau): `tests/integration/test_upload_concurrency.py` dùng cùng hạ tầng Testcontainers với T-504 (Postgres+Redis thật qua `conftest.py`), seed 48 tài liệu `ready` sẵn có cho một chủ sở hữu, bắn **5 request `POST /documents` thật sự đồng thời** bằng `httpx.AsyncClient(transport=ASGITransport(app=...))` + `asyncio.gather()` (không phải `TestClient` tuần tự — cần client bất đồng bộ thật để các transaction thật sự chồng lấn ở các điểm `await` DB), kỳ vọng đúng `[201, 201, 422, 422, 422]`. **Thành thật về giới hạn:** chưa chạy được trong môi trường này (không có Docker) nên chỉ xác nhận test *thu thập và skip đúng cách*, chưa xác nhận *pass thật* — đã truy vết lại logic khóa `SELECT ... FOR UPDATE` bằng tay (transaction đầu thấy count=48 → chèn → commit giải phóng khóa → transaction kế thấy count=49 → chèn → commit → transaction thứ 3 thấy count=50 → từ chối) để tin cậy test đúng, nhưng đây vẫn là suy luận, không phải bằng chứng chạy thật
 - [x] Đã đủ 50 tài liệu → 422 `QUOTA_EXCEEDED` (AC-007.1) — **test mới** `test_quota_exceeded_returns_422`
 - [x] `on_duplicate=reject/keep_both/replace` — cả 3 nhánh có trong `_unique_name()`; **test mới** `test_duplicate_name_reject_mode_returns_409` xác nhận nhánh `reject` (mặc định); `replace`/`keep_both` vẫn chỉ xác nhận bằng đọc code
 - [x] Thiếu `X-CSRF-Token` → 403 (middleware `csrf_protection` trong `app/api/main.py`, áp dụng mọi `POST /api/v1/*`); phiên hết hạn → 401 (`get_current_user`)
@@ -126,7 +126,7 @@ POST /documents/{id}/retry          # chỉ cho tài liệu failed với UPLOAD_
 
 ## 8. Định nghĩa Hoàn thành
 
-- [ ] 7 AC ở §2 đạt về mặt code; 6/7 giờ có test tự động (chỉ AC-007.2 **chưa có test song song** chạy trong CI) — chưa đạt đủ điều kiện DoD vì thiếu đúng ca khó nhất
+- [~] 7 AC ở §2 đạt về mặt code; 7/7 giờ có test tự động, nhưng test AC-007.2 chưa từng chạy thật (xem ghi chú §7) — chưa đạt đủ điều kiện DoD cho tới khi chạy được trên Postgres thật
 - [x] Mọi giới hạn đọc từ `get_settings()` (T-105), không hard-code — xác nhận bằng đọc code
 - [x] Không có đường dẫn code nào ghi `document.owner_id` từ client — `owner_id` luôn lấy từ `current_user.id` (phiên)
 - [x] Khóa object đúng tiền tố `owner/{owner_id}/{document_id}.pdf`, không trả URL trực tiếp — xác nhận bằng đọc code
@@ -149,14 +149,25 @@ tên). Phủ 5/7 ca ở §7: upload hợp lệ → 201 + enqueue, 415 sai magic 
 `Content-Length`. Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports`
 (3 hợp đồng vẫn giữ) và `pytest` (131 passed).
 
-**Vẫn chưa làm (giới hạn thật của kỹ thuật mock, không phải thiếu thời
-gian):** AC-007.2 (hạn mức dưới tải song song) cần ngữ nghĩa khóa
-`SELECT ... FOR UPDATE` của Postgres thật — một `AsyncSession` giả lập
-không thể mô phỏng việc 5 transaction đồng thời bị serialize bởi khóa
-hàng. Cần test tích hợp Testcontainers (cùng hạ tầng với
-`tests/integration/conftest.py`, T-504) chạy `asyncio.gather` với 5
-request thật. Cũng chưa test riêng ca "ngắt kết nối giữa chừng" và nhánh
-`replace`/`keep_both` của `on_duplicate`.
+**Đã thêm (phiên sau):** `tests/integration/test_upload_concurrency.py`
+— đúng đề xuất ở trên, dùng Testcontainers (Postgres+Redis thật, cùng hạ
+tầng `conftest.py` của T-504), seed 48 tài liệu sẵn có cho một chủ sở
+hữu, bắn 5 request `POST /documents` **thật sự đồng thời** bằng
+`httpx.AsyncClient(transport=ASGITransport(...))` + `asyncio.gather()`
+(TestClient đồng bộ không tạo được concurrency thật — mỗi lời gọi chặn
+tới khi xong, không có transaction nào chồng lấn). Override `get_queue`
+thành no-op để không cần broker Celery thật. Kỳ vọng đúng
+`[201, 201, 422, 422, 422]`.
+
+**Thành thật về giới hạn xác minh:** test này **chưa từng chạy thật**
+trong môi trường này (không có Docker) — chỉ xác nhận được là nó thu
+thập và `skip` đúng cách (không lỗi cú pháp/fixture), KHÔNG xác nhận
+được nó thực sự pass trên Postgres thật. Đã truy vết logic khóa hàng
+bằng tay để tin tưởng tính đúng đắn (xem §7), nhưng đây là suy luận chứ
+không phải bằng chứng chạy thật — khác với các mục đã chuyển "Done" ở
+nơi khác trong phiên này (nơi chỉ còn thiếu *đo lường*, không phải thiếu
+*xác nhận pass*). Vẫn chưa test riêng ca "ngắt kết nối giữa chừng" và
+nhánh `replace`/`keep_both` của `on_duplicate`.
 
 ## 9. Tham chiếu
 
