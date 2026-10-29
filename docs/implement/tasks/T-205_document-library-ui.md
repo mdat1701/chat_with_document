@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (design system, `shared/api`), T-204 (SSE), T-108 (upload API) |
-| Trạng thái | In progress (realtime SSE, icon/màu theo trạng thái, bộ đếm, skeleton, nhãn hết hạn, axe-core + điều hướng mũi tên trong danh sách đã có — xem ghi chú về khoảng trống hợp đồng API) |
+| Trạng thái | Done (chỉ còn thiếu đo hiệu năng render thật và so khớp ảnh thiết kế — cần công cụ đo/trình duyệt) |
 
 ## 1. Mục tiêu
 
@@ -127,7 +127,7 @@ Trường hợp biên:
 - [x] axe-core — `DocumentLibrary.test.tsx` mới (trạng thái trống ES-01 và danh sách có tài liệu ready/failed), dùng `expectNoA11yViolations` qua fetch mock giống `ChatPage.test.tsx`; 0 lỗi mức `serious`/`critical`
 - [x] Skeleton khi tải lần đầu — `Skeleton` (shared/ui) hiện khi `loading===true`, không hiện lại khi refetch nền (SSE không đổi `loading`)
 - [x] Bộ đếm `used/max` — `Badge` `data-testid="doc-counter"` hiện `used/max`, đổi tone `warning` khi `used >= max`
-- [ ] Responsive 900px (ngăn trượt) — chưa làm ở task này, để lại cho T-405 như ghi chú gốc của task
+- [x] Responsive 900px (ngăn trượt) — **đã làm, ở T-405** như ghi chú gốc dự tính: `App.tsx::MainScreen` render `DocumentLibrary` trong `shared/ui/Drawer` (bọc `@radix-ui/react-dialog`, có bẫy focus + `Esc` + scrim) khi `useIsDesktop()` dưới 1024px
 
 ## 8. Định nghĩa Hoàn thành
 

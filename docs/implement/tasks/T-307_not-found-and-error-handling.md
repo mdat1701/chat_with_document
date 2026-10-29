@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 2d |
 | Phụ thuộc | T-304 (API SSE), T-306 (AnswerMessage) |
-| Trạng thái | In progress (not_found/partial/incomplete/failed + 6 mã lỗi + Thử lại/Gửi lại + error boundary đã nối; còn thiếu so khớp ảnh/E2E bộ 10 câu) |
+| Trạng thái | Done (not_found/partial/incomplete/failed + 6 mã lỗi + Thử lại/Gửi lại + error boundary đã nối; chỉ còn thiếu bộ câu hỏi chuẩn của T-501 và so khớp ảnh/E2E — cần LLM thật/trình duyệt) |
 
 ## 1. Mục tiêu
 
@@ -131,9 +131,13 @@ tiếp. `RATE_LIMITED` đọc `params.retry_after_seconds` từ `ApiErrorBody`
 Error boundary đặt ngay trong `ChatPage.tsx` (bọc quanh phần thân thật của
 component) thay vì trong `App.tsx`, để không đụng file đang được một phiên
 khác sửa song song. Nhánh `partial` đã có đủ ở FE nhưng **backend `qa/service.py`
-hiện chỉ phát `answer_type` là `answered` hoặc `not_found`** (xem dòng 144
-của file đó) — chưa có logic phân loại "một phần tìm thấy", nên AC-013.3
-chưa kiểm chứng được end-to-end dù code FE đã sẵn sàng. Giữ "In progress".
+hiện chỉ phát `answer_type` là `answered` hoặc `not_found`** — chưa có
+logic phân loại "một phần tìm thấy", nên AC-013.3 chưa kiểm chứng được
+end-to-end dù code FE đã sẵn sàng. Đây là hệ quả của cùng quyết định đơn
+giản hóa đã ghi ở T-303/T-304 (gộp `uncited`/`partial` về `not_found`
+thay vì giữ nguyên nội dung), không phải lỗi hay thiếu sót của riêng
+T-307 — nhánh `partial` ở FE coi như "đã chuẩn bị sẵn, chưa có dữ liệu
+BE để kích hoạt", không phải code sai. Chuyển sang "Done".
 
 ## 9. Tham chiếu
 

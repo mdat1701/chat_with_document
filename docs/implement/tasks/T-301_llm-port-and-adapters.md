@@ -127,7 +127,39 @@ Không đổi schema. Chỉ ghi `model_id` vào bảng `answer` ở T-304 (metad
 - [ ] Cả hai adapter chạy trên staging — chưa có staging/LLM endpoint thật
 - [x] Metric `llm_ttft_seconds`, `llm_tokens_total`, `circuit_breaker_state` — đã thêm vào `core/metrics.py`, nối `.observe()`/`.inc()`/`.set()` thật trong `OpenAICompatibleLLM.stream()`; thêm cả `llm_errors_total{code}` (không có trong DoD gốc nhưng cùng mục đích quan sát)
 - [x] Fake adapter dùng trong CI không gọi mạng — `FakeLLM.stream` chỉ `yield` một chuỗi cố định
-- [ ] Ghi chú ATTT về dữ liệu rời TB-2 — chưa viết
+- [x] Ghi chú ATTT về dữ liệu rời TB-2 — xem mục riêng "Ghi chú ATTT — dữ liệu rời TB-2" dưới đây
+
+### Ghi chú ATTT — dữ liệu rời TB-2
+
+Theo nguyên tắc tối thiểu hóa dữ liệu của SADD §4.1.3 (BR-019): toàn bộ
+PDF, bước trích xuất, embedding và rerank chạy trong TB-2 (hạ tầng nội
+bộ); **chỉ** câu hỏi và tối đa `settings.rerank_top_out` đoạn trích
+(mặc định **8 đoạn**, ~500 token/đoạn theo `chunk_size_tokens` — tổng
+~4.000 token) được gửi ra TB-3 (dịch vụ LLM) cho mỗi câu hỏi. Xác nhận
+bằng đọc đúng đường đi của dữ liệu trong code (không phải suy đoán từ
+tài liệu thiết kế):
+
+1. `qa/service.py::stream_answer` gọi `retrieve()` rồi `diversify_evidence(
+   limit=settings.rerank_top_out)` — giới hạn cứng số đoạn trước khi dựng
+   prompt, không có đường nào gửi nguyên văn PDF hay toàn bộ `chunk` của
+   một tài liệu ra ngoài hàm này.
+2. `qa/prompt.py::build_prompt` chỉ ghép `question` + nội dung từng đoạn
+   đã được giới hạn ở bước 1 (bọc trong thẻ `<source>`, xem T-303) — không
+   đưa thêm trường nào khác (không `document_name`, không metadata khác)
+   vào phần nội dung gửi LLM ngoài những gì đã qua cổng bằng chứng.
+3. `LLMRequest` (`ports/llm_port.py`) chỉ có 4 trường: `system`, `user`
+   (= `build_prompt(...)`), `model`, `temperature` — không có trường nào
+   mang dữ liệu khác của người dùng (không `user_id`, không `email`).
+4. Lựa chọn phương án A/B (ADR-03) hoàn toàn qua cấu hình
+   (`settings.llm_provider`, `llm_base_url`) — đổi phương án không cần
+   sửa `modules/qa` hay `modules/retrieval` (đã xác nhận ở DoD khác).
+
+**Việc KHÔNG thể xác nhận trong môi trường này:** hợp đồng xử lý dữ liệu
+với nhà cung cấp (zero data retention, không huấn luyện lại mô hình),
+kết nối riêng (PrivateLink/VPC endpoint) giữa TB-2 và TB-3, và TLS giữa
+TEI/PostgreSQL/Redis trong TB-2 — đây đều là cấu hình hạ tầng/hợp đồng
+ngoài phạm vi code, cần ATTT xác nhận trước khi mở pilot (G-04, cùng cổng
+với T-503).
 
 ### Ghi chú triển khai thực tế
 

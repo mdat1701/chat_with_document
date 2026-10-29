@@ -331,6 +331,7 @@ flowchart LR
 | API-07 | `DELETE /documents/{id}` | user (chủ sở hữu) | — | 204 (chỉ trả sau khi chunk đã bị xóa và tài liệu bị loại khỏi phạm vi truy vấn) | 404 `DOC_NOT_FOUND` (kể cả khi tài liệu thuộc người khác) | documents |
 | API-08 | `POST /conversations` | user | — | `{conversation_id}` (trạng thái phiên ngắn hạn) | — | qa |
 | API-09 | `POST /conversations/{cid}/questions` → `text/event-stream` | user | `{text}` (1 – DF-07 ký tự, đã trim) | `meta{answer_id, ready_doc_count}` → `delta{text}`×n → `citations{items:[{index,document_id,document_name,page_start,page_end}]}` → `done{type,latency_ms,uncited?}` · hoặc `error{code}` | 400 `QUESTION_INVALID`, 409 `NO_READY_DOCUMENTS`, 429, `SERVICE_BUSY`, `ANSWER_TIMEOUT` | qa |
+| — | `POST /events` (T-404 §3.3 PA-1 — không đánh số API-xx) | user | `{events: [{event_name, timestamp?, props}]}`, tối đa 20 sự kiện/lô | 204 (`user_id_hash` server tự điền từ phiên; `props` ngoài allow-list bị loại thầm lặng, không trả lỗi) | 400 (lô rỗng hoặc > 20 sự kiện — trả `QUESTION_INVALID`, xem ghi chú T-404), 401 `SESSION_EXPIRED` | analytics |
 | API-10 trở đi | — | — | — | Feedback, report, admin UI và evaluation API là post-MVP | — | — |
 | — | `GET /healthz` · `GET /readyz` | Nội bộ | — | Liveness / readiness (kiểm tra PG, Redis, TEI) | — | core |
 

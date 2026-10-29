@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppConfigProvider } from "@shared/config";
 import { DEFAULT_APP_CONFIG } from "@shared/config/appConfig";
 import { ToastProvider, ToastRegion } from "@shared/ui";
+import { uiText } from "@shared/i18n/messages.vi";
 import { expectNoA11yViolations } from "@shared/testing/axe";
 import { DocumentLibrary } from "./DocumentLibrary";
 
@@ -27,11 +28,11 @@ function installFetchMock(documents: unknown[]) {
   );
 }
 
-async function renderLibrary() {
+async function renderLibrary(hasMessages = false) {
   const utils = render(
     <AppConfigProvider>
       <ToastProvider>
-        <DocumentLibrary />
+        <DocumentLibrary hasMessages={hasMessages} />
         <ToastRegion />
       </ToastProvider>
     </AppConfigProvider>,
@@ -96,6 +97,24 @@ describe("DocumentLibrary", () => {
     ]);
     const { container } = await renderLibrary();
     await expectNoA11yViolations(container);
+  });
+
+  it("T-208 ES-05: xóa tài liệu cuối nhưng còn hội thoại cũ → giữ nguyên, không về ES-01", async () => {
+    installFetchMock([]);
+    await renderLibrary(true);
+    // ES-01 và ES-05 dùng chung tiêu đề nhưng mô tả khác nhau — ES-05 phải
+    // nhắc tới việc giữ nguyên hội thoại cũ (xem messages.vi.ts).
+    expect(screen.getByTestId("empty-state")).toHaveTextContent(
+      uiText.es05Description,
+    );
+  });
+
+  it("ES-01: không có tài liệu và chưa từng hỏi gì → trạng thái trống ban đầu", async () => {
+    installFetchMock([]);
+    await renderLibrary(false);
+    expect(screen.getByTestId("empty-state")).toHaveTextContent(
+      uiText.es01Description,
+    );
   });
 
   it("T-405 §5.6: ArrowDown/ArrowUp duyệt qua các dòng tài liệu", async () => {

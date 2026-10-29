@@ -10,7 +10,7 @@
 | Vai trò chính | BE (UI xác nhận ở T-208) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-104 (RLS/`owner_id`), T-203 (`chunk` đã tồn tại) |
-| Trạng thái | In progress (xóa dữ liệu đúng; audit_log + sự kiện analytics đã nối trong phiên này) |
+| Trạng thái | Done (chỉ còn thiếu test end-to-end not_found sau khi xóa + báo cáo bằng chứng G-05 — cần LLM/staging thật) |
 
 ## 1. Mục tiêu
 

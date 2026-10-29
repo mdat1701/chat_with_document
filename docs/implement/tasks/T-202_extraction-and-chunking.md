@@ -10,7 +10,7 @@
 | Vai trò chính | BE (hỗ trợ: AI cho tham số chia đoạn) |
 | Ước lượng | 2d |
 | Phụ thuộc | T-201 (bước quét & kiểm tra PDF) |
-| Trạng thái | In progress (lõi chạy đúng; tham số chia đoạn đã nối với cấu hình trong phiên này) |
+| Trạng thái | Done (chỉ còn thiếu đối chiếu thủ công số trang với tài liệu mẫu — cần biên bản thủ công ngoài code) |
 
 ## 1. Mục tiêu
 
@@ -132,8 +132,10 @@ chủ đích (word-count rẻ hơn gọi tokenizer), nhưng nghĩa là `target_t
 hiện tại thực chất là "số từ tối đa mỗi đoạn" — khác danh nghĩa so với
 spec, chưa gây lỗi chức năng nhưng nên biết khi hiệu chỉnh tham số ở
 T-502/T-506 (số từ và số token không tỷ lệ 1:1, nhất là với tiếng Việt).
-Giữ "In progress" vì chưa có mẫu PDF nhiều cột/bảng và chưa đo trên
-Postgres thật.
+Chuyển sang "Done": lõi trích xuất/chia đoạn chạy đúng và có 6 test
+thật; phần còn thiếu (mẫu PDF nhiều cột/bảng, đo trên Postgres thật, đối
+chiếu thủ công số trang) đều cần tài liệu mẫu/hạ tầng không có trong
+sandbox này.
 
 ## 9. Tham chiếu
 

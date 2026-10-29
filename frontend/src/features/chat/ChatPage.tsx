@@ -60,15 +60,25 @@ class ChatErrorBoundary extends Component<
   }
 }
 
-export function ChatPage() {
+export function ChatPage({
+  onHasMessagesChange,
+}: {
+  /** T-208 ES-05: cho `DocumentLibrary` biết có hội thoại cũ hay không,
+   * để giữ nguyên hội thoại khi xóa tài liệu cuối thay vì mất trắng. */
+  onHasMessagesChange?: (hasMessages: boolean) => void;
+} = {}) {
   return (
     <ChatErrorBoundary>
-      <ChatPageInner />
+      <ChatPageInner onHasMessagesChange={onHasMessagesChange} />
     </ChatErrorBoundary>
   );
 }
 
-function ChatPageInner() {
+function ChatPageInner({
+  onHasMessagesChange,
+}: {
+  onHasMessagesChange?: (hasMessages: boolean) => void;
+}) {
   const { config } = useAppConfig();
   const { showToast } = useToast();
   // AC-001.3: khôi phục bản nháp câu hỏi đã lưu khi phiên trước hết hạn
@@ -163,6 +173,10 @@ function ChatPageInner() {
       container.scrollHeight - container.scrollTop - container.clientHeight;
     if (distanceToBottom < 120) container.scrollTop = container.scrollHeight;
   }, [messages]);
+
+  useEffect(() => {
+    onHasMessagesChange?.(messages.length > 0);
+  }, [messages.length, onHasMessagesChange]);
 
   const readyDocCount = useMemo(
     () => documents.filter((d) => d.status === "ready").length,

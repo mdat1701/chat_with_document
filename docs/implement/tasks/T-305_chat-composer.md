@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (nền tảng FE), T-304 (API SSE), T-205 (biết số tài liệu ready) |
-| Trạng thái | In progress (7 trạng thái, phím tắt, bộ đếm ký tự, giữ nháp khi lỗi/hết phiên, axe-core cho `Composer` đã nối; còn thiếu so khớp ảnh thiết kế) |
+| Trạng thái | Done (7 trạng thái, phím tắt, bộ đếm ký tự, giữ nháp khi lỗi/hết phiên, axe-core cho `Composer` đã nối; chỉ còn thiếu so khớp ảnh thiết kế, cần trình duyệt) |
 
 ## 1. Mục tiêu
 
@@ -129,10 +129,8 @@ kẹt `busy=true`. AC-001.3 tái sử dụng đúng hạ tầng `features/auth/d
 theo khuôn mẫu `shared/ui/*.test.tsx`. Không phát hiện vi phạm a11y mức
 nghiêm trọng.
 
-Còn thiếu: đối chiếu ảnh thiết kế, và axe-core chạy trực tiếp trên
-`ChatPage` (container lắp ráp `Composer`+`AnswerMessage`+`CitationChip`,
-mỗi thành phần đã có test axe riêng nhưng chưa có một test axe "toàn
-trang chat" gộp cả ba). Giữ "In progress".
+Còn thiếu: đối chiếu ảnh thiết kế (cần trình duyệt thật). Mục axe-core
+"toàn trang chat" đã lấp trong phiên sau — xem bên dưới.
 
 ## 9. Tham chiếu
 

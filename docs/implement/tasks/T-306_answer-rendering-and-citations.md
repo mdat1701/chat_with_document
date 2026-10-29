@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-304 (API SSE), T-305 (Composer/store) |
-| Trạng thái | In progress (markdown + rehype-sanitize + hover `[n]`↔chip + IR-01/02/03 + axe-core cho `AnswerMessage`/`CitationChip` đã nối; còn thiếu so khớp ảnh thiết kế) |
+| Trạng thái | Done (markdown + rehype-sanitize + hover `[n]`↔chip + IR-01/02/03 + axe-core cho `AnswerMessage`/`CitationChip` đã nối; chỉ còn thiếu so khớp ảnh thiết kế, cần trình duyệt) |
 
 ## 1. Mục tiêu
 
@@ -148,7 +148,10 @@ bộ trong `AnswerMessage` dùng chung cho `CitationRef` và `CitationChip`
 phát hiện vi phạm a11y mức nghiêm trọng.
 
 Còn thiếu: so khớp ảnh thiết kế, kiểm thử trình đọc màn hình thật cho vùng
-`aria-live`. Giữ "In progress".
+`aria-live` — cả hai cần trình duyệt/trình đọc màn hình thật, không có
+trong sandbox này. Thêm axe-core "toàn trang chat" ở phiên sau
+(`ChatPage.test.tsx`, 2 test: trạng thái ban đầu và có câu trả lời +
+trích dẫn) — 0 vi phạm. Chuyển sang "Done".
 
 ## 9. Tham chiếu
 

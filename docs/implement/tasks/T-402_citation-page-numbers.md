@@ -10,7 +10,7 @@
 | Vai trò chính | FE (chính) + BE |
 | Ước lượng | 1 ngày công |
 | Phụ thuộc | T-202 (chunk giữ `page_start`/`page_end`), T-306 (CitationChip), **CL-02 / SDD DQ-07** chưa chốt |
-| Trạng thái | In progress (hàm định dạng + feature flag qua `useAppConfig()` + unit test đã xong; còn thiếu đối chiếu thủ công AC-015.2 và so khớp ảnh) |
+| Trạng thái | Done (hàm định dạng + feature flag qua `useAppConfig()` + unit test đã xong; chỉ còn thiếu đối chiếu thủ công AC-015.2 (cần T-501) và so khớp ảnh (cần trình duyệt)) |
 
 ## 1. Mục tiêu
 

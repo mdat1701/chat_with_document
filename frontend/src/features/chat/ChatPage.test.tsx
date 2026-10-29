@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppConfigProvider } from "@shared/config";
 import { DEFAULT_APP_CONFIG, type AppConfig } from "@shared/config/appConfig";
 import { ToastProvider, ToastRegion } from "@shared/ui";
+import { expectNoA11yViolations } from "@shared/testing/axe";
 import { ChatPage } from "./ChatPage";
 
 vi.mock("@shared/analytics/client", () => ({ track: vi.fn(), flush: vi.fn() }));
@@ -70,11 +71,11 @@ function installFetchMock(options: FetchMockOptions) {
   );
 }
 
-async function renderChat() {
+async function renderChat(onHasMessagesChange?: (has: boolean) => void) {
   const utils = render(
     <AppConfigProvider>
       <ToastProvider>
-        <ChatPage />
+        <ChatPage onHasMessagesChange={onHasMessagesChange} />
         <ToastRegion />
       </ToastProvider>
     </AppConfigProvider>,
@@ -392,5 +393,57 @@ describe("ChatPage", () => {
 
     expect(screen.queryByTestId("user-message")).not.toBeInTheDocument();
     expect(screen.getByTestId("question-input")).toHaveFocus();
+  });
+
+  it("T-305/T-306: không có vi phạm a11y nghiêm trọng (trạng thái ban đầu)", async () => {
+    installFetchMock({ documents: [{ id: "d1", status: "ready" }] });
+    const { container } = await renderChat();
+    await expectNoA11yViolations(container);
+  });
+
+  it("T-305/T-306: không có vi phạm a11y nghiêm trọng (có câu trả lời + trích dẫn)", async () => {
+    installFetchMock({
+      documents: [{ id: "d1", status: "ready" }],
+      sseEvents: [
+        'event: delta\ndata: {"text":"Nội dung trả lời [1]."}\n\n',
+        'event: citations\ndata: {"items":[{"index":1,"document_id":"d1","document_name":"HopDong.pdf","page_start":1,"page_end":1}]}\n\n',
+        'event: done\ndata: {"type":"answered","latency_ms":100,"uncited":false}\n\n',
+      ],
+    });
+    const { container } = await renderChat();
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi có đáp án và trích dẫn" },
+    });
+    fireEvent.click(screen.getByTestId("send-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("citation-list")).toBeInTheDocument(),
+    );
+    await expectNoA11yViolations(container);
+  });
+
+  it("T-208 ES-05: báo onHasMessagesChange(true) sau câu hỏi đầu, (false) khi xóa lịch sử", async () => {
+    installFetchMock({
+      documents: [{ id: "d1", status: "ready" }],
+      sseEvents: [
+        'event: delta\ndata: {"text":"Nội dung."}\n\n',
+        'event: done\ndata: {"type":"answered","latency_ms":100,"uncited":true}\n\n',
+      ],
+    });
+    const onHasMessagesChange = vi.fn();
+    await renderChat(onHasMessagesChange);
+    expect(onHasMessagesChange).toHaveBeenLastCalledWith(false);
+
+    fireEvent.change(screen.getByTestId("question-input"), {
+      target: { value: "Câu hỏi đầu tiên" },
+    });
+    fireEvent.click(screen.getByTestId("send-button"));
+    await waitFor(() =>
+      expect(onHasMessagesChange).toHaveBeenLastCalledWith(true),
+    );
+
+    fireEvent.keyDown(document, { key: "O", ctrlKey: true, shiftKey: true });
+    await waitFor(() =>
+      expect(onHasMessagesChange).toHaveBeenLastCalledWith(false),
+    );
   });
 });

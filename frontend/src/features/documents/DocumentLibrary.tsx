@@ -34,6 +34,9 @@ import type { DocumentVM } from "./types";
 type Props = {
   /** Có kết nối mạng hay không (T-109 §5.8 NE-03) — App.tsx giữ state này. */
   online?: boolean;
+  /** T-208 ES-05: có hội thoại cũ hay không — App.tsx lấy từ `ChatPage`
+   * qua `onHasMessagesChange`, giữ nguyên hội thoại khi xóa tài liệu cuối. */
+  hasMessages?: boolean;
 };
 
 const RETRYABLE_ERRORS = new Set(["UPLOAD_NETWORK", "INGESTION_FAILED"]);
@@ -48,13 +51,11 @@ function errorMessage(code?: string | null): string {
  * hàng đợi tải lên cục bộ, danh sách tài liệu thật (hợp nhất SSE), trạng
  * thái trống ES-01..ES-05 (T-208), và hộp xác nhận xóa.
  *
- * Lưu ý phạm vi: liên kết khóa/mở ô câu hỏi (`ChatPanel`) theo `readyCount`
- * (T-205 §5 bước 8) **chưa** nối ở đây — `features/chat` thuộc một phiên
- * làm việc song song khác trong lần triển khai này, nên `hasMessages` dùng
- * giá trị mặc định `false` (xem "Ghi chú triển khai thực tế" trong tài liệu
- * task). ES-01/ES-02/ES-03 (chỉ phụ thuộc danh sách tài liệu) vẫn đúng.
+ * `hasMessages` (ES-05) do `App.tsx` truyền vào, lấy từ `ChatPage` qua
+ * `onHasMessagesChange` — xem "Ghi chú triển khai thực tế" trong tài liệu
+ * T-208 cho lịch sử việc nối hai feature này.
  */
-export function DocumentLibrary({ online = true }: Props) {
+export function DocumentLibrary({ online = true, hasMessages = false }: Props) {
   const { config } = useAppConfig();
   const { showToast } = useToast();
   const { documents, loading, reload, upsertFromUpload, removeLocal } =
@@ -116,7 +117,6 @@ export function DocumentLibrary({ online = true }: Props) {
       ? uiText.quotaReached
       : undefined;
 
-  const hasMessages = false; // Xem ghi chú ở đầu file — chưa nối với features/chat trong phiên này.
   const variant = loading ? null : resolveEmptyState(documents, hasMessages);
 
   useEffect(() => {

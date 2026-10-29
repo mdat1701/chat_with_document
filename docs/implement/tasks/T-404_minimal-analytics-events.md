@@ -142,8 +142,8 @@ feedback nào được xây ở Sprint 3/4 (ngoài phạm vi các task hiện c�
 
 - [ ] AC-020.1 canary test trong CI — chưa có
 - [ ] AC-020.2 xác nhận ATTT — chưa có (cần quy trình ngoài code)
-- [ ] `POST /events` trong SADD §2.4.2 — chưa kiểm tra tài liệu SADD có cập nhật hay chưa (ngoài phạm vi rà soát code)
-- [ ] `analytics_event` phân vùng theo tháng — chưa kiểm tra migration có tạo partition hay chỉ bảng thường (cần xem `migrations/versions/0001_baseline.py` kỹ hơn)
+- [x] `POST /events` trong SADD §2.4.2 — **đã thêm**: endpoint tồn tại trong code từ trước nhưng chưa từng được ghi vào bảng §2.4.2 của SADD như chính §3.3 PA-1 của task này yêu cầu ("ghi bổ sung vào SADD §2.4.2") — đã thêm một dòng mới (không đánh số API-xx, đúng quyết định PA-1)
+- [ ] `analytics_event` phân vùng theo tháng — **xác nhận là khoảng trống thật**: đọc `migrations/versions/0001_baseline.py` xác nhận bảng tạo bằng `op.create_table` thường, không có `PARTITION BY RANGE` nào — §4 của task này yêu cầu rõ "phân vùng theo tháng" nhưng chưa làm. Cần một migration riêng (Postgres partitioning cú pháp phức tạp hơn, không thể viết "cho chắc" mà không có Postgres thật để kiểm — để lại cho T-502/T-506 hoặc một task hạ tầng riêng khi có staging
 - [x] Không có `mv_weekly_usage`/`analytics.rollup_daily` — xác nhận bằng grep, không tồn tại trong code (đúng ADR-09)
 - [ ] Tài liệu 1 trang bàn giao ATTT/PM — chưa có
 
@@ -172,6 +172,23 @@ giữ) và `pytest` (105 passed) — **không có test đơn vị mới riêng**
 `_emit_processing_outcome_event`/`_emit_deleted_events` (cần mock
 `worker_session_scope`/`AsyncSession` ở độ phức tạp tương đương test
 tích hợp, để lại cho đợt viết test tích hợp Celery).
+
+**2 khoảng trống nhỏ thật phát hiện khi rà soát `POST /events` (phiên
+sau, chưa sửa code — chỉ ghi nhận):**
+1. `record_event()` nhận tham số `session_id` nhưng `app/api/routers/events.py::receive_events`
+   luôn gọi với `session_id=None` — nghĩa là cột `analytics_event.session_id`
+   hiện **luôn rỗng** trên mọi sự kiện gửi qua `POST /events`, dù §3.1
+   mô tả "server tự điền từ phiên". Hệ quả: không gộp được sự kiện theo
+   phiên làm việc khi phân tích phễu (US-020) — chỉ gộp được theo
+   `user_hash`. Chưa rõ nên điền gì vào đây (hash của `cwd_sid`? một id
+   phiên hỏi đáp riêng?) — cần quyết định thiết kế trước khi sửa, không
+   phải lỗi một dòng.
+2. `record_event()` ghi `app_version=get_settings().service_name` —
+   `service_name` mặc định là `"cwd-backend"` (tên dịch vụ), **không phải
+   phiên bản ứng dụng** như tên trường `app_version` ngụ ý (`pyproject.toml`
+   có `version = "0.1.0"` nhưng không có settings nào đọc giá trị này).
+   Vô hại (không rò rỉ gì, không chứa nội dung) nhưng dữ liệu cột này
+   hiện không dùng được để so sánh chỉ số giữa các bản triển khai.
 
 **Đã sửa thêm (phiên T-107):** nối `session_started` phía FE — xem ghi chú
 ở hàng "Đủ 12 sự kiện..." phía trên. Tổng 7/15 tên sự kiện giờ có lời gọi

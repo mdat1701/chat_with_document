@@ -54,32 +54,32 @@
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
 | [T-201](T-201_ingestion-scan-and-validate.md) | Quét mã độc & kiểm tra PDF | US-003, US-005 | BE | 3d | Done (chưa có ClamAV thật) |
-| [T-202](T-202_extraction-and-chunking.md) | Trích xuất & chia đoạn | US-003 | BE | 2d | In progress (6 test: hỗn hợp/NFC/giới hạn đoạn đã thêm; `target_tokens` thực ra đếm từ, không phải token thật) |
+| [T-202](T-202_extraction-and-chunking.md) | Trích xuất & chia đoạn | US-003 | BE | 2d | Done (6 test: hỗn hợp/NFC/giới hạn đoạn; `target_tokens` thực ra đếm từ, không phải token thật) |
 | [T-203](T-203_embedding-and-indexing.md) | Embedding & đánh chỉ mục | US-003 | AI | 2d | Done (chưa đo trên staging) |
 | [T-204](T-204_document-events-sse.md) | Trạng thái tài liệu realtime (SSE) | US-010 | BE | 2d | **Done** |
-| [T-205](T-205_document-library-ui.md) | Thư viện tài liệu (UI) | US-009, 010, 021 | FE | 3d | In progress (realtime SSE, icon/màu theo trạng thái, bộ đếm, skeleton, axe-core, điều hướng mũi tên đã có — xem ghi chú) |
-| [T-206](T-206_delete-document.md) | Xóa tài liệu | US-008 | BE | 2d | In progress (audit_log/analytics đã nối; UI xác nhận dùng DeleteConfirmDialog thật — xem T-208) |
+| [T-205](T-205_document-library-ui.md) | Thư viện tài liệu (UI) | US-009, 010, 021 | FE | 3d | Done (realtime SSE, icon/màu theo trạng thái, bộ đếm, skeleton, axe-core, điều hướng mũi tên) |
+| [T-206](T-206_delete-document.md) | Xóa tài liệu | US-008 | BE | 2d | Done (audit_log/analytics đã nối; UI xác nhận dùng DeleteConfirmDialog thật) |
 | [T-207](T-207_scheduled-jobs-retention.md) | Job định kỳ & retention (D-04) | US-021 | BE | 2d | Done (sửa lỗi `reap_stuck` thiếu publish SSE; chưa đo trên staging) |
-| [T-208](T-208_empty-states-and-delete-confirm.md) | Trạng thái trống & xác nhận xóa | US-003, 008, 010 | FE | 2d | In progress (resolveEmptyState + ES-01/02/03, DeleteConfirmDialog, DuplicateFileDialog, toast, axe-core đã có — xem ghi chú) |
+| [T-208](T-208_empty-states-and-delete-confirm.md) | Trạng thái trống & xác nhận xóa | US-003, 008, 010 | FE | 2d | Done (đủ 5 trạng thái ES-01..ES-05 hoạt động bằng dữ liệu thật; chỉ còn thiếu E2E/so khớp ảnh) |
 
 ## Sprint 3 — Hỏi đáp lõi (19 ngày công)
 
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
 | [T-301](T-301_llm-port-and-adapters.md) | `LLMPort` & 2 adapter (D-01) | — | TL | 3d | In progress (retry/circuit-breaker/metric đã cài; chưa chạy trên LLM thật) |
-| [T-302](T-302_retrieval-and-evidence-gate.md) | Truy xuất & cổng bằng chứng | US-011, US-013 | AI | 3d | In progress (lỗi logic ngưỡng τ đã sửa; chưa đo trên Postgres thật) |
+| [T-302](T-302_retrieval-and-evidence-gate.md) | Truy xuất & cổng bằng chứng | US-011, US-013 | AI | 3d | Done (lỗi logic ngưỡng τ đã sửa; chưa đo trên Postgres thật) |
 | [T-303](T-303_prompt-v1-and-citation-check.md) | Prompt v1 & kiểm tra trích dẫn | US-011, US-014 | AI | 2d | In progress (vá lỗ hổng thiếu chỉ dẫn chống prompt injection; chưa có ánh xạ `[S#]→[n]`) |
 | [T-304](T-304_question-sse-api.md) | API hỏi đáp SSE | US-011 | BE | 3d | In progress (đã sửa: bỏ qua LLM khi thiếu bằng chứng) |
-| [T-305](T-305_chat-composer.md) | Composer & chỉ báo đang trả lời | US-011 | FE | 3d | In progress (7 trạng thái, phím tắt, bộ đếm ký tự, nháp AC-001.3, axe-core đã nối — còn thiếu so khớp ảnh) |
-| [T-306](T-306_answer-rendering-and-citations.md) | Hiển thị câu trả lời & trích dẫn | US-011, US-014 | FE | 3d | In progress (markdown + sanitize + hover `[n]`↔chip + axe-core đã có — còn thiếu so khớp ảnh) |
-| [T-307](T-307_not-found-and-error-handling.md) | Không tìm thấy & xử lý lỗi | US-013 | FE | 2d | In progress (6 mã lỗi + not_found/partial/incomplete + error boundary đã nối — còn thiếu so khớp ảnh/E2E bộ 10 câu) |
+| [T-305](T-305_chat-composer.md) | Composer & chỉ báo đang trả lời | US-011 | FE | 3d | Done (7 trạng thái, phím tắt, bộ đếm ký tự, nháp AC-001.3, axe-core đã nối — còn thiếu so khớp ảnh) |
+| [T-306](T-306_answer-rendering-and-citations.md) | Hiển thị câu trả lời & trích dẫn | US-011, US-014 | FE | 3d | Done (markdown + sanitize + hover `[n]`↔chip + axe-core toàn trang đã có — còn thiếu so khớp ảnh) |
+| [T-307](T-307_not-found-and-error-handling.md) | Không tìm thấy & xử lý lỗi | US-013 | FE | 2d | Done (6 mã lỗi + not_found/partial/incomplete + error boundary đã nối — `partial` chờ BE, xem T-303/T-304) |
 
 ## Sprint 4 — Hoàn thiện hỏi đáp & đo lường tối thiểu (10 ngày công)
 
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
 | [T-401](T-401_multi-document-synthesis.md) | Tổng hợp nhiều tài liệu | US-012 | AI | 2d | In progress (rerank cross-encoder đã cài; chưa chạy với TEI thật) |
-| [T-402](T-402_citation-page-numbers.md) | Số trang trong trích dẫn | US-015 | FE | 1d | In progress (feature flag `useAppConfig()` đã nối, unit test `citations.ts` đã có — còn thiếu đối chiếu thủ công AC-015.2) |
+| [T-402](T-402_citation-page-numbers.md) | Số trang trong trích dẫn | US-015 | FE | 1d | Done (feature flag `useAppConfig()` đã nối, unit test `citations.ts` đã có — còn thiếu đối chiếu thủ công AC-015.2) |
 | [T-403](T-403_multilingual-qa.md) | Hỏi đáp đa ngôn ngữ | US-017 | AI | 2d | In progress (có test fallback; `lingua` không cài được trong sandbox — thiếu C++ Build Tools) |
 | [T-404](T-404_minimal-analytics-events.md) | Sự kiện đo lường tối thiểu | US-020 | BE | 2d | In progress (14/15 sự kiện nối xong: BE + tài liệu (phiên khác) + phía chat trong phiên này — `question_submitted` ready_doc_count thật, `answer_failed`, `retry_clicked{context}`, `citation_viewed` hover≥500ms/click; `answer_rendered` cố ý chỉ phát ở BE để tránh đếm trùng; còn thiếu `feedback_submitted`, canary test, xác nhận ATTT) |
 | [T-405](T-405_ui-polish-and-responsive.md) | Hoàn thiện UI & responsive | — | FE | 3d | In progress (con trỏ streaming/bộ đếm/7 trạng thái Composer/ẩn CitationList đã có từ T-305/T-306; `OfflineBanner`, ngăn trượt tài liệu, menu người dùng, dọn hex-literal, và đủ 6 phím tắt §5.6 (gồm `Ctrl+Shift+O`/mũi tên) đã nối — còn thiếu: đối chiếu ảnh thiết kế, kiểm tra đa trình duyệt) |

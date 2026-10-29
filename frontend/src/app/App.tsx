@@ -82,6 +82,9 @@ function AppRoutes() {
 function MainScreen({ online }: { online: boolean }) {
   const isDesktop = useIsDesktop();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // T-208 ES-05: giữ nguyên hội thoại cũ khi xóa tài liệu cuối — ChatPage
+  // báo lên qua onHasMessagesChange thay vì DocumentLibrary tự đoán.
+  const [hasMessages, setHasMessages] = useState(false);
 
   // Mở ngăn rồi xoay ngang lên >=1024px: chuyển hẳn sang bố cục 2 cột nên
   // nhánh ngăn trượt (và `drawerOpen`) không còn render — không kẹt "đang mở".
@@ -113,12 +116,12 @@ function MainScreen({ online }: { online: boolean }) {
       <main className="app-main">
         {isDesktop ? (
           <div className="app-layout app-layout--two-col">
-            <DocumentLibrary online={online} />
-            <ChatPage />
+            <DocumentLibrary online={online} hasMessages={hasMessages} />
+            <ChatPage onHasMessagesChange={setHasMessages} />
           </div>
         ) : (
           <div className="app-layout">
-            <ChatPage />
+            <ChatPage onHasMessagesChange={setHasMessages} />
             <Drawer
               open={drawerOpen}
               onOpenChange={setDrawerOpen}
@@ -126,7 +129,7 @@ function MainScreen({ online }: { online: boolean }) {
               closeLabel={uiText.closeDocumentDrawer}
               data-testid="document-drawer"
             >
-              <DocumentLibrary online={online} />
+              <DocumentLibrary online={online} hasMessages={hasMessages} />
             </Drawer>
           </div>
         )}

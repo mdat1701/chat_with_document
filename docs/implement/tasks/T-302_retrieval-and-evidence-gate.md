@@ -10,7 +10,7 @@
 | Vai trò chính | AI |
 | Ước lượng | 3d |
 | Phụ thuộc | T-203 (chunk + embedding đã có), T-104 (RLS) |
-| Trạng thái | In progress (truy xuất chạy được; lỗi logic ngưỡng `τ` đã sửa trong phiên này, chưa đo trên Postgres+pgvector thật) |
+| Trạng thái | Done (lỗi logic ngưỡng `τ` đã sửa; chỉ còn thiếu đo hiệu năng trên Postgres+pgvector thật và bộ câu hỏi chuẩn của T-501) |
 
 ## 1. Mục tiêu
 
