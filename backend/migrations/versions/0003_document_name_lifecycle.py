@@ -2,7 +2,6 @@
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0003_document_name_lifecycle"
@@ -12,21 +11,23 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.drop_index("ix_document_owner_name_unique", table_name="document")
-    op.create_index(
-        "ix_document_owner_name_unique",
-        "document",
-        ["owner_id", "lower(name)"],
-        unique=True,
-        postgresql_where=sa.text("status <> 'deleting'"),
+    # `op.create_index(..., ["owner_id", "lower(name)"])` với "lower(name)"
+    # là CHUỖI THƯỜNG (không phải sa.text()/sa.literal_column()) bị Alembic
+    # hiểu nhầm thành TÊN CỘT theo nghĩa đen (`_textual_index_column`), nên
+    # DDL sinh ra trích dẫn `"lower(name)"` như một định danh — lỗi
+    # "column \"lower(name)\" does not exist" khi chạy thật trên Postgres.
+    # Lỗi này chưa từng lộ ra vì môi trường triển khai T-108 không có
+    # Postgres thật để chạy migration (xem ghi chú T-005/T-108). Dùng SQL
+    # thô để tránh toàn bộ cơ chế `_textual_index_column` dễ vỡ của Alembic.
+    op.execute("DROP INDEX IF EXISTS ix_document_owner_name_unique")
+    op.execute(
+        "CREATE UNIQUE INDEX ix_document_owner_name_unique ON document "
+        "(owner_id, lower(name)) WHERE status <> 'deleting'"
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_document_owner_name_unique", table_name="document")
-    op.create_index(
-        "ix_document_owner_name_unique",
-        "document",
-        ["owner_id", "lower(name)"],
-        unique=True,
+    op.execute("DROP INDEX IF EXISTS ix_document_owner_name_unique")
+    op.execute(
+        "CREATE UNIQUE INDEX ix_document_owner_name_unique ON document (owner_id, lower(name))"
     )

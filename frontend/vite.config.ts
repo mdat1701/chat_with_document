@@ -18,6 +18,18 @@ export default defineConfig({
     proxy: {
       // Back-end API cục bộ (T-002 docker-compose expose cổng 8000).
       "/api": { target: "http://localhost:8000", changeOrigin: true },
+      // Luồng đăng nhập OIDC (T-101) nằm ngoài tiền tố /api/v1 — thiếu
+      // dòng này khiến `/auth/login`/`/auth/callback` bị Vite trả về
+      // `index.html` (SPA fallback) thay vì tới backend thật, khiến đăng
+      // nhập không thể chạy được trong dev local (phát hiện khi chạy
+      // TC-001 thủ công). `changeOrigin: false` (khác `/api`): backend
+      // tính `redirect_uri` OIDC bằng `request.url_for()`, dựa vào header
+      // `Host` nó thấy được — giữ nguyên Host gốc (`localhost:5173`) để
+      // trình duyệt quay lại đúng origin frontend sau khi IdP chuyển
+      // hướng về, thay vì kẹt ở origin riêng của backend (cổng 8000, nơi
+      // SPA không được phục vụ). Trong staging/production, FE và BE nằm
+      // chung một host qua Ingress nên vấn đề này không tồn tại.
+      "/auth": { target: "http://localhost:8000", changeOrigin: false },
     },
   },
   test: {

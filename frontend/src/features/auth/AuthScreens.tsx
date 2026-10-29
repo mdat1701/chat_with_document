@@ -23,8 +23,19 @@ export function LoginScreen() {
         <Button
           data-testid="login-sso"
           onClick={() => {
+            // AC-001.2: `/login` luôn render LoginScreen bất kể trạng thái
+            // đăng nhập (App.tsx không gate route này) — nếu return_to lại
+            // chính là "/login" (trường hợp PHỔ BIẾN NHẤT: người dùng chưa
+            // đăng nhập mở "/" bị AppRoutes tự chuyển sang "/login" TRƯỚC
+            // khi họ bấm nút), backend sẽ đưa trình duyệt quay lại đúng
+            // "/login" sau khi tạo phiên thành công — người dùng kẹt ở màn
+            // hình đăng nhập dù đã đăng nhập xong (phát hiện khi chạy thật
+            // TC-001 qua IdP, không phải chỉ đọc code). "/" là đích hợp lệ
+            // duy nhất hiện có (chưa có deep-link khác trong SPA).
+            const pathname = window.location.pathname;
+            const returnTo = pathname === "/login" ? "/" : pathname;
             window.location.assign(
-              `/auth/login?return_to=${encodeURIComponent(window.location.pathname)}`,
+              `/auth/login?return_to=${encodeURIComponent(returnTo)}`,
             );
           }}
         >

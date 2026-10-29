@@ -34,6 +34,18 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
     op.execute("CREATE EXTENSION IF NOT EXISTS citext")
+    # `unaccent()` của contrib tự khai báo STABLE, không phải IMMUTABLE —
+    # Postgres từ chối dùng nó trong biểu thức GENERATED ALWAYS ... STORED
+    # bên dưới ("generation expression is not immutable"), lỗi chỉ lộ ra
+    # khi chạy thật trên Postgres (chưa từng phát hiện vì môi trường triển
+    # khai các task T-005/T-202 không có Postgres thật để chạy migration).
+    # Khắc phục chuẩn (PostgreSQL wiki): bọc lại bằng một hàm SQL khai báo
+    # IMMUTABLE tường minh, gọi unaccent() qua object dictionary cố định.
+    op.execute(
+        "CREATE OR REPLACE FUNCTION immutable_unaccent(text) RETURNS text AS $$ "
+        "SELECT unaccent('unaccent', $1) "
+        "$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT"
+    )
 
     # --- app_user ---
     op.create_table(
@@ -81,18 +93,22 @@ def upgrade() -> None:
         sa.Column("expires_at", sa.DateTime(timezone=True)),
     )
     # Danh sách tài liệu mới nhất trước, bỏ qua bản ghi đã xóa (SADD §3.1.2).
-    op.create_index(
-        "ix_document_owner_uploaded_at",
-        "document",
-        ["owner_id", sa.text("uploaded_at DESC")],
-        postgresql_where=sa.text("status <> 'deleting'"),
+    # Dùng `op.execute` thay vì `op.create_index(..., sa.text(...))`: xác
+    # nhận bằng cách chạy thật trên Postgres rằng cơ chế nội bộ của Alembic
+    # cho cột biểu thức (`_textual_index_element`, dùng chung một đối
+    # tượng `Table` ảo cho các lệnh `create_index` liên tiếp trên cùng một
+    # bảng) làm WHERE của chỉ mục TRƯỚC đó bị lặp lại nhầm sang chỉ mục
+    # SAU — lỗi chỉ lộ ra khi chạy thật, không phải lỗi cú pháp để lint bắt
+    # được. SQL thô loại bỏ hẳn nguồn gây lỗi này.
+    op.execute(
+        "CREATE INDEX ix_document_owner_uploaded_at ON document "
+        "(owner_id, uploaded_at DESC) WHERE status <> 'deleting'"
     )
-    # ER-08: trùng tên không phân biệt hoa-thường trong phạm vi một owner.
-    op.create_index(
-        "ix_document_owner_name_unique",
-        "document",
-        ["owner_id", sa.text("lower(name)")],
-        unique=True,
+    # ER-08: trùng tên không phân biệt hoa-thường trong phạm vi một owner
+    # (giữ đúng phạm vi gốc — không WHERE, áp dụng cho mọi trạng thái).
+    op.execute(
+        "CREATE UNIQUE INDEX ix_document_owner_name_unique ON document "
+        "(owner_id, lower(name))"
     )
     op.create_index("ix_document_expires_at", "document", ["expires_at"])
 
@@ -116,7 +132,9 @@ def upgrade() -> None:
         sa.Column(
             "tsv",
             pg.TSVECTOR(),
-            sa.Computed("to_tsvector('simple', unaccent(content))", persisted=True),
+            sa.Computed(
+                "to_tsvector('simple', immutable_unaccent(content))", persisted=True
+            ),
         ),
         sa.Column("embedding", Vector(1024)),
     )
@@ -214,9 +232,19 @@ def upgrade() -> None:
         "audit_log",
     ):
         op.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO cwd_app, cwd_worker")
+    # `chunk.id`/`analytics_event.id`/`audit_log.id` là BIGSERIAL — Postgres
+    # tự tạo một sequence riêng cho mỗi cột, SỞ HỮU bởi `postgres` (vai trò
+    # chạy migration), KHÔNG tự kèm theo GRANT ở trên (GRANT trên bảng
+    # không bao gồm quyền trên sequence của nó). Thiếu dòng này, INSERT
+    # bằng vai trò `cwd_app` thật sẽ lỗi "permission denied for sequence"
+    # ngay ở `nextval()` — lỗi chỉ lộ ra khi chạy thật bằng đúng vai trò
+    # ứng dụng (không phải `postgres`), chưa từng phát hiện vì môi trường
+    # triển khai T-005 không có Postgres thật để kiểm.
+    op.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO cwd_app, cwd_worker")
 
 
 def downgrade() -> None:
+    op.execute("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM cwd_app, cwd_worker")
     op.execute("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM cwd_app, cwd_worker")
     op.execute("DROP ROLE IF EXISTS cwd_app")
     op.execute("DROP ROLE IF EXISTS cwd_worker")
@@ -234,4 +262,5 @@ def downgrade() -> None:
     op.drop_index("ix_document_owner_uploaded_at", table_name="document")
     op.drop_table("document")
     op.drop_table("user_role")
+    op.execute("DROP FUNCTION IF EXISTS immutable_unaccent(text)")
     op.drop_table("app_user")

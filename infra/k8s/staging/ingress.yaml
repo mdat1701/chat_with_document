@@ -36,6 +36,15 @@ spec:
           - path: /api/v1
             pathType: Prefix
             backend: { service: { name: cwd-api, port: { number: 80 } } }
+          # Luồng đăng nhập OIDC (T-101, /auth/login|callback|logout) nằm
+          # ngoài tiền tố /api/v1 — THIẾU dòng này khiến mọi request tới
+          # /auth/* khớp path "/" (catch-all) ở trên và bị route nhầm
+          # sang cwd-web (SPA trả về index.html) thay vì cwd-api, làm
+          # đăng nhập không bao giờ hoạt động được trên staging. Phát
+          # hiện khi chạy thử TC-001 (docs/testing/test_cases) thủ công.
+          - path: /auth
+            pathType: Prefix
+            backend: { service: { name: cwd-api, port: { number: 80 } } }
           - path: /healthz
             pathType: Exact
             backend: { service: { name: cwd-api, port: { number: 80 } } }
