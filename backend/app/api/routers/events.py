@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,15 +27,17 @@ class EventBatch(BaseModel):
 @router.post("/events", status_code=204)
 async def receive_events(
     payload: EventBatch,
+    request: Request,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> Response:
+    sid = request.cookies.get("cwd_sid")
     for event in payload.events:
         await record_event(
             session,
             event.event_name,
             user_id=UUID(current_user.id),
-            session_id=None,
+            sid=sid,
             props=event.props,
         )
     await session.commit()

@@ -140,6 +140,7 @@ async def ask_question(
                 session,
                 "answer_rendered",
                 user_id=UUID(current_user.id),
+                sid=request.cookies.get("cwd_sid"),
                 props={
                     "latency_ms": latency_ms,
                     "answer_type": complete["answer_type"],

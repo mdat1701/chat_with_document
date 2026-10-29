@@ -17,6 +17,7 @@ from app.modules.analytics import service
 class _FakeSettings:
     analytics_hash_secret = "test-secret"
     service_name = "cwd-backend-test"
+    app_version = "9.9.9-test"
 
 
 @pytest.fixture(autouse=True)
@@ -68,6 +69,36 @@ async def test_no_user_id_means_no_hash() -> None:
 
     event = session.add.call_args.args[0]
     assert event.user_hash is None
+
+
+async def test_sid_is_hashed_not_stored_raw() -> None:
+    session = MagicMock()
+    raw_sid = "cwd_sid_raw_token_value"
+
+    await service.record_event(session, "session_started", sid=raw_sid)
+
+    event = session.add.call_args.args[0]
+    expected = hmac.new(b"test-secret", raw_sid.encode(), hashlib.sha256).hexdigest()
+    assert event.session_id == expected
+    assert raw_sid not in str(event.session_id)
+
+
+async def test_no_sid_means_no_session_id() -> None:
+    session = MagicMock()
+
+    await service.record_event(session, "session_started")
+
+    event = session.add.call_args.args[0]
+    assert event.session_id is None
+
+
+async def test_app_version_read_from_settings_not_service_name() -> None:
+    session = MagicMock()
+
+    await service.record_event(session, "session_started")
+
+    event = session.add.call_args.args[0]
+    assert event.app_version == "9.9.9-test"
 
 
 async def test_allowed_event_names_cover_minimum_funnel() -> None:

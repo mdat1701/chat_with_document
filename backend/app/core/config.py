@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # chạy khi "local" — mặc định "local" để không chặn dev/test.
     app_env: str = "local"
     service_name: str = "cwd-backend"
+    # Phiên bản ứng dụng ghi vào `analytics_event.app_version` (T-404 §3.1)
+    # — KHÁC `service_name` (tên dịch vụ, dùng cho log/trace). Đổi theo mỗi
+    # lần triển khai; không có cơ chế tự đọc từ `pyproject.toml` lúc chạy.
+    app_version: str = "0.1.0"
     # Để trống ở local -> exporter no-op (T-007 §6 "OTel Collector không
     # chạy ở local"); đặt URL OTLP/HTTP thật ở staging/prod.
     otel_exporter_endpoint: str = ""

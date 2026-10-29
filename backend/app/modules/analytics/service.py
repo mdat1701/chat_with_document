@@ -27,14 +27,23 @@ ALLOWED_EVENTS = {
 }
 
 
+def _hash(value: str) -> str:
+    return hmac.new(
+        get_settings().analytics_hash_secret.encode(), value.encode(), hashlib.sha256
+    ).hexdigest()
+
+
 async def record_event(
     session: AsyncSession,
     name: str,
     *,
     user_id: UUID | None = None,
-    session_id: str | None = None,
+    sid: str | None = None,
     props: dict[str, object] | None = None,
 ) -> None:
+    """`sid` là cookie `cwd_sid` THÔ (chưa băm) lấy từ phiên HTTP — hàm
+    này tự băm một chiều trước khi ghi, giống `user_id` (T-404 §5 bước 3).
+    Sự kiện phát từ worker (không có phiên HTTP) truyền `sid=None`."""
     if name not in ALLOWED_EVENTS:
         logger.warning("analytics event rejected: %s", name)
         return
@@ -51,20 +60,13 @@ async def record_event(
     rejected_props = set(props or {}) - allowed_props
     if rejected_props:
         logger.warning("analytics properties rejected: %s", sorted(rejected_props))
-    digest = None
-    if user_id is not None:
-        digest = hmac.new(
-            get_settings().analytics_hash_secret.encode(),
-            str(user_id).encode(),
-            hashlib.sha256,
-        ).hexdigest()
     session.add(
         AnalyticsEvent(
             name=name,
             ts=datetime.now(UTC),
-            user_hash=digest,
-            session_id=session_id,
-            app_version=get_settings().service_name,
+            user_hash=_hash(str(user_id)) if user_id is not None else None,
+            session_id=_hash(sid) if sid is not None else None,
+            app_version=get_settings().app_version,
             props=safe_props,
         )
     )

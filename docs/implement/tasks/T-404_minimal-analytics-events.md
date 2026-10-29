@@ -173,22 +173,33 @@ giữ) và `pytest` (105 passed) — **không có test đơn vị mới riêng**
 `worker_session_scope`/`AsyncSession` ở độ phức tạp tương đương test
 tích hợp, để lại cho đợt viết test tích hợp Celery).
 
-**2 khoảng trống nhỏ thật phát hiện khi rà soát `POST /events` (phiên
-sau, chưa sửa code — chỉ ghi nhận):**
+**2 khoảng trống nhỏ phát hiện khi rà soát `POST /events` — đã sửa cùng
+phiên phát hiện:**
 1. `record_event()` nhận tham số `session_id` nhưng `app/api/routers/events.py::receive_events`
-   luôn gọi với `session_id=None` — nghĩa là cột `analytics_event.session_id`
-   hiện **luôn rỗng** trên mọi sự kiện gửi qua `POST /events`, dù §3.1
-   mô tả "server tự điền từ phiên". Hệ quả: không gộp được sự kiện theo
-   phiên làm việc khi phân tích phễu (US-020) — chỉ gộp được theo
-   `user_hash`. Chưa rõ nên điền gì vào đây (hash của `cwd_sid`? một id
-   phiên hỏi đáp riêng?) — cần quyết định thiết kế trước khi sửa, không
-   phải lỗi một dòng.
+   luôn gọi với `session_id=None` — cột `analytics_event.session_id` luôn
+   rỗng trên mọi sự kiện, dù §3.1 mô tả "server tự điền từ phiên". Đã sửa:
+   đổi tên tham số thành `sid` (nhận **cookie `cwd_sid` thô**, chưa băm),
+   `record_event()` tự băm một chiều bằng cùng cơ chế HMAC-SHA256 đã dùng
+   cho `user_id` (hàm `_hash()` dùng chung) trước khi ghi vào
+   `session_id` — nhất quán với nguyên tắc "không lưu định danh thô"
+   (P-03). Nối `sid=request.cookies.get("cwd_sid")` ở cả 3 nơi gọi
+   `record_event()` trong tầng `api` có `Request` sẵn
+   (`events.py::receive_events`, `conversations.py::ask_question`,
+   `documents.py::delete_document` — thêm tham số `request: Request` cho
+   endpoint này vì trước đó chưa có). Các lệnh gọi từ `app.workers`
+   (không có phiên HTTP) tiếp tục truyền `sid=None` — đúng, vì job nền
+   không gắn với một phiên trình duyệt nào.
 2. `record_event()` ghi `app_version=get_settings().service_name` —
    `service_name` mặc định là `"cwd-backend"` (tên dịch vụ), **không phải
-   phiên bản ứng dụng** như tên trường `app_version` ngụ ý (`pyproject.toml`
-   có `version = "0.1.0"` nhưng không có settings nào đọc giá trị này).
-   Vô hại (không rò rỉ gì, không chứa nội dung) nhưng dữ liệu cột này
-   hiện không dùng được để so sánh chỉ số giữa các bản triển khai.
+   phiên bản ứng dụng**. Đã sửa: thêm `settings.app_version` (mặc định
+   `"0.1.0"`, khớp `pyproject.toml` nhưng đọc qua cấu hình, không tự động
+   đồng bộ — cần đổi thủ công mỗi lần phát hành cho tới khi có cơ chế đọc
+   từ metadata gói) và dùng trường này thay vì `service_name`.
+
+Thêm 3 test mới trong `tests/unit/test_analytics_service.py` (băm `sid`,
+không có `sid` → `session_id=None`, `app_version` đọc đúng từ cấu hình)
+— tổng 8 test cho module này (từ 5). Xác nhận bằng `ruff check .`,
+`mypy app`, `lint-imports` (3 hợp đồng vẫn giữ) và `pytest` (170 passed).
 
 **Đã sửa thêm (phiên T-107):** nối `session_started` phía FE — xem ghi chú
 ở hàng "Đủ 12 sự kiện..." phía trên. Tổng 7/15 tên sự kiện giờ có lời gọi

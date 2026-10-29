@@ -291,6 +291,7 @@ async def retry_document(
 @router.delete("/{document_id}", status_code=204)
 async def delete_document(
     document_id: UUID,
+    request: Request,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> Response:
@@ -318,7 +319,11 @@ async def delete_document(
         )
     )
     await record_event(
-        session, "document_deleted", user_id=UUID(current_user.id), props={"trigger": "user"}
+        session,
+        "document_deleted",
+        user_id=UUID(current_user.id),
+        sid=request.cookies.get("cwd_sid"),
+        props={"trigger": "user"},
     )
     await session.commit()
     return Response(status_code=204)
