@@ -91,6 +91,13 @@ input {
 .document-list {
   padding: 0;
   list-style: none;
+  /* Không có max-height/overflow trước đây — với hạn mức 50 tài liệu,
+     <ul> cao dần đẩy luôn cả trang xuống thay vì cuộn riêng (thấy rõ ở
+     ảnh TC-009/TC-010 khi thư viện đầy). Phân trang/virtual scroll thật
+     chỉ cần thiết nếu hạn mức tăng > 100; ở quy mô hiện tại, một
+     container cuộn giới hạn chiều cao là đủ. */
+  max-height: 60vh;
+  overflow-y: auto;
 }
 .document-row {
   display: flex;
