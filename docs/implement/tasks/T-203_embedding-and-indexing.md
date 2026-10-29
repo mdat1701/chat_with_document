@@ -114,7 +114,7 @@ Trường hợp biên:
 - [ ] `expires_at = uploaded_at + 90 ngày` — tính đúng trong `upload_document` (`timedelta(days=settings.retention_days)`), chưa chạy trên DB thật
 - [x] Chạy lại job trên tài liệu đã `ready` → không nhân đôi chunk — `_index_document` có guard `if document.status != "processing": return` trước khi insert
 - [ ] Xóa tài liệu giữa lúc embedding → không còn chunk mồ côi — phụ thuộc `delete_document_use_case` (T-206); race cụ thể (xóa đúng lúc worker đang insert) chưa có test
-- [ ] Giả lập TEI down → retry 3 lần rồi `INGESTION_FAILED` — `TeiEmbeddingAdapter.embed_batch` ném `RuntimeError` không phải `InfrastructureError`, cần xác nhận Celery task bắt được để retry đúng theo cơ chế T-201 (xem Lệch so với mô tả ban đầu)
+- [x] Giả lập TEI down → retry 3 lần rồi `INGESTION_FAILED` — **đã xác nhận bằng đọc code kỹ** (không phải suy đoán): `TeiEmbeddingAdapter.embed_batch` ném `RuntimeError` thường đúng, nhưng `_process_document` (`app/modules/ingestion/service.py:270-274`) bọc lời gọi `_index_document(...)` trong `except RuntimeError as exc: raise InfrastructureError("Embedding failed") from exc` — nên lỗi TEI **vẫn được chuyển đúng thành `InfrastructureError`** trước khi tới `ingestion_tasks.py::process_document`, nơi `except InfrastructureError` bắt và retry đúng theo T-201. Không phải lỗi, chỉ là nghi vấn chưa được xác nhận ở lần rà soát trước — không cần sửa code
 - [ ] `tsv` sinh tự động, tìm được từ không dấu — cột `Computed(...)` với `unaccent` đã khai báo đúng trong `Chunk` model, cần Postgres thật để xác nhận chạy
 
 ## 8. Định nghĩa Hoàn thành
@@ -128,11 +128,18 @@ Trường hợp biên:
 ### Ghi chú triển khai thực tế
 
 Kiến trúc port/adapter đúng chuẩn, kiểm tra tĩnh sạch
-(`ruff`/`mypy`/`lint-imports`). **Lệch so với mô tả ban đầu:**
-`TeiEmbeddingAdapter.embed_batch` ném `RuntimeError` thường khi TEI không
-phản hồi, trong khi pipeline ingestion phân biệt `InfrastructureError`
-(retry được) với lỗi khác — nên rà lại để lỗi mạng tới TEI được Celery
-retry đúng 3 lần như §7 yêu cầu, thay vì rơi vào nhánh lỗi không retry.
+(`ruff`/`mypy`/`lint-imports`).
+
+**Theo dõi lại nghi vấn cũ (phiên sau) — không phải lỗi:** lần rà soát
+trước nghi ngờ `TeiEmbeddingAdapter.embed_batch` ném `RuntimeError`
+thường (không phải `InfrastructureError`) sẽ khiến lỗi TEI không được
+Celery retry. Đọc kỹ `_process_document` xác nhận điều ngược lại: hàm
+này bọc lời gọi `_index_document()` (nơi gọi `embed_batch`) trong
+`except RuntimeError as exc: raise InfrastructureError(...) from exc`
+— chuỗi lỗi hoạt động đúng như thiết kế, không cần sửa code. Đây là ví
+dụ cho thấy một "nghi vấn chưa xác nhận" không nên tự động bị coi là
+lỗi cho tới khi đọc hết đường đi của exception.
+
 Không có TEI/Postgres thật trong môi trường này nên toàn bộ hành vi runtime
 (thời gian `ready`, retry thật, chỉ mục `tsv`) chưa đo được — chỉ xác nhận
 được đúng về mặt code/kiến trúc.

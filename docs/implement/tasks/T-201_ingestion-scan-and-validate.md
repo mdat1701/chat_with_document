@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-006 (khung Celery), T-108 (`POST /documents` đẩy job), D-05 (bổ sung mã lỗi vào SDD §3.4.3) |
-| Trạng thái | Done (giới hạn: chưa có ClamAV thật để test EICAR) |
+| Trạng thái | Done (sửa backoff retry khớp spec 2s/8s/32s; giới hạn: chưa có ClamAV thật để test EICAR) |
 
 ## 1. Mục tiêu
 
@@ -109,7 +109,7 @@ Trường hợp biên:
 - [x] PDF đặt mật khẩu → `PDF_ENCRYPTED` — `_validate_pdf` kiểm tra `pdf.needs_pass`
 - [x] Tệp PDF bị cắt cụt/hỏng header → `PDF_CORRUPTED` — test thật trong `tests/unit/test_ingestion_service.py::test_validate_pdf_reports_corrupt_file`
 - [x] PDF vượt `max_pages` → `TOO_MANY_PAGES`, `page_count` vẫn được ghi — test `test_validate_pdf_reports_page_count_for_limit_failure`
-- [ ] Giả lập `clamd` timeout → retry 3 lần — `app/workers/ingestion_tasks.py` có `max_retries=3`, `countdown=2**(retries+1)` (2s/4s/8s) **khác với 2s/8s/32s nêu trong spec** — xem Lệch so với mô tả ban đầu; chưa có test mô phỏng timeout
+- [x] Giả lập `clamd` timeout → retry 3 lần — `app/workers/ingestion_tasks.py` có `max_retries=3`, `countdown=2 * 4**retries` (2s/8s/32s, **đã sửa khớp spec**, xem ghi chú) — chưa có test mô phỏng timeout thật qua broker Celery
 - [x] Chạy lại job trên tài liệu đã `failed`/`ready`/`deleting` → không đổi lại — `_set_failed` có guard `if document.status in {"failed","ready","deleting"}: return`
 - [x] Log không chứa `document.name`/nội dung trang — xác nhận bằng đọc code (`_publish_status` chỉ gửi `id/status/error_code/page_count` qua Redis pub/sub, không log nội dung)
 
@@ -130,10 +130,13 @@ nhánh không cần ClamAV/Postgres thật. Phần **không thể kiểm chứng
 trường này**: ClamAV daemon thật (không có Docker), retry backoff thật của
 Celery (cần broker chạy thật), chạy trên staging để xem metric/span.
 
-**Lệch so với mô tả ban đầu:** backoff retry dùng `2**(retries+1)` giây
-(2s/4s/8s) thay vì 2s/8s/32s nêu ở §7 — cùng mục đích (exponential backoff,
-3 lần retry) nhưng hằng số khác; nên cập nhật lại nếu spec yêu cầu đúng
-32s ở lần thứ 3 (ảnh hưởng độ trễ tối đa trước khi báo `INGESTION_FAILED`).
+**Lệch so với mô tả ban đầu — đã sửa (phiên sau):** backoff retry trước
+đây dùng `2**(retries+1)` giây (2s/4s/8s) thay vì 2s/8s/32s nêu ở §3. Đổi
+công thức thành `2 * 4**retries` (2s/8s/32s đúng giá trị spec) — xác nhận
+bằng tính tay cả 3 lần retry (`retries=0,1,2` → `2, 8, 32`), `ruff`/`mypy`
+sạch, `pytest` 167 passed. Vẫn chưa có test mô phỏng `clamd` timeout thật
+(cần broker Celery thật chạy song song để quan sát `countdown` thực thi,
+không chỉ tính công thức).
 
 ## 9. Tham chiếu
 

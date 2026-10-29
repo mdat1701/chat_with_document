@@ -64,7 +64,10 @@ def process_document(self, document_id: str) -> None:  # type: ignore[no-untyped
         process_document_use_case(document_id, TeiEmbeddingAdapter())
     except InfrastructureError as exc:
         try:
-            raise self.retry(exc=exc, countdown=2 ** (self.request.retries + 1))
+            # T-201 §3: backoff 2s/8s/32s (tương đương retry_backoff=2,
+            # retry_backoff_max=32 của Celery) — trước đây dùng
+            # 2**(retries+1) cho ra 2s/4s/8s, lệch với spec.
+            raise self.retry(exc=exc, countdown=2 * 4**self.request.retries)
         except self.MaxRetriesExceededError:
             asyncio.run(_set_failed(UUID(document_id), "INGESTION_FAILED"))
     asyncio.run(_emit_processing_outcome_event(document_id))
