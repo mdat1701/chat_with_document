@@ -133,6 +133,74 @@ async def test_timeout_before_first_token_raises_answer_timeout(
     assert error.value.code == "ANSWER_TIMEOUT"
 
 
+class _FakeStreamResponse:
+    """Mô phỏng `httpx.Response` streaming đủ để `_stream_once` đọc được,
+    không dùng `httpx.MockTransport` vì cần theo dõi `__aexit__` có được
+    gọi hay không khi generator bị hủy giữa chừng."""
+
+    def __init__(self, lines: list[str]) -> None:
+        self._lines = lines
+        self.closed = False
+
+    def raise_for_status(self) -> None:
+        return None
+
+    async def aiter_lines(self):  # type: ignore[no-untyped-def]
+        for line in self._lines:
+            yield line
+
+    async def __aenter__(self) -> _FakeStreamResponse:
+        return self
+
+    async def __aexit__(self, *_exc: object) -> bool:
+        self.closed = True
+        return False
+
+
+class _FakeAsyncClient:
+    def __init__(self, response: _FakeStreamResponse) -> None:
+        self._response = response
+        self.closed = False
+
+    def stream(self, *_args: object, **_kwargs: object) -> _FakeStreamResponse:
+        return self._response
+
+    async def __aenter__(self) -> _FakeAsyncClient:
+        return self
+
+    async def __aexit__(self, *_exc: object) -> bool:
+        self.closed = True
+        return False
+
+
+async def test_cancelling_consumer_closes_underlying_http_stream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T-301 §7: hủy coroutine giữa chừng phải đóng kết nối HTTP tới LLM
+    — không chỉ dừng đọc token phía server. Xác nhận bằng `__aexit__`
+    thật của client/response giả lập có được gọi khi `.aclose()` generator,
+    không chỉ đọc code suy luận hành vi của `async with`."""
+    response = _FakeStreamResponse(
+        [
+            'data: {"choices":[{"delta":{"content":"a"}}]}',
+            'data: {"choices":[{"delta":{"content":"b"}}]}',
+            'data: {"choices":[{"delta":{"content":"c"}}]}',
+        ]
+    )
+    fake_client = _FakeAsyncClient(response)
+    monkeypatch.setattr(openai_llm.httpx, "AsyncClient", lambda **_kwargs: fake_client)
+    adapter = openai_llm.OpenAICompatibleLLM()
+
+    generator = adapter.stream(_request())
+    first_token = await generator.__anext__()
+    assert first_token == "a"
+
+    await generator.aclose()
+
+    assert fake_client.closed is True
+    assert response.closed is True
+
+
 async def test_circuit_breaker_opens_after_threshold_and_skips_calls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

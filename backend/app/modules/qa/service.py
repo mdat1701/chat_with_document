@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.tracing import get_tracer
 from app.modules.qa.prompt import PROMPT_VERSION, SYSTEM_PROMPT, build_prompt
 from app.modules.retrieval.service import Evidence, diversify_evidence, retrieve
 from app.ports.embedding_port import EmbeddingPort
@@ -21,6 +22,7 @@ from app.ports.llm_port import LLMPort, LLMRequest
 from app.ports.reranker_port import RerankerPort
 
 logger = logging.getLogger(__name__)
+_tracer = get_tracer(__name__)
 
 try:
     from lingua import Language, LanguageDetectorBuilder
@@ -121,11 +123,19 @@ async def stream_answer(
         yield "token", token
     answer = "".join(chunks)
     names = {str(item["document_id"]): item["document_name"] for item in contexts}
-    raw_citations = re.findall(r"\[doc:([^ ]+) p:(\d+)-(\d+)\]", answer)
-    # T-303: chỉ chấp nhận trích dẫn trỏ tới document_id THẬT có trong bằng
-    # chứng đã truy xuất — loại trích dẫn bịa (LLM có thể tạo ra id không
-    # tồn tại trong `contexts`) thay vì chỉ kiểm tra đúng cú pháp.
-    valid_citations = [(doc, start, end) for doc, start, end in raw_citations if doc in names]
+    # Span OTel (SADD §4.3): chỉ đếm số nhãn hợp lệ/bị loại — KHÔNG ghi
+    # nội dung câu trả lời hay trích dẫn (P-03).
+    with _tracer.start_as_current_span("qa.validate_citations") as span:
+        raw_citations = re.findall(r"\[doc:([^ ]+) p:(\d+)-(\d+)\]", answer)
+        # T-303: chỉ chấp nhận trích dẫn trỏ tới document_id THẬT có trong
+        # bằng chứng đã truy xuất — loại trích dẫn bịa (LLM có thể tạo ra
+        # id không tồn tại trong `contexts`) thay vì chỉ kiểm tra cú pháp.
+        valid_citations = [
+            (doc, start, end) for doc, start, end in raw_citations if doc in names
+        ]
+        span.set_attribute("raw_citation_count", len(raw_citations))
+        span.set_attribute("valid_citation_count", len(valid_citations))
+        span.set_attribute("rejected_citation_count", len(raw_citations) - len(valid_citations))
     if not valid_citations:
         answer = "Không tìm thấy đủ bằng chứng trong các tài liệu đã chọn."
     citation_items = [

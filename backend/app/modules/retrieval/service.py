@@ -18,10 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
 from app.core.metrics import retrieval_top_score
+from app.core.tracing import get_tracer
 from app.modules.documents.models import Chunk, Document
 from app.ports.reranker_port import RerankerPort
 
 logger = logging.getLogger(__name__)
+_tracer = get_tracer(__name__)
 
 
 @dataclass(frozen=True)
@@ -66,7 +68,11 @@ async def retrieve(
     )
     if document_ids:
         vector_statement = vector_statement.where(Chunk.document_id.in_(document_ids))
-    vector_rows = (await session.execute(vector_statement)).all()
+    # Span OTel (SADD §4.3): chỉ ghi số ứng viên, KHÔNG ghi câu hỏi/nội
+    # dung đoạn trích (P-03).
+    with _tracer.start_as_current_span("retrieval.vector") as span:
+        vector_rows = (await session.execute(vector_statement)).all()
+        span.set_attribute("candidate_count", len(vector_rows))
     fts_statement = (
         select(
             Chunk,
@@ -90,7 +96,9 @@ async def retrieve(
     )
     if document_ids:
         fts_statement = fts_statement.where(Chunk.document_id.in_(document_ids))
-    fts_rows = (await session.execute(fts_statement)).all()
+    with _tracer.start_as_current_span("retrieval.fts") as span:
+        fts_rows = (await session.execute(fts_statement)).all()
+        span.set_attribute("candidate_count", len(fts_rows))
     if not vector_rows and not fts_rows:
         raise DomainError("NO_READY_DOCUMENTS")
 
@@ -110,15 +118,18 @@ async def retrieve(
 
     rerank_scores: list[float] | None = None
     if reranker is not None and rerank_candidates:
-        try:
-            rerank_scores = reranker.rerank(
-                query_text, [chunk.content for chunk, _, _ in rerank_candidates]
-            )
-        except RuntimeError:
-            # T-401 §6: reranker lỗi/timeout -> bỏ qua bước rerank, dùng
-            # thẳng top-k từ RRF; KHÔNG được làm hỏng cả câu trả lời.
-            logger.warning("TEI reranker unavailable, falling back to RRF ranking")
-            rerank_scores = None
+        with _tracer.start_as_current_span("retrieval.rerank") as span:
+            span.set_attribute("candidate_count", len(rerank_candidates))
+            try:
+                rerank_scores = reranker.rerank(
+                    query_text, [chunk.content for chunk, _, _ in rerank_candidates]
+                )
+            except RuntimeError:
+                # T-401 §6: reranker lỗi/timeout -> bỏ qua bước rerank, dùng
+                # thẳng top-k từ RRF; KHÔNG được làm hỏng cả câu trả lời.
+                logger.warning("TEI reranker unavailable, falling back to RRF ranking")
+                span.set_attribute("fallback_to_rrf", True)
+                rerank_scores = None
 
     if rerank_scores is not None:
         # T-401 §5 bước 5: cổng bằng chứng áp lên điểm rerank cao nhất khi

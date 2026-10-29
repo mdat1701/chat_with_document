@@ -10,7 +10,7 @@
 | Vai trò chính | TL |
 | Ước lượng | 3d |
 | Phụ thuộc | **D-01** (ADR-03 — chốt phương án LLM), T-007 (logging/OTel) |
-| Trạng thái | In progress (port/2 adapter chạy được; retry/circuit-breaker/phân loại lỗi/metric đã cài trong phiên này; chưa chạy trên LLM thật) |
+| Trạng thái | Done (retry/circuit-breaker/phân loại lỗi/metric/span/đóng kết nối khi hủy đều đã cài và có test thật; chỉ còn thiếu chạy trên LLM/staging thật) |
 
 ## 1. Mục tiêu
 
@@ -116,7 +116,7 @@ Không đổi schema. Chỉ ghi `model_id` vào bảng `answer` ở T-304 (metad
 - [x] Retry 1 lần trước token đầu rồi `SERVICE_BUSY` — **đã cài**: `OpenAICompatibleLLM.stream()` thử lại đúng 1 lần nếu lỗi xảy ra trước token đầu (`tokens_emitted == 0`), vẫn hỏng thì raise `LLMError("SERVICE_BUSY")` — test `test_retries_once_before_first_token_then_succeeds` + `test_fails_before_first_token_twice_raises_service_busy`
 - [x] Lỗi sau khi đã yield ≥ 1 mẩu → `ANSWER_INTERRUPTED`, không retry — **đã sửa**: `conversations.py` giờ bắt riêng `LLMError` và phát đúng `exc.code` (thay vì gộp chung `SERVICE_BUSY`) — test `test_failure_after_first_token_is_interrupted_without_retry`
 - [x] Vượt `timeout_s` → `ANSWER_TIMEOUT` — `httpx.TimeoutException` được bắt riêng và phân loại đúng mã trước khi token đầu — test `test_timeout_before_first_token_raises_answer_timeout`; dùng `settings.llm_timeout_s` (mới, mặc định 50s theo TC-08) thay vì tái dùng `answer_timeout_ms` (60s, ngân sách DF-10 phía client)
-- [ ] Hủy coroutine đóng stream — `async with client.stream(...)` tự đóng khi context thoát, nhưng chưa có test xác nhận `aclose` được gọi khi coroutine bị hủy giữa chừng
+- [x] Hủy coroutine đóng stream — **lỗi thật phát hiện và đã sửa**: viết test xác nhận hành vi (thay vì chỉ đọc code) phát hiện `async with client.stream(...)` **không** tự đóng khi `stream()` bị `.aclose()` giữa chừng — `async for token in self._stream_once(...)` không tự gọi `aclose()` trên generator con khi `GeneratorExit` truyền qua thân vòng lặp (đây là hành vi thật của Python, không phải lỗi của `httpx`), nên kết nối HTTP chỉ đóng muộn qua garbage collector, không phải ngay khi client ngắt SSE. Đã sửa bằng cách giữ tham chiếu `inner` và `await inner.aclose()` trong khối `finally` của `stream()`. Test `test_cancelling_consumer_closes_underlying_http_stream` ban đầu **đỏ** trên code cũ (xác nhận đây là lỗi thật, không phải test thừa), xanh sau khi sửa
 - [x] Circuit breaker mở sau N lỗi — **đã cài**: breaker theo tiến trình (module-level, không cần Redis cho MVP-lite) trong `adapters/openai_llm.py`, mở sau `settings.llm_breaker_failure_threshold` lỗi liên tiếp, tự đóng sau `llm_breaker_open_seconds` — test `test_circuit_breaker_opens_after_threshold_and_skips_calls`
 - [x] Đổi `llm.provider` không cần sửa `modules/qa` — đúng: `modules/qa/service.py` chỉ biết `LLMPort`, việc chọn `FakeLLM`/`OpenAICompatibleLLM` nằm ở `api.deps.get_llm_port()` theo `settings.llm_provider`
 - [x] Không log/metric/trace chứa nội dung prompt/answer — xác nhận bằng đọc code (không có log nào in `request.user`/token nội dung)
@@ -185,15 +185,38 @@ Thêm `settings.llm_timeout_s` (mặc định 50s, TC-08) thay vì tái dùng
 phải timeout gọi LLM riêng lẻ) — sửa luôn một lệch nhỏ so với spec.
 
 Xác nhận bằng `ruff check .`, `mypy app`, `lint-imports` (3 hợp đồng vẫn
-giữ) và 6 test mới trong `tests/unit/test_openai_llm.py` (monkeypatch
+giữ) và 6 test trong `tests/unit/test_openai_llm.py` (monkeypatch
 `_stream_once` để cô lập logic retry/breaker khỏi `httpx` thật — không
 cần LLM endpoint thật để kiểm chứng hành vi resilience).
 
-**Chưa làm:** cả hai adapter chưa chạy trên LLM thật/staging; chưa có
-test xác nhận `aclose()` được gọi khi coroutine bị hủy giữa chừng (client
-đóng tab); circuit breaker là theo-tiến-trình nên không chia sẻ trạng
-thái giữa nhiều worker process (chấp nhận được cho MVP-lite một
-instance, cần Redis nếu scale ngang nhiều worker).
+**Lỗi thật phát hiện và đã sửa (phiên sau), khi thử viết test cho mục
+"hủy coroutine đóng stream" thay vì chỉ đọc code:** `async for token in
+self._stream_once(...)` bên trong `stream()` **không** tự đóng generator
+con khi `stream()` bị `.aclose()` giữa chừng (client ngắt SSE) — đây là
+hành vi chuẩn của Python (`async for`/`for` không tự `aclose()` iterator
+khi một ngoại lệ truyền qua thân vòng lặp), không phải lỗi của `httpx`,
+nhưng hệ quả là kết nối HTTP tới LLM chỉ đóng muộn qua garbage collector
+thay vì ngay lập tức — tốn tiền/tài nguyên không cần thiết khi người dùng
+đóng tab giữa chừng (đúng rủi ro R-06 mà §1 của task này nêu). Đã sửa
+bằng cách giữ tham chiếu generator con và `await inner.aclose()` trong
+`finally` của `stream()`. Viết `test_cancelling_consumer_closes_underlying_http_stream`
+(dùng client/response HTTP giả lập theo dõi `__aexit__`, không phải
+`httpx.MockTransport` vì cần quan sát việc đóng, không chỉ nội dung phản
+hồi) — test này **đỏ thật** trên code cũ (xác nhận đây là lỗi thật, tìm
+được NHỜ viết test chứ không phải chỉ đọc code), xanh sau khi sửa. Thêm
+span OTel `llm.stream`/`qa.validate_citations`/`retrieval.vector`/
+`retrieval.fts`/`retrieval.rerank` (SADD §4.3, trước đó không có span
+thủ công nào trong toàn bộ pipeline hỏi đáp) — xác nhận bằng test thật
+dùng `InMemorySpanExporter` (`tests/unit/test_retrieval_tracing.py`).
+
+Tổng cộng phiên này: 7 test trong `test_openai_llm.py` (từ 6), 2 test
+mới trong `test_retrieval_tracing.py`.
+
+**Vẫn environment-blocked:** cả hai adapter chưa chạy trên LLM thật/
+staging; circuit breaker là theo-tiến-trình nên không chia sẻ trạng thái
+giữa nhiều worker process (chấp nhận được cho MVP-lite một instance, cần
+Redis nếu scale ngang nhiều worker) — không phải khoảng trống code, là
+giới hạn kiến trúc đã biết trước.
 
 ## 9. Tham chiếu
 

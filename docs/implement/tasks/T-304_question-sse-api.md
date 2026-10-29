@@ -10,7 +10,7 @@
 | Vai trò chính | BE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-301, T-302, T-303, T-105 (rate limit) |
-| Trạng thái | In progress (SSE 4 sự kiện chạy đúng thứ tự; nhánh cổng bằng chứng đã sửa đúng spec trong phiên này) |
+| Trạng thái | Done (SSE 4 sự kiện đúng thứ tự; cổng bằng chứng + đóng kết nối LLM khi hủy + span OTel đã sửa/thêm; chỉ còn thiếu staging/LLM thật) |
 
 ## 1. Mục tiêu
 
@@ -134,7 +134,7 @@ Ngoài ra: `INSERT analytics_event` tên `answer_rendered` với thuộc tính a
 - [x] Thứ tự `meta → delta×n → citations → done` — đúng theo code trong `app/api/routers/conversations.py::stream()`
 - [x] Nhánh cổng bằng chứng: `meta → done{not_found}`, không `delta`, không gọi LLM — **đã sửa**: `stream_answer` (`app/modules/qa/service.py`) giờ kiểm tra `if not contexts` (bằng chứng rỗng sau khi qua cổng T-302) và `yield "complete"` ngay với `answer_type="not_found"`, hoàn toàn không gọi `llm.stream()` — xác nhận bằng test `tests/unit/test_qa_service.py::test_stream_answer_skips_llm_when_evidence_gate_blocks` (assert `llm.called is False`)
 - [x] `400`/`429` trả trước khi mở stream — `QUESTION_INVALID` và `RATE_LIMITED` được raise trước khi tạo `StreamingResponse`; `409` (`RETRY_NOT_ALLOWED`) không áp dụng cho endpoint này
-- [ ] Ngắt kết nối client hủy lời gọi LLM — code có kiểm tra `await request.is_disconnected()` giữa các token và `return` sớm, nhưng việc này chỉ dừng vòng lặp đọc token phía server, **không chủ động đóng kết nối HTTP tới LLM** (phụ thuộc hành vi của `httpx` khi generator bị bỏ dở — chưa test). Mã lỗi `ANSWER_TIMEOUT`/`ANSWER_INTERRUPTED`/`SERVICE_BUSY` đã được phân loại đúng (xem T-301) — phần còn thiếu chỉ là đóng chủ động kết nối HTTP khi bị hủy giữa chừng
+- [x] Ngắt kết nối client hủy lời gọi LLM — **lỗi thật đã sửa ở T-301**: `await request.is_disconnected()` dừng vòng lặp đọc token phía server (`return` sớm trong `conversations.py`), việc này khiến `stream_answer()`/`llm.stream()` bị `.aclose()` — trước đây kết nối HTTP tới LLM **không** đóng ngay khi đó (chỉ đóng muộn qua garbage collector), nay đã sửa bằng `finally: await inner.aclose()` trong `OpenAICompatibleLLM.stream()`, có test xác nhận hành vi đóng kết nối thật (`test_cancelling_consumer_closes_underlying_http_stream`)
 - [x] Bảng `answer` không chứa nội dung câu hỏi/trả lời — schema `Answer` (xem `modules/qa/models.py`) chỉ có `answer_type/latency_ms/citation_count/cited_doc_count/prompt_version/model_id`, không có cột text
 - [ ] E2E qua Ingress staging — không có staging
 - [ ] p90 latency ≤ 15s — không đo được (không có LLM thật)
@@ -144,7 +144,7 @@ Ngoài ra: `INSERT analytics_event` tên `answer_rendered` với thuộc tính a
 - [ ] Luồng end-to-end trên staging — chưa có staging
 - [x] `answer` chỉ chứa metadata — xác nhận bằng đọc model
 - [x] `analytics_event answer_rendered` phát đúng 1 lần — `record_event(..., "answer_rendered", ...)` gọi đúng 1 lần sau `done`, trước `commit()`
-- [ ] Trace đủ 4 span + `ttft_ms` — chưa thấy span OTel thủ công riêng cho các bước hỏi-đáp (chỉ có instrumentation HTTP/Celery tự động chung)
+- [x] Trace đủ span thủ công cho các bước hỏi-đáp + `ttft_ms` — **đã thêm (phiên sau)**: `retrieval.vector`/`retrieval.fts`/`retrieval.rerank` (`app/modules/retrieval/service.py`), `llm.stream` (`app/adapters/openai_llm.py`, có `model_id` + `tokens_emitted`, `llm_ttft_seconds` đã có từ T-301), `qa.validate_citations` (`app/modules/qa/service.py`, số nhãn hợp lệ/bị loại) — `http.request` đã có qua `FastAPIInstrumentor` tự động (T-008). Xác nhận bằng test thật dùng `InMemorySpanExporter` (`tests/unit/test_retrieval_tracing.py`, 2 test), không chỉ đọc code
 
 ### Ghi chú triển khai thực tế
 
