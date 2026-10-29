@@ -166,8 +166,8 @@ export function useUploadQueue(params: {
   }, [items, pausedUntil, duplicatePrompt, beginUpload]);
 
   const addFiles = useCallback(
-    (files: File[]) => {
-      const validations = validateFiles(files, limits, usedCount);
+    async (files: File[]) => {
+      const validations = await validateFiles(files, limits, usedCount);
       const accepted: UploadItem[] = [];
       const newlyRejected: RejectedFile[] = [];
       for (const validation of validations) {

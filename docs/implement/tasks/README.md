@@ -47,7 +47,7 @@
 | [T-106](T-106_frontend-shared-foundation.md) | Nền tảng front-end dùng chung | — | FE | 3d | **Done** |
 | [T-107](T-107_auth-screens.md) | Màn hình đăng nhập & chưa cấp quyền | US-001 | FE | 2d | In progress (AC-001.3 + i18n + `session_started` + axe-core đã làm; còn thiếu so khớp ảnh thiết kế/E2E) |
 | [T-108](T-108_upload-api.md) | `POST /documents` (tải lên) | US-003, 004, 006, 007 | BE | 3d | In progress (test AC-007.2 song song đã viết bằng Testcontainers, chưa chạy thật để xác nhận) |
-| [T-109](T-109_upload-client.md) | Client tải lên | US-003, US-004 | FE | 3d | In progress (hàng đợi 3 đồng thời, validate trước khi gửi, dialog trùng tên, Hủy/abort, axe-core đã có — xem ghi chú) |
+| [T-109](T-109_upload-client.md) | Client tải lên | US-003, US-004 | FE | 3d | In progress (hàng đợi 3 đồng thời, validate + kiểm tra magic-bytes PDF trước khi gửi, dialog trùng tên, Hủy/abort, axe-core đã có — xem ghi chú) |
 
 ## Sprint 2 — Hoàn thiện ingestion & quản lý tài liệu (18 ngày công)
 

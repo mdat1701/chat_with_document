@@ -10,7 +10,7 @@
 | Vai trò chính | FE |
 | Ước lượng | 3d |
 | Phụ thuộc | T-106 (nền tảng FE), T-105 (`GET /config`), T-108 (API tải lên) |
-| Trạng thái | In progress (hàng đợi 3 đồng thời + tiến trình thật + dialog trùng tên + axe-core cho `UploadDropzone`/`DuplicateFileDialog` đã có; còn thiếu khớp ảnh thiết kế và test E2E — xem ghi chú) |
+| Trạng thái | In progress (hàng đợi 3 đồng thời + tiến trình thật + dialog trùng tên + axe-core + kiểm tra magic-bytes PDF phía client đã có; còn thiếu khớp ảnh thiết kế và test E2E — xem ghi chú) |
 
 ## 1. Mục tiêu
 
@@ -113,7 +113,7 @@ Không có thay đổi CSDL. Trạng thái hàng đợi nằm trong Zustand (RAM
 - [x] Chọn nhiều tệp qua kéo-thả hoặc input `multiple` → mỗi tệp một request `uploadDocument()` riêng (đúng "mỗi tệp một request" của SADD §2.2.3), **giới hạn 3 đồng thời** qua bộ chạy hàng đợi trong `useUploadQueue.ts` (còn lại ở trạng thái `queued`)
 - [x] Một tệp lỗi mạng → `UploadItem.status='failed'`, `errorCode='UPLOAD_NETWORK'`, dòng hiện nút Thử lại; các tệp khác trong hàng đợi tiếp tục không bị ảnh hưởng (AC-004.2) — đọc code xác nhận, **chưa có test tự động mô phỏng lỗi mạng XHR**
 - [x] Tệp > `max_file_size_bytes` → `validateFiles()` chặn **trước khi gọi `uploadDocument()`**, không tạo dòng nào trong hàng đợi/danh sách (AC-006.2) — `useUploadQueue.addFiles` gọi `validateFiles` trước khi thêm vào `items`
-- [ ] Tệp `.pdf` giả nội dung PNG — vẫn không có kiểm tra phía client (chỉ kiểm `type`/đuôi tệp), dựa vào `415`/magic-bytes từ server như trước
+- [x] Tệp `.pdf` giả nội dung PNG — **đã sửa**: `validateFiles()` (nay là hàm `async`) đọc 5 byte đầu tệp qua `FileReader.readAsArrayBuffer` (`hasPdfSignature()`) và so với chữ ký `%PDF-` thật; tệp đổi tên từ PNG/khác sang `.pdf` bị chặn với cùng `reasonCode="FILE_NOT_PDF"` **trước khi** vào hàng đợi, không chờ server trả `415` nữa — vẫn giữ `415` phía server làm lớp phòng thủ thứ hai (không tin hoàn toàn client)
 - [x] Đạt hạn mức → `DocumentCounter` (Badge `doc-counter`) chuyển cảnh báo, `UploadDropzone` nhận `disabled` + tooltip lý do (`uiText.quotaReached`)
 - [x] Trùng tên → `DuplicateFileDialog` mở khi server trả `409 DUPLICATE_NAME`, xử lý tuần tự (chỉ một hộp thoại tại một thời điểm vì hàng đợi tạm dừng khi có `duplicatePrompt`)
 - [x] Nút Hủy khi đang tải — `uploadDocument()` dùng `XMLHttpRequest`, trả `{ promise, abort }`; `useUploadQueue.cancelUpload` gọi `abort()` rồi gỡ khỏi hàng đợi, không để lại dòng
@@ -157,13 +157,22 @@ dựng — sẵn sàng và bị khóa kèm tooltip lý do) và
 `DuplicateFileDialog.test.tsx` (1 ca), theo đúng khuôn mẫu
 `shared/ui/*.test.tsx`; không phát hiện vi phạm a11y mức nghiêm trọng.
 
+**Đã sửa thêm (phiên này):** `shared/validation/files.ts::validateFiles()`
+đổi từ hàm đồng bộ sang `async` (toàn bộ nơi gọi — chỉ `useUploadQueue.addFiles`
+— chuyển sang `await`; `onFilesSelected` vẫn khớp kiểu `(files: File[]) => void`
+nên không cần đổi gì ở `UploadDropzone`/`DocumentLibrary`), thêm
+`hasPdfSignature()` đọc 5 byte đầu bằng `FileReader` (không dùng
+`File.prototype.arrayBuffer()` — không có trong jsdom nên test sẽ ngộ nhận
+pass, cũng kém tương thích trình duyệt cũ hơn `FileReader`), so với chữ ký
+`%PDF-`. Thêm `shared/validation/files.test.ts` (5 ca: PDF thật, PNG giả
+đuôi `.pdf`, tệp `.txt`, vượt kích thước, vượt hạn mức) — xác nhận bằng
+`npx tsc -b --noEmit`, `npm run lint`, `npm run format:check`, `npm run build`,
+`npm test -- --run` (106/106 pass, từ 101).
+
 **Còn thiếu/biết trước (giữ "In progress"):** chưa có bộ ảnh so sánh thiết
 kế (`html_design/SCR-02_*`) và chưa có test E2E riêng cho luồng tải lên —
 cả hai cần một vòng QA/kiểm thử trực quan riêng, ngoài phạm vi một phiên
-code. Cũng chưa kiểm tra magic-bytes PDF phía client (vẫn dựa
-server trả `415`), đúng như spec cho phép ("dựa hoàn toàn vào server" không
-còn đúng kể từ khi `validateFiles` chặn theo `type`/đuôi tệp, nhưng chưa
-đọc byte đầu tệp phía trình duyệt).
+code.
 
 ## 9. Tham chiếu
 
