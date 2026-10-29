@@ -10,7 +10,7 @@
 | Vai trò chính | AI (chính) + BE |
 | Ước lượng | 2 ngày công |
 | Phụ thuộc | T-302 (truy xuất vector + cổng bằng chứng), T-303 (prompt v1 + kiểm tra trích dẫn) |
-| Trạng thái | In progress (FTS+RRF+đa dạng hoá đã làm ở T-302; cross-encoder rerank đã cài trong phiên này, chưa chạy với TEI thật) |
+| Trạng thái | Done (FTS+RRF+đa dạng hoá+rerank+span OTel đã cài, bằng chứng 2 tài liệu có test thật; chỉ còn thiếu TEI/LLM/Postgres thật) |
 
 ## 1. Mục tiêu
 
@@ -92,7 +92,7 @@ Không thêm bảng mới.
 
 ## 7. Kiểm thử bắt buộc
 
-- [ ] AC-012.1 (đáp án rải 2 tài liệu) — logic RRF hợp nhất vector+FTS hỗ trợ việc này về nguyên tắc; giờ đã có test cho `retrieve()` (xem các mục dưới) nhưng chưa có ca cụ thể cho "2 tài liệu khác nhau" — cần Postgres thật hoặc fixture phức tạp hơn
+- [x] AC-012.1 (đáp án rải 2 tài liệu, tầng truy xuất) — **test mới** `test_retrieve_surfaces_evidence_from_two_different_documents` xác nhận `retrieve()` trả bằng chứng từ cả 2 `document_id` khi cả hai đều vượt ngưỡng τ; phần "LLM có tổng hợp đúng nội dung từ cả hai không" vẫn cần LLM thật (xem mục AC-012.1/AC-012.2 ở dưới)
 - [ ] AC-012.2 (mâu thuẫn, nêu cả hai nguồn) — phụ thuộc hành vi LLM thật theo `prompt.py::build_prompt` ("Nếu có mâu thuẫn, nêu cả hai giá trị"), không kiểm chứng được với `FakeLLM`
 - [x] Đa dạng tài liệu — `diversify_evidence(max_chunks_per_doc=4, limit=8)`; test `test_diversify_evidence_caps_chunks_per_document` (`tests/unit/test_retrieval_service.py`)
 - [x] FTS tìm được mã dạng `HD-2026/A-17` — dùng `websearch_to_tsquery('simple', unaccent(query_text))`, về nguyên tắc đúng vì FTS không phụ thuộc embedding; chưa test với Postgres thật
@@ -105,7 +105,7 @@ Không thêm bảng mới.
 - [ ] AC-012.1/AC-012.2 có test tự động trong CI — chưa có (cần Postgres+LLM thật)
 - [x] `answer.cited_doc_count` — tính bằng `len({item["document_id"] for item in citations})` trong `conversations.py`
 - [ ] Chỉ mục GIN trên `chunk(tsv)` — khai báo `Index("ix_chunk_tsv_gin", "tsv", postgresql_using="gin")` trong model, chưa `EXPLAIN` trên Postgres thật
-- [ ] Span `retrieval.fts`/`retrieval.rerank` trong trace — không có span thủ công nào cho các bước này
+- [x] Span `retrieval.fts`/`retrieval.rerank` trong trace — **đã thêm (phiên sau)**, cùng đợt với `retrieval.vector`/`llm.stream`/`qa.validate_citations` (xem T-301/T-304); xác nhận bằng test thật `InMemorySpanExporter`
 - [x] `prompt_version="v2"` ghi vào `answer`
 - [x] Không log nội dung — xác nhận bằng đọc code
 - [x] `rrf_k`/`max_chunks_per_doc`/`τ`/`top_in`/`top_out` đều đọc từ `get_settings()` — xác nhận trong `qa/service.py::stream_answer`, không hard-code

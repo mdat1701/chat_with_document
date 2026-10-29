@@ -168,6 +168,29 @@ async def test_retrieve_falls_back_to_rrf_when_reranker_fails() -> None:
     assert evidence[0].document_id == chunk.document_id
 
 
+async def test_retrieve_surfaces_evidence_from_two_different_documents() -> None:
+    """T-401 AC-012.1 (tầng truy xuất): khi cả hai tài liệu đều có đoạn
+    liên quan vượt ngưỡng τ, `retrieve()` phải trả về bằng chứng từ CẢ
+    HAI document_id, không chỉ tài liệu có điểm cao nhất — đây là điều
+    kiện cần để `qa` tổng hợp câu trả lời từ nhiều nguồn (phần "LLM có
+    thực sự tổng hợp đúng không" thuộc AC-012.1 cần LLM thật, env-blocked,
+    xem ghi chú T-401)."""
+    doc_a, doc_b = uuid4(), uuid4()
+    chunk_a = _chunk(1, document_id=doc_a)
+    chunk_b = _chunk(2, document_id=doc_b)
+    session = _FakeSession(
+        vector_rows=[(chunk_a, "HopDong.pdf", 0.9), (chunk_b, "PhuLuc.pdf", 0.8)],
+        fts_rows=[],
+    )
+
+    evidence = await service.retrieve(
+        session, uuid4(), [0.1, 0.2], "câu hỏi rải 2 tài liệu", min_score=0.25
+    )
+
+    document_ids = {item.document_id for item in evidence}
+    assert document_ids == {doc_a, doc_b}
+
+
 def test_diversify_evidence_caps_chunks_per_document() -> None:
     doc_a, doc_b = uuid4(), uuid4()
     items = [

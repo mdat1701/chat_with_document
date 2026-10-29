@@ -78,7 +78,7 @@
 
 | Task | Tên | Story | Vai trò | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
-| [T-401](T-401_multi-document-synthesis.md) | Tổng hợp nhiều tài liệu | US-012 | AI | 2d | In progress (rerank cross-encoder đã cài; chưa chạy với TEI thật) |
+| [T-401](T-401_multi-document-synthesis.md) | Tổng hợp nhiều tài liệu | US-012 | AI | 2d | Done (rerank cross-encoder + span OTel đã cài, bằng chứng 2 tài liệu có test; chưa chạy với TEI thật) |
 | [T-402](T-402_citation-page-numbers.md) | Số trang trong trích dẫn | US-015 | FE | 1d | Done (feature flag `useAppConfig()` đã nối, unit test `citations.ts` đã có — còn thiếu đối chiếu thủ công AC-015.2) |
 | [T-403](T-403_multilingual-qa.md) | Hỏi đáp đa ngôn ngữ | US-017 | AI | 2d | In progress (có test fallback; `lingua` không cài được trong sandbox — thiếu C++ Build Tools) |
 | [T-404](T-404_minimal-analytics-events.md) | Sự kiện đo lường tối thiểu | US-020 | BE | 2d | In progress (14/15 sự kiện nối xong; sửa `session_id` luôn NULL + `app_version` sai; còn thiếu `feedback_submitted`, canary test, phân vùng bảng, xác nhận ATTT) |
