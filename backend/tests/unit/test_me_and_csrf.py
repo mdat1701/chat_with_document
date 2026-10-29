@@ -192,6 +192,29 @@ async def test_post_with_wrong_csrf_token_is_rejected_with_403(
     assert response.json()["code"] == "CSRF_INVALID"
 
 
+async def test_post_events_without_csrf_token_is_not_rejected(
+    fake_redis: FakeAsyncRedis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`/api/v1/events` phải MIỄN kiểm tra CSRF (lỗi thật phát hiện khi
+    chạy TC-020 thủ công): `navigator.sendBeacon()` — cách duy nhất để
+    không mất sự kiện cuối khi rời trang (T-404 §5 bước 5) — không thể
+    gắn header tuỳ ý, nên không bao giờ gửi được `X-CSRF-Token`. Trước
+    khi sửa, middleware chặn 403 ngay cả khi không có header này, khiến
+    luồng `sendBeacon` không bao giờ hoạt động được."""
+    await fake_redis.set(f"session:{_SID}", json.dumps(_session_payload()), ex=7200)
+    monkeypatch.setattr(main_module, "get_redis", lambda: fake_redis)
+    user = AppUser(id=_USER_ID, email="u@example.com", display_name=None, active=True)
+    client = _make_client(fake_redis, _SequentialSession([user, "raw", []]))
+
+    response = client.post(
+        "/api/v1/events",
+        cookies={"cwd_sid": _SID},
+        json={"events": [{"event_name": "session_started", "props": {}}]},
+    )
+
+    assert response.status_code != 403
+
+
 async def test_post_without_session_cookie_is_not_blocked_by_csrf_middleware(
     fake_redis: FakeAsyncRedis, monkeypatch: pytest.MonkeyPatch
 ) -> None:

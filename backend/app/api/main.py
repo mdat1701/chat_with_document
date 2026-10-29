@@ -123,13 +123,25 @@ async def csrf_protection(request: Request, call_next: RequestHandler) -> Respon
     Redirect-based auth endpoints are intentionally outside `/api/v1`; they
     do not mutate application resources and keep their own OIDC transaction
     validation.
+
+    `/api/v1/events` is also exempt: `navigator.sendBeacon()` — the only
+    reliable way to flush the last analytics events on page unload (T-404
+    §5 bước 5) — cannot set custom headers, so it can never carry
+    `X-CSRF-Token`. Without this exemption the beacon path always fails
+    with 403, silently dropping the final events of every session (found
+    by running the upload/ask/delete flow end-to-end manually — TC-020 —
+    not by any unit test, which all mock `fetch` and never exercise this
+    middleware). Accepted trade-off: a forged cross-site request to this
+    endpoint can only make the victim's own browser emit fake telemetry
+    for their own account — it cannot read, mutate, or expose any other
+    resource, so CSRF protection here buys little against this specific
+    low-impact abuse case.
     """
-    if request.url.path.startswith("/api/v1") and request.method in {
-        "POST",
-        "PUT",
-        "PATCH",
-        "DELETE",
-    }:
+    if (
+        request.url.path.startswith("/api/v1")
+        and request.url.path != "/api/v1/events"
+        and request.method in {"POST", "PUT", "PATCH", "DELETE"}
+    ):
         sid = request.cookies.get("cwd_sid")
         token = request.headers.get("X-CSRF-Token")
         # Let the normal authentication/validation layer produce the
