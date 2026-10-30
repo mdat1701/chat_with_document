@@ -1,0 +1,12 @@
+{
+  "seesDocA": true,
+  "seesDocB": false,
+  "deleteResult": {
+    "status": 404,
+    "body": "{\"code\":\"DOC_NOT_FOUND\",\"params\":{}}"
+  },
+  "askResult": {
+    "status": 201,
+    "body": "{\"conversation_id\":\"b4e6fd2d-45db-4cda-a3a9-bebf0b36c316\"}"
+  }
+}

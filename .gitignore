@@ -16,6 +16,5 @@ coverage/
 frontend/reports/
 frontend/playwright-report/
 frontend/test-results/
-test_reports/*
-!test_reports/.gitkeep
+# test_reports/ được track đầy đủ
 backend/.data/

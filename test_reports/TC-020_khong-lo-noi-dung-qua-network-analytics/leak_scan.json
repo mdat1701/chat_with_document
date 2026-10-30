@@ -1,0 +1,14 @@
+{
+  "totalRequestsCaptured": 154,
+  "leaks": [
+    {
+      "needle": "bao-cao-mat-2026.pdf",
+      "url": "http://localhost:5173/api/v1/documents",
+      "method": "POST"
+    }
+  ],
+  "eventsRequestsCount": 1,
+  "eventsRequestBodies": [
+    "{\"events\":[{\"event_name\":\"session_started\",\"timestamp\":\"2026-10-29T16:53:54.096Z\",\"props\":{\"is_first_session\":false}},{\"event_name\":\"empty_state_viewed\",\"timestamp\":\"2026-10-29T16:53:54.398Z\",\"props\":{\"state_code\":\"ES-04\"}},{\"event_name\":\"document_upload_started\",\"timestamp\":\"2026-10-29T16:53:56.007Z\",\"props\":{\"file_size_bucket\":\"lt_1mb\"}},{\"event_name\":\"question_submitted\",\"timestamp\":\"2026-10-29T16:53:57.586Z\",\"props\":{\"question_length\":38,\"language\":\"vi\",\"ready_doc_count\":44}},{\"event_name\":\"answer_failed\",\"timestamp\":\"2026-10-29T16:53:57.762Z\",\"props\":{\"error_code\":\"SERVICE_BUSY\"}}]}"
+  ]
+}

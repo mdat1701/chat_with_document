@@ -1,0 +1,69 @@
+{
+  "uploadingCountRightAfterDrop": 0,
+  "docs": [
+    {
+      "id": "5426785c-6909-421b-b2ae-74aca3988301",
+      "name": "tep-3-1793291286669.pdf",
+      "size_bytes": 365,
+      "page_count": null,
+      "status": "processing",
+      "error_code": null
+    },
+    {
+      "id": "16d39264-8df0-493c-ac69-07e67dfcb5be",
+      "name": "tep-5-1793291286671.pdf",
+      "size_bytes": 365,
+      "page_count": null,
+      "status": "processing",
+      "error_code": null
+    },
+    {
+      "id": "390a2874-2a33-4395-b79d-04b26646c25a",
+      "name": "tep-4-1793291286670.pdf",
+      "size_bytes": 365,
+      "page_count": null,
+      "status": "processing",
+      "error_code": null
+    },
+    {
+      "id": "e5505110-1261-400a-a389-3e34822c3c84",
+      "name": "tep-1-1793291286667.pdf",
+      "size_bytes": 365,
+      "page_count": null,
+      "status": "processing",
+      "error_code": null
+    },
+    {
+      "id": "0f21916f-c52d-48e1-81cc-6bcfdd46b6fe",
+      "name": "tep-2-1793291286668.pdf",
+      "size_bytes": 365,
+      "page_count": null,
+      "status": "processing",
+      "error_code": null
+    },
+    {
+      "id": "55cfaf88-87f6-4eab-944f-017ecb1c8e57",
+      "name": "sample-1793290949986.pdf",
+      "size_bytes": 379,
+      "page_count": 1,
+      "status": "ready",
+      "error_code": null
+    },
+    {
+      "id": "0a8160e1-e3cb-4f70-ac5e-90ab95e0fa63",
+      "name": "sample.pdf",
+      "size_bytes": 356,
+      "page_count": 1,
+      "status": "ready",
+      "error_code": null
+    },
+    {
+      "id": "c2d8beb3-2c04-4fa7-bd14-1ce23610f85b",
+      "name": "tai-lieu-A.pdf",
+      "size_bytes": 1000,
+      "page_count": null,
+      "status": "ready",
+      "error_code": null
+    }
+  ]
+}

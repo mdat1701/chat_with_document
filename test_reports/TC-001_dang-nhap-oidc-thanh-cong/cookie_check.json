@@ -1,0 +1,13 @@
+{
+  "jsCookie": "",
+  "sidCookie": {
+    "name": "cwd_sid",
+    "value": "gwaouM-P-j6UPXyizkvIgUBOwo1V1RZdwtAvvLVit4U",
+    "domain": "localhost",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  }
+}
